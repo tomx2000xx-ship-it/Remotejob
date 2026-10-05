@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f1e8"/><stop offset=".55" stop-color="#dce9df"/><stop offset="1" stop-color="#b9cec1"/></linearGradient>
+ <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d5a49"/><stop offset="1" stop-color="#173c33"/></linearGradient>
+ <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a85f43"/><stop offset="1" stop-color="#713c2e"/></linearGradient>
+ <filter id="shadow"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-opacity=".18"/></filter>
+</defs>
+<rect width="900" height="700" rx="28" fill="url(#bg)"/>
+<circle cx="760" cy="110" r="140" fill="#fff" opacity=".3"/>
+<rect x="55" y="45" width="180" height="250" rx="18" fill="#f9f7f1" opacity=".7"/>
+<rect x="80" y="70" width="130" height="12" rx="6" fill="#c7d5cd"/><rect x="80" y="100" width="100" height="8" rx="4" fill="#d8e1db"/>
+<circle cx="150" cy="190" r="45" fill="#d9e6dc"/><path d="M120 210c15-35 47-35 60 0" fill="#9bb7a7"/>
+<g filter="url(#shadow)">
+ <path d="M450 250c-35-70-5-140 62-155 80-18 135 42 119 118-10 47-46 72-90 78z" fill="#241c19"/>
+ <ellipse cx="548" cy="238" rx="66" ry="78" fill="url(#skin)"/>
+ <path d="M485 220c2-69 36-107 92-91 49 14 63 55 48 93-24-28-62-49-103-38-14 4-25 18-37 36z" fill="#211916"/>
+ <circle cx="526" cy="239" r="5" fill="#17211f"/><circle cx="571" cy="239" r="5" fill="#17211f"/>
+ <path d="M540 275c17 10 33 9 47-2" fill="none" stroke="#512d25" stroke-width="4" stroke-linecap="round"/>
+ <path d="M446 315c46-36 119-33 160 10 35 37 57 93 67 170H342c10-76 35-144 104-180z" fill="url(#shirt)"/>
+ <path d="M480 329c25 16 66 19 94 1l35 120H444z" fill="#f3efe7" opacity=".9"/>
+ <path d="M357 495h350l50 44H315z" fill="#24322e"/>
+ <rect x="375" y="380" width="315" height="122" rx="10" fill="#202d29" stroke="#6f877c" stroke-width="5"/>
+ <rect x="395" y="397" width="275" height="88" rx="5" fill="#dce9df"/>
+ <path d="M425 423h125" stroke="#0d5a49" stroke-width="10" stroke-linecap="round"/><path d="M425 450h190" stroke="#9fb7aa" stroke-width="8" stroke-linecap="round"/>
+ <path d="M500 485h70" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+</g>
+<g opacity=".95">
+ <rect x="685" y="475" width="150" height="105" rx="15" fill="#f9f7f1" filter="url(#shadow)"/>
+ <circle cx="713" cy="507" r="17" fill="#dcebe2"/><path d="M708 507l5 5 9-11" fill="none" stroke="#0d5a49" stroke-width="3"/>
+ <text x="742" y="507" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#17211f">50,000+</text>
+ <text x="742" y="527" font-family="Arial,sans-serif" font-size="10" fill="#6c7773">remote professionals</text>
+ <text x="710" y="558" font-family="Georgia,serif" font-size="14" fill="#0d5a49">Better opportunities.</text>
+</g>
+<text x="60" y="620" font-family="Georgia,serif" font-size="24" fill="#173c33">Work. Anywhere.</text>
+<text x="60" y="646" font-family="Arial,sans-serif" font-size="11" fill="#6c7773">A calmer way to find meaningful remote work.</text>
+</svg>
