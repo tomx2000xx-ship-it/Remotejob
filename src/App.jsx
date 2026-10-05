@@ -1,106 +1,163 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight, Bookmark, Check, ChevronDown, ChevronRight, Clock3,
-  Globe2, Heart, Menu, Search, ShieldCheck, SlidersHorizontal,
-  Sparkles, Users, X
+  ArrowLeft, ArrowRight, Bell, Bookmark, BriefcaseBusiness, Check,
+  ChevronDown, ChevronRight, CircleHelp, Clock3, FileText, Filter,
+  Globe2, Heart, Home, LayoutDashboard, LockKeyhole, Mail, MapPin,
+  Menu, MessageCircle, MoreHorizontal, PenLine, Plus, Search, Send,
+  Settings, ShieldCheck, SlidersHorizontal, Sparkles, Star, UserRound,
+  Users, X, Zap
 } from "lucide-react";
 
 const jobs = [
-  { company:"NovaTech", logo:"N", title:"Senior Product Designer", location:"Remote · Worldwide", salary:"$80k–$110k", tags:["Product Design","Figma","UX Research"], time:"2h ago", tone:"navy" },
-  { company:"PixelForge", logo:"P", title:"Frontend Developer", location:"Remote · Full-time", salary:"$70k–$95k", tags:["React","TypeScript","Tailwind"], time:"4h ago", tone:"ink" },
-  { company:"Lumen Labs", logo:"L", title:"Marketing Specialist", location:"Remote · Full-time", salary:"$50k–$70k", tags:["Content Marketing","SEO","Social Media"], time:"6h ago", tone:"olive" },
-  { company:"OrbitAI", logo:"O", title:"Customer Success Manager", location:"Remote · Full-time", salary:"$60k–$85k", tags:["Communication","CRM","Problem Solving"], time:"8h ago", tone:"gold" }
+  {id:1,company:"NovaTech",logo:"N",title:"Senior Product Designer",location:"Worldwide",salary:"$80k–$120k / year",type:"Full-time",posted:"2h ago",tags:["Product Design","Figma","UX Research"],verified:true},
+  {id:2,company:"Summit Digital",logo:"S",title:"Frontend Developer",location:"Worldwide",salary:"$70k–$95k / year",type:"Full-time",posted:"4h ago",tags:["React","TypeScript","Tailwind"],verified:true},
+  {id:3,company:"BrightPath",logo:"B",title:"Marketing Specialist",location:"Europe · Remote",salary:"$50k–$70k / year",type:"Part-time",posted:"6h ago",tags:["SEO","Content","Social Media"],verified:true},
+  {id:4,company:"CloudWave",logo:"C",title:"Customer Success Manager",location:"Worldwide",salary:"$60k–$85k / year",type:"Full-time",posted:"8h ago",tags:["Communication","CRM","Customer Support"],verified:true},
+  {id:5,company:"VectorCare",logo:"V",title:"Data Entry Specialist",location:"Worldwide",salary:"$40k–$55k / year",type:"Full-time",posted:"10h ago",tags:["Excel","Data Entry","Attention to Detail"],verified:true},
+  {id:6,company:"OrbitAI",logo:"O",title:"AI Content Strategist",location:"North America",salary:"$65k–$90k / year",type:"Full-time",posted:"1d ago",tags:["AI","Strategy","Writing"],verified:true}
 ];
 
-function Logo(){ return <div className="brand"><span className="brand-mark">↗</span><span>RemotePath</span></div> }
+const navItems = [
+  ["dashboard","Dashboard",LayoutDashboard],["jobs","Find Jobs",Search],["saved","Saved Jobs",Bookmark],
+  ["applications","Applications",FileText],["interview","Interviews",MessageCircle],["profile","Profile",UserRound]
+];
 
-function JobCard({job, featured=false}){
-  const [saved,setSaved] = useState(false);
-  return <article className={"job-card"+(featured?" featured":"")}>
-    <div className="job-top">
-      <div className={"company-logo "+job.tone}>{job.logo}</div>
-      <button className={"icon-button"+(saved?" active":"")} onClick={()=>setSaved(!saved)} aria-label="Save job"><Bookmark size={17} fill={saved?"currentColor":"none"}/></button>
-    </div>
-    <div className="company-name">{job.company} <ShieldCheck size={14}/></div>
+function Logo({light=false}){return <div className={`brand ${light?"brand-light":""}`}><span className="brand-mark">↗</span><span>RemotePath</span></div>}
+function Button({children,variant="primary",className="",onClick,type="button"}){return <button type={type} className={`btn btn-${variant} ${className}`} onClick={onClick}>{children}</button>}
+function Badge({children,tone="soft"}){return <span className={`badge badge-${tone}`}>{children}</span>}
+function Avatar({letter="A",size="md"}){return <span className={`avatar avatar-${size}`}>{letter}</span>}
+function Toast({message,onClose}){return <div className="toast"><Check size={16}/>{message}<button onClick={onClose}><X size={14}/></button></div>}
+
+function JobCard({job,onOpen,compact=false}){
+  const [saved,setSaved]=useState(false);
+  return <article className={`job-card ${compact?"compact":""}`} onClick={()=>onOpen?.(job.id)}>
+    <div className="job-card-top"><div className="company-avatar">{job.logo}</div><button className={`icon-btn ${saved?"is-saved":""}`} onClick={e=>{e.stopPropagation();setSaved(!saved)}} aria-label="Save job"><Bookmark size={17} fill={saved?"currentColor":"none"}/></button></div>
+    <div className="company-line">{job.company}{job.verified&&<ShieldCheck size={13}/>}</div>
     <h3>{job.title}</h3>
-    <div className="job-meta"><span>{job.location}</span><span>{job.salary}</span></div>
-    <div className="tags">{job.tags.map(t=><span key={t}>{t}</span>)}</div>
-    <div className="job-footer"><span className="posted"><Clock3 size={14}/>{job.time}</span><button className="apply-link">Apply <ArrowRight size={15}/></button></div>
+    <div className="job-facts"><span><MapPin size={13}/>{job.location}</span><strong>{job.salary}</strong><span>{job.type}</span></div>
+    <div className="tag-row">{job.tags.map(t=><Badge key={t}>{t}</Badge>)}</div>
+    <div className="job-card-bottom"><span><Clock3 size={13}/>{job.posted}</span><Button variant="ghost" className="apply-mini">View role <ArrowRight size={14}/></Button></div>
   </article>
 }
 
-function App(){
-  const [menu,setMenu]=useState(false);
+function PublicNav({go}){
+  const [open,setOpen]=useState(false);
+  return <header className="public-nav">
+    <Logo/>
+    <nav className={open?"public-links open":"public-links"}>
+      <button onClick={()=>go("jobs")}>Find Jobs</button><button>Companies</button><button>Resources</button><button>About</button>
+    </nav>
+    <div className="nav-actions"><button className="text-btn" onClick={()=>go("login")}>Log in</button><Button className="nav-cta" onClick={()=>go("signup")}>Get Started</Button><button className="menu-trigger" onClick={()=>setOpen(!open)}>{open?<X/>:<Menu/>}</button></div>
+  </header>
+}
+
+function Home({go}){
   const [query,setQuery]=useState("");
   const [where,setWhere]=useState("Anywhere");
-  const [toast,setToast]=useState(false);
-
-  const doSearch = (e)=>{ e.preventDefault(); setToast(true); setTimeout(()=>setToast(false),2600); };
-
-  return <div className="site">
-    <header className="nav">
-      <Logo/>
-      <nav className={menu?"nav-links open":"nav-links"}>
-        <a href="#jobs">Find Jobs</a><a href="#companies">Companies</a><a href="#resources">Resources</a><a href="#about">About</a>
-      </nav>
-      <div className="nav-actions"><button className="login">Log in</button><button className="primary small" onClick={()=>document.getElementById("jobs")?.scrollIntoView({behavior:"smooth"})}>Get Started</button><button className="menu-btn" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div>
-    </header>
-
+  return <div>
+    <PublicNav go={go}/>
     <main>
       <section className="hero">
         <div className="hero-copy">
-          <div className="eyebrow"><span></span> The better way to work remotely</div>
+          <Badge tone="green"><span className="dot"/> Trusted by 2,500+ companies worldwide</Badge>
           <h1>Work that fits <em>your life.</em></h1>
           <p>Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.</p>
-          <form className="search-panel" onSubmit={doSearch}>
-            <div className="search-field"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Job title, skill or keyword" aria-label="Job title, skill or keyword"/></div>
-            <div className="search-field where"><Globe2 size={18}/><select value={where} onChange={e=>setWhere(e.target.value)} aria-label="Location"><option>Anywhere</option><option>North America</option><option>Europe</option><option>Africa</option><option>Asia-Pacific</option></select><ChevronDown size={15}/></div>
-            <button className="primary search-btn">Search Jobs</button>
+          <form className="hero-search" onSubmit={e=>{e.preventDefault();go("jobs",query)}}>
+            <div><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Job title, skill or company"/></div>
+            <div><MapPin size={18}/><select value={where} onChange={e=>setWhere(e.target.value)}><option>Anywhere</option><option>North America</option><option>Europe</option><option>Africa</option><option>Asia-Pacific</option></select><ChevronDown size={15}/></div>
+            <Button type="submit">Search Jobs <ArrowRight size={16}/></Button>
           </form>
-          <div className="popular"><span>Popular:</span>{["Product Designer","Developer","Marketing","Customer Support","Data"].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div>
+          <div className="popular"><span>Popular:</span>{["Remote","Design","Development","Marketing","Customer Support","Data Entry"].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div>
         </div>
-        <div className="hero-visual">
-          <div className="hero-image"></div>
-          <div className="image-note note-one"><Sparkles size={15}/><span><strong>More freedom.</strong><br/>Better opportunities.</span></div>
-          <div className="image-note note-two"><div className="mini-avatars"><i>A</i><i>M</i><i>J</i></div><div><strong>50,000+</strong><br/><small>people finding remote work</small></div></div>
-        </div>
-      </section>
-
-      <section className="stats">
-        <div><Users/><strong>50,000+</strong><span>Active job seekers</span></div>
-        <div><ShieldCheck/><strong>3,200+</strong><span>Trusted companies</span></div>
-        <div><Globe2/><strong>120+</strong><span>Countries</span></div>
-        <div><Check/><strong>98%</strong><span>Satisfaction rate</span></div>
-      </section>
-
-      <section className="section jobs-section" id="jobs">
-        <div className="section-head"><div><span className="kicker">CURATED FOR YOU</span><h2>Featured opportunities</h2><p>Handpicked roles from top companies, just for you.</p></div><a href="#all-jobs">View all jobs <ArrowRight size={16}/></a></div>
-        <div className="job-grid">{jobs.map(j=><JobCard key={j.title} job={j}/>)}</div>
-      </section>
-
-      <section className="editorial">
-        <div className="editorial-image"></div>
-        <div className="editorial-copy"><span className="kicker">YOUR NEXT CHAPTER</span><h2>Your next opportunity is <em>closer than you think.</em></h2><p>Join a growing community of remote professionals and get access to jobs built around how you want to live and work.</p><button className="primary">Create your free account <ArrowRight size={16}/></button></div>
-      </section>
-
-      <section className="section how" id="resources">
-        <div className="center-head"><span className="kicker">SIMPLE BY DESIGN</span><h2>How it works</h2><p>Get started in four simple steps and begin your remote journey today.</p></div>
-        <div className="steps">
-          {[["01","Create your profile","Tell us about your skills, experience and goals."],["02","Find the right jobs","Browse verified opportunities that match you."],["03","Apply with ease","Submit your application in just a few clicks."],["04","Get hired","Prepare for interviews and start your new role."]].map(([n,t,d],i)=><div className="step" key={n}><div className="step-number">{n}</div><h3>{t}</h3><p>{d}</p>{i<3&&<ChevronRight className="step-arrow"/>}</div>)}
+        <div className="hero-media">
+          <div className="hero-photo"/>
+          <div className="floating-card rating"><div className="avatar-stack"><Avatar letter="S" size="xs"/><Avatar letter="M" size="xs"/><Avatar letter="J" size="xs"/></div><div><strong>50,000+</strong><small>professionals finding work</small></div></div>
+          <div className="floating-card quote"><Sparkles size={16}/><span><strong>Better opportunities.</strong><small>Built around your life.</small></span></div>
         </div>
       </section>
-
-      <section className="trust" id="companies">
-        <div><ShieldCheck size={22}/><span><strong>Verified employers.</strong> Better opportunities, with more confidence.</span></div>
-        <button className="outline">Explore companies <ArrowRight size={16}/></button>
+      <section className="metric-strip"><Metric icon={Users} value="50,000+" label="Active job seekers"/><Metric icon={BriefcaseBusiness} value="3,200+" label="Trusted companies"/><Metric icon={Globe2} value="120+" label="Countries"/><Metric icon={ShieldCheck} value="98%" label="Satisfaction rate"/></section>
+      <section className="content-section">
+        <SectionTitle kicker="FEATURED JOBS" title="Top remote opportunities" text="Explore popular remote jobs, handpicked for you." action="View all jobs" onAction={()=>go("jobs")}/>
+        <div className="job-grid">{jobs.slice(0,4).map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div>
       </section>
-
-      <footer className="footer" id="about">
-        <div className="footer-top"><div><Logo/><p>Work. Anywhere.</p></div><div><h4>For Job Seekers</h4><a>Find Jobs</a><a>Career Resources</a><a>Help Center</a></div><div><h4>For Employers</h4><a>Post a Job</a><a>Talent Solutions</a><a>Pricing</a></div><div><h4>Company</h4><a>About Us</a><a>Blog</a><a>Contact</a></div><div className="newsletter"><h4>Stay in the loop</h4><p>Get the latest jobs and career tips.</p><div><input placeholder="Your email address"/><button><ArrowRight size={16}/></button></div></div></div>
-        <div className="footer-bottom"><span>© 2026 RemotePath. All rights reserved.</span><div><a>Privacy Policy</a><a>Terms of Service</a><a>Cookies</a></div></div>
-      </footer>
+      <section className="category-row"><div><span className="kicker">BROWSE BY CATEGORY</span><h2>Find your next direction.</h2></div><div className="category-list">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map((x,i)=><button key={x} onClick={()=>go("jobs",x)}><span>{["◈","</>","↗","◉","↗","▤","▥","+"][i]}</span>{x}<small>{1248-i*137} jobs</small></button>)}</div></section>
+      <section className="how-section"><div className="mountain-art"/><div className="how-copy"><span className="kicker">HOW IT WORKS</span><h2>Get hired in <em>4 simple steps.</em></h2><p>Finding your next opportunity is easier than you think.</p><div className="how-steps">{[["01","Create your profile"],["02","Find the right jobs"],["03","Apply with ease"],["04","Get hired"]].map(([n,t])=><div key={n}><b>{n}</b><strong>{t}</strong><small>Simple, secure and built for you.</small></div>)}</div></div></section>
+      <section className="trust-banner"><div><ShieldCheck size={25}/><div><strong>Trusted. Verified. Secure.</strong><span>We verify companies and job listings so you can focus on your next move.</span></div></div><Button variant="outline" onClick={()=>go("jobs")}>Explore opportunities <ArrowRight size={15}/></Button></section>
     </main>
-    {toast&&<div className="toast"><Check size={16}/> Search ready — results will connect to the jobs system in the next phase.</div>}
+    <Footer go={go}/>
   </div>
+}
+
+function Metric({icon:Icon,value,label}){return <div><Icon/><div><strong>{value}</strong><span>{label}</span></div></div>}
+function SectionTitle({kicker,title,text,action,onAction}){return <div className="section-title"><div><span className="kicker">{kicker}</span><h2>{title}</h2><p>{text}</p></div>{action&&<button onClick={onAction}>{action}<ArrowRight size={15}/></button>}</div>}
+function Footer({go}){return <footer className="footer"><div className="footer-grid"><div><Logo light/><p>Work. Anywhere.</p></div><div><h4>For Job Seekers</h4><button onClick={()=>go("jobs")}>Find Jobs</button><button>Career Resources</button><button>Help Center</button></div><div><h4>For Employers</h4><button onClick={()=>go("employer")}>Post a Job</button><button>Talent Solutions</button><button>Pricing</button></div><div><h4>Company</h4><button>About Us</button><button>Blog</button><button>Contact</button></div><div><h4>Stay in the loop</h4><p>Get the latest jobs and career tips.</p><div className="newsletter"><input placeholder="Your email address"/><button><ArrowRight size={15}/></button></div></div></div><div className="footer-bottom"><span>© 2026 RemotePath. All rights reserved.</span><div><span>Privacy Policy</span><span>Terms of Service</span><span>Cookies</span></div></div></footer>}
+
+function Jobs({go,initialQuery=""}){
+  const [query,setQuery]=useState(initialQuery); const [remote,setRemote]=useState("All"); const [sort,setSort]=useState("Most relevant"); const [mobileFilters,setMobileFilters]=useState(false);
+  const filtered=useMemo(()=>jobs.filter(j=>(!query||(`${j.title} ${j.company} ${j.tags.join(" ")}`).toLowerCase().includes(query.toLowerCase()))&&(remote==="All"||j.location.includes(remote))),[query,remote]);
+  return <div><PublicNav go={go}/><main className="jobs-page">
+    <div className="jobs-heading"><div><span className="kicker">REMOTE JOB SEARCH</span><h1>Find work that <em>works for you.</em></h1><p>Verified roles from companies hiring across the world.</p></div><Badge tone="soft">{filtered.length} roles found</Badge></div>
+    <div className="search-bar-wide"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search jobs, skills or companies"/><MapPin size={17}/><select value={remote} onChange={e=>setRemote(e.target.value)}><option>All</option><option>North America</option><option>Europe</option></select><Button>Search</Button></div>
+    <button className="filter-mobile" onClick={()=>setMobileFilters(!mobileFilters)}><SlidersHorizontal size={16}/> Filters</button>
+    <div className="results-layout">
+      <aside className={mobileFilters?"filter-panel mobile-open":"filter-panel"}><div className="filter-head"><strong>Filters</strong><button>Clear all</button></div><FilterGroup title="Remote type" options={["Fully remote","Hybrid","On-site"]}/><FilterGroup title="Job type" options={["Full-time","Part-time","Contract","Freelance"]}/><FilterGroup title="Experience" options={["Entry level","Mid level","Senior level"]}/><FilterGroup title="Salary range" options={["$40k+","$60k+","$80k+","$100k+"]}/><FilterGroup title="Categories" options={["Design","Development","Marketing","Customer Support","Sales"]}/></aside>
+      <section className="results"><div className="results-toolbar"><span>Showing <strong>{filtered.length}</strong> opportunities</span><label>Sort by <select value={sort} onChange={e=>setSort(e.target.value)}><option>Most relevant</option><option>Newest</option><option>Highest salary</option></select></label></div>{filtered.map(j=><JobRow key={j.id} job={j} go={go}/>)}{filtered.length===0&&<EmptyState title="No roles match that search" text="Try a broader keyword or clear a filter." action="Browse all jobs" onAction={()=>{setQuery("");setRemote("All")}}/>}</section>
+    </div>
+  </main></div>
+}
+function FilterGroup({title,options}){return <div className="filter-group"><strong>{title}</strong>{options.map((x,i)=><label key={x}><input type="checkbox" defaultChecked={i===0&&title==="Remote type"}/><span>{x}</span></label>)}</div>}
+function JobRow({job,go}){const [saved,setSaved]=useState(false);return <article className="job-row" onClick={()=>go("job",job.id)}><div className={`company-avatar ${job.logo==="B"?"green":""}`}>{job.logo}</div><div className="job-row-main"><div className="company-line">{job.company}{job.verified&&<ShieldCheck size={13}/>}</div><h3>{job.title}</h3><div className="job-row-meta"><span>{job.type}</span><span>{job.location}</span><span>{job.salary}</span></div><div className="tag-row">{job.tags.map(t=><Badge key={t}>{t}</Badge>)}</div></div><div className="job-row-actions"><button className={`icon-btn ${saved?"is-saved":""}`} onClick={e=>{e.stopPropagation();setSaved(!saved)}}><Bookmark size={17} fill={saved?"currentColor":"none"}/></button><Button variant="soft" onClick={e=>{e.stopPropagation();go("application",job.id)}}>Apply</Button></div></article>}
+
+function JobDetail({go,id=1}){
+  const job=jobs.find(j=>j.id===Number(id))||jobs[0]; return <div><PublicNav go={go}/><main className="detail-page"><button className="back-link" onClick={()=>go("jobs")}><ArrowLeft size={15}/> Back to jobs</button><div className="detail-grid"><article className="detail-main"><div className="detail-company"><div className="company-avatar large">{job.logo}</div><div><div className="company-line">{job.company}<ShieldCheck size={14}/></div><span>Verified employer · Hiring globally</span></div></div><h1>{job.title}</h1><div className="detail-meta"><Badge tone="green">{job.type}</Badge><span><MapPin size={14}/>{job.location}</span><span><Clock3 size={14}/>Posted {job.posted}</span></div><div className="detail-actions"><Button onClick={()=>go("application",job.id)}>Apply now <ArrowRight size={16}/></Button><Button variant="outline"><Bookmark size={16}/> Save job</Button></div><DetailSection title="About the role"><p>We are looking for a thoughtful professional to join a distributed team and create meaningful work experiences. You will collaborate across time zones, own projects end-to-end and help shape a product used by people around the world.</p></DetailSection><DetailSection title="What you'll do"><ul><li>Design and iterate on user experiences with a cross-functional team.</li><li>Collaborate with product, engineering and research partners.</li><li>Communicate clearly and document decisions for a remote-first team.</li><li>Contribute to a culture of high-quality, thoughtful work.</li></ul></DetailSection><DetailSection title="What we're looking for"><ul><li>3+ years of relevant professional experience.</li><li>Strong portfolio showing process, outcomes and craft.</li><li>Excellent communication and collaboration skills.</li><li>Comfort working independently in a distributed environment.</li></ul></DetailSection><DetailSection title="Benefits"><div className="benefit-grid"><Badge tone="soft">Health coverage</Badge><Badge tone="soft">Flexible schedule</Badge><Badge tone="soft">Learning budget</Badge><Badge tone="soft">Remote-first</Badge></div></DetailSection></article><aside className="detail-side"><div className="apply-card"><span className="kicker">READY TO APPLY?</span><h3>Take the next step.</h3><p>Your profile and application can be completed in a few minutes.</p><Button onClick={()=>go("application",job.id)}>Apply for this role <ArrowRight size={15}/></Button><button className="save-side"><Bookmark size={15}/> Save for later</button></div><div className="company-card"><div className="company-avatar">{job.logo}</div><h3>{job.company}</h3><p>Building thoughtful products for a more connected world.</p><button>View company <ArrowRight size={14}/></button></div></aside></div></main></div>
+}
+function DetailSection({title,children}){return <section className="detail-section"><h2>{title}</h2>{children}</section>}
+
+function Auth({go,mode="login"}){const login=mode==="login";return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Start discovering better remote opportunities."}</p><div className="social-row"><Button variant="outline"><span className="social-icon">G</span> Continue with Google</Button><Button variant="outline"><span className="social-icon">⌘</span> Continue with GitHub</Button></div><div className="or"><span>or</span></div>{!login&&<Field label="Full name" placeholder="Enter your full name"/>}<Field label="Email address" placeholder="you@example.com" type="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password"/>{login&&<div className="forgot"><button>Forgot password?</button></div>}<Button className="full" onClick={()=>go("dashboard")}>{login?"Sign in":"Create account"} <ArrowRight size={15}/></Button><label className="checkline"><input type="checkbox"/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>}
+function Field({label,placeholder,type="text"}){return <label className="field"><span>{label}</span><input type={type} placeholder={placeholder}/></label>}
+
+function AppShell({go,screen,children}){
+  const [mobile,setMobile]=useState(false);
+  return <div className="app-shell"><aside className={mobile?"app-sidebar open":"app-sidebar"}><div className="side-top"><Logo/><button onClick={()=>setMobile(false)} className="mobile-close"><X/></button></div><div className="profile-mini"><Avatar letter="A"/><div><strong>Alex Carter</strong><small>Job seeker</small></div><ChevronDown size={14}/></div><nav>{navItems.map(([key,label,Icon])=><button className={screen===key?"active":""} key={key} onClick={()=>{go(key);setMobile(false)}}><Icon size={17}/>{label}</button>)}</nav><div className="side-bottom"><button onClick={()=>go("settings")}><Settings size={17}/>Settings</button><button onClick={()=>go("home")}><ArrowLeft size={17}/>Exit workspace</button></div></aside><div className="app-main"><header className="app-topbar"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu/></button><div className="crumb">{screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":"Workspace"}</div><div className="top-actions"><button><Bell size={18}/><i/></button><Avatar letter="A" size="sm"/></div></header>{children}</div></div>
+}
+
+function Dashboard({go}){
+ return <div className="workspace"><div className="workspace-head"><div><span className="kicker">MONDAY, OCTOBER 6</span><h1>Good morning, Alex <span>✦</span></h1><p>Here’s what’s happening with your job search.</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div><div className="summary-grid"><Summary icon={FileText} value="12" label="Applications" change="+2 this week"/><Summary icon={MessageCircle} value="3" label="Interviews" change="+1 this week"/><Summary icon={Star} value="1" label="Offers" change="1 new"/><Summary icon={Bookmark} value="8" label="Saved jobs" change="3 closing soon"/></div><div className="workspace-grid"><section className="panel"><PanelTitle title="Continue where you left off" action="View all" onAction={()=>go("applications")}/><div className="application-highlight"><div className="company-avatar">N</div><div><strong>Senior Product Designer</strong><span>NovaTech · Applied May 28, 2026</span><Badge tone="amber">Interview scheduled</Badge></div><Button variant="soft" onClick={()=>go("interview")}>View details</Button></div></section><section className="panel"><PanelTitle title="Recommended for you" action="View more" onAction={()=>go("jobs")}/><div className="mini-job-grid">{jobs.slice(1,4).map(j=><JobCard key={j.id} job={j} compact onOpen={id=>go("job",id)}/>)}</div></section></div></div>
+}
+function Summary({icon:Icon,value,label,change}){return <div className="summary-card"><div><Icon size={17}/><span>{label}</span></div><strong>{value}</strong><small>{change}</small></div>}
+function PanelTitle({title,action,onAction}){return <div className="panel-title"><h2>{title}</h2>{action&&<button onClick={onAction}>{action} <ArrowRight size={14}/></button>}</div>}
+
+function Saved({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR SHORTLIST</span><h1>Saved jobs</h1><p>Keep promising opportunities close at hand.</p></div><Button onClick={()=>go("jobs")}>Find more jobs <ArrowRight size={15}/></Button></div><div className="tabs"><button className="active">All saved <Badge>8</Badge></button><button>Closing soon <Badge tone="amber">3</Badge></button></div><div className="job-grid workspace-jobs">{jobs.map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div></div>}
+
+function Applications({go}){const apps=[["Senior Product Designer","NovaTech","Interview scheduled","amber"],["Frontend Developer","Summit Digital","Shortlisted","green"],["Marketing Specialist","BrightPath","Under review","soft"],["Customer Success Manager","CloudWave","Application sent","soft"]];return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR JOB SEARCH</span><h1>Applications</h1><p>Track every opportunity from application to offer.</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div><div className="application-tabs"><button className="active">All <span>12</span></button><button>In progress <span>8</span></button><button>Interviews <span>3</span></button><button>Closed <span>4</span></button></div><div className="application-table"><div className="table-head"><span>Role</span><span>Status</span><span>Last updated</span><span/></div>{apps.map((a,i)=><div className="table-row" key={a[0]}><div className="role-cell"><div className="company-avatar">{jobs[i].logo}</div><div><strong>{a[0]}</strong><small>{a[1]} · Remote</small></div></div><Badge tone={a[3]}>{a[2]}</Badge><span>{i===0?"Today":i===1?"Yesterday":"3 days ago"}</span><button onClick={()=>i===0?go("interview"):go("job",jobs[i].id)}><MoreHorizontal size={17}/></button></div>)}</div></div>}
+
+function ApplicationFlow({go,id=1}){const job=jobs.find(j=>j.id===Number(id))||jobs[0];const [step,setStep]=useState(1);const steps=["Profile","Resume","Questions","Review"];return <div className="flow-page"><header className="flow-header"><Logo/><button onClick={()=>go("job",job.id)}>Save and exit</button></header><div className="flow-wrap"><div className="flow-intro"><span className="kicker">APPLICATION</span><h1>Apply for {job.title}</h1><p>{job.company} · {job.location}</p></div><div className="progress">{steps.map((s,i)=><div key={s} className={step>=i+1?"done":""}><span>{step>i+1?<Check size={13}/>:i+1}</span><strong>{s}</strong></div>)}</div><div className="flow-card">{step===1&&<><h2>Your profile</h2><p>Tell the employer a little about you. This information will be included with your application.</p><Field label="Full name" placeholder="Alex Carter"/><Field label="Email address" placeholder="alex@example.com"/><Field label="Phone number" placeholder="+234 801 234 5678"/><Field label="Location" placeholder="Lagos, Nigeria"/></>}{step===2&&<><h2>Your resume</h2><p>Choose the resume you want to use for this application.</p><div className="resume-card"><FileText size={23}/><div><strong>Alex_Carter_Resume.pdf</strong><span>Updated 4 days ago · 1.8 MB</span></div><Badge tone="green"><Check size={12}/> Selected</Badge></div><Button variant="outline"><Plus size={15}/> Upload another resume</Button></>}{step===3&&<><h2>A few questions</h2><p>These questions are specific to {job.company}.</p><Field label="Why are you interested in this role?" placeholder="Tell us what makes this opportunity a good fit..."/><Field label="What is your availability to start?" placeholder="e.g. 2 weeks"/><label className="field"><span>Are you comfortable working remotely?</span><select><option>Yes</option><option>No</option></select></label></>}{step===4&&<><h2>Review your application</h2><p>Everything looks good? You can submit now or go back to edit.</p><div className="review-list"><ReviewItem label="Profile" value="Alex Carter · Lagos, Nigeria"/><ReviewItem label="Resume" value="Alex_Carter_Resume.pdf"/><ReviewItem label="Questions" value="2 answers completed"/></div><div className="notice"><ShieldCheck size={18}/><span>Your application is shared only with {job.company} for this role.</span></div></>}<div className="flow-actions"><Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1}>Back</Button><Button onClick={()=>step<4?setStep(step+1):go("applications")}>{step<4?"Continue":"Submit application"} <ArrowRight size={15}/></Button></div></div></div></div>}
+function ReviewItem({label,value}){return <div className="review-item"><span>{label}</span><strong>{value}</strong><Check size={15}/></div>}
+
+function Interview({go}){return <div className="interview-page"><header className="flow-header"><Logo/><div><Badge tone="green"><span className="dot"/> Interview in progress</Badge></div><Avatar letter="A" size="sm"/></header><div className="interview-layout"><aside className="interview-side"><div><span className="kicker">NOVATECH</span><h2>Senior Product Designer</h2><p>Interview workspace</p></div><nav>{["Introduction","Portfolio","Product thinking","Collaboration","Final questions"].map((x,i)=><button className={i===1?"active":i<1?"done":""} key={x}><span>{i<1?<Check size={13}/>:i+1}</span>{x}{i<1&&<Check size={13}/>}</button>)}</nav><div className="interview-help"><CircleHelp size={17}/><span><strong>Need help?</strong>Review interview tips</span></div></aside><main className="interview-main"><div className="question-meta"><span>Question 2 of 5</span><div><span>Estimated 12 min left</span><div className="progress-line"><i style={{width:"40%"}}/></div></div></div><div className="question-card"><span className="kicker">PORTFOLIO</span><h1>Tell us about a project you’re particularly proud of.</h1><p>We’d love to understand your process, the problem you were solving and what changed because of your work.</p><textarea placeholder="Type your answer here..." maxLength={1500}/><div className="answer-footer"><span>0 / 1,500</span><Button variant="soft">Save draft</Button><Button onClick={()=>go("dashboard")}>Next question <ArrowRight size={15}/></Button></div></div></main></div></div>}
+
+function Profile({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR PROFILE</span><h1>Profile & preferences</h1><p>Keep your professional story ready for every application.</p></div><Button onClick={()=>go("jobs")}>Preview jobs <ArrowRight size={15}/></Button></div><div className="profile-layout"><aside className="profile-card panel"><div className="profile-avatar"><Avatar letter="A" size="xl"/><button><PenLine size={14}/></button></div><h2>Alex Carter</h2><p>Product Designer</p><Badge tone="green">Profile 86% complete</Badge><div className="profile-links"><span><MapPin size={14}/>Lagos, Nigeria</span><span><Globe2 size={14}/>Open to worldwide</span></div></aside><section className="profile-editor panel"><PanelTitle title="About you"/><Field label="Professional headline" placeholder="Senior Product Designer"/><Field label="About" placeholder="A short introduction about your experience and the work you want to do."/><div className="two-fields"><Field label="Years of experience" placeholder="5"/><Field label="Availability" placeholder="Open to opportunities"/></div><PanelTitle title="Skills"/><div className="skill-editor">{["Product Design","Figma","UX Research","Design Systems","Prototyping"].map(x=><Badge key={x} tone="soft">{x} <X size={11}/></Badge>)}<button><Plus size={13}/> Add skill</button></div><Button>Save changes <Check size={15}/></Button></section></div></div>}
+
+function Employer({go}){return <div className="workspace employer-workspace"><div className="workspace-head"><div><span className="kicker">EMPLOYER WORKSPACE</span><h1>Welcome back, Sarah <span>✦</span></h1><p>Here’s what’s happening with your hiring pipeline.</p></div><Button onClick={()=>go("postjob")}>Post a job <Plus size={15}/></Button></div><div className="summary-grid"><Summary icon={BriefcaseBusiness} value="8" label="Active jobs" change="+2 this month"/><Summary icon={Users} value="126" label="Applications" change="+18 this week"/><Summary icon={MessageCircle} value="14" label="Interviews" change="+4 scheduled"/><Summary icon={Star} value="6" label="Hires" change="+2 this month"/></div><div className="employer-grid"><section className="panel"><PanelTitle title="Recent applications" action="View all" onAction={()=>go("candidates")}/>{[["Alex Carter","Senior Product Designer","Interview"],["Jamie Wilson","Frontend Developer","Shortlisted"],["Taylor Kim","Marketing Specialist","Under review"]].map((a,i)=><div className="candidate-row" key={a[0]}><Avatar letter={a[0][0]}/><div><strong>{a[0]}</strong><span>{a[1]}</span></div><Badge tone={i===0?"green":i===1?"soft":"amber"}>{a[2]}</Badge></div>)}</section><section className="panel hiring-card"><span className="kicker">HIRING HEALTH</span><h2>Your pipeline is moving.</h2><p>Keep candidates informed and your next hire closer.</p><div className="pipeline"><span style={{width:"76%"}}/></div><div className="pipeline-meta"><span>76% response rate</span><span>Above average</span></div><Button variant="soft" onClick={()=>go("candidates")}>Review candidates <ArrowRight size={14}/></Button></section></div></div>}
+
+function PostJob({go}){const [step,setStep]=useState(1);return <div className="flow-page employer-flow"><header className="flow-header"><Logo/><button onClick={()=>go("employer")}>Save and exit</button></header><div className="flow-wrap"><div className="flow-intro"><span className="kicker">EMPLOYER</span><h1>Post a new job</h1><p>Create a clear, compelling role for the right remote candidates.</p></div><div className="progress">{["Details","Requirements","Review"].map((s,i)=><div className={step>=i+1?"done":""} key={s}><span>{step>i+1?<Check size={13}/>:i+1}</span><strong>{s}</strong></div>)}</div><div className="flow-card">{step===1&&<><h2>Job details</h2><p>Start with the essentials candidates need to understand the opportunity.</p><Field label="Job title" placeholder="Senior Product Designer"/><div className="two-fields"><Field label="Job category" placeholder="Product Design"/><Field label="Employment type" placeholder="Full-time"/></div><div className="two-fields"><Field label="Work arrangement" placeholder="Fully remote"/><Field label="Salary range" placeholder="$80,000 – $120,000 / year"/></div></>}{step===2&&<><h2>Requirements</h2><p>Help the right candidates understand what success looks like.</p><Field label="Required experience" placeholder="3+ years in product design"/><Field label="Skills" placeholder="Figma, UX Research, Design Systems"/><Field label="Role description" placeholder="Describe responsibilities, team and impact..."/></>}{step===3&&<><h2>Review your job</h2><p>Preview how your role will appear to candidates.</p><div className="review-list"><ReviewItem label="Title" value="Senior Product Designer"/><ReviewItem label="Work arrangement" value="Fully remote · Worldwide"/><ReviewItem label="Salary" value="$80k – $120k / year"/><ReviewItem label="Requirements" value="3+ years · Figma · UX Research"/></div><div className="notice"><ShieldCheck size={18}/><span>Your listing will go through our verification review before publishing.</span></div></>}<div className="flow-actions"><Button variant="outline" onClick={()=>step>1&&setStep(step-1)}>Back</Button><Button onClick={()=>step<3?setStep(step+1):go("employer")}>{step<3?"Continue":"Submit for review"} <ArrowRight size={15}/></Button></div></div></div></div>}
+
+function Candidates({go}){const candidates=[["Alex Carter","Senior Product Designer","Interview","green"],["Jamie Wilson","Frontend Developer","Shortlisted","soft"],["Taylor Kim","Marketing Specialist","Under review","amber"],["Morgan Lee","Customer Success Manager","Application","soft"]];return <div className="workspace"><div className="workspace-head"><div><span className="kicker">TALENT PIPELINE</span><h1>Candidates</h1><p>Keep every candidate and next step in view.</p></div><Button variant="outline"><Filter size={15}/> Filters</Button></div><div className="pipeline-tabs"><button className="active">All <span>126</span></button><button>New <span>28</span></button><button>Shortlisted <span>18</span></button><button>Interview <span>14</span></button><button>Hired <span>6</span></button></div><div className="candidate-table">{candidates.map((c,i)=><div className="candidate-row large" key={c[0]}><Avatar letter={c[0][0]}/><div><strong>{c[0]}</strong><span>{c[1]}</span></div><span>{i===0?"Today":"2 days ago"}</span><Badge tone={c[3]}>{c[2]}</Badge><button><MoreHorizontal size={17}/></button></div>)}</div></div>}
+
+function Admin({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Admin overview</h1><p>Monitor trust, marketplace health and activity.</p></div><Button variant="outline"><Settings size={15}/> Admin settings</Button></div><div className="summary-grid"><Summary icon={BriefcaseBusiness} value="3,204" label="Active jobs" change="+84 this week"/><Summary icon={ShieldCheck} value="2,510" label="Verified companies" change="98.4% approved"/><Summary icon={Users} value="50,218" label="Job seekers" change="+6.2% this month"/><Summary icon={CircleHelp} value="18" label="Open reviews" change="5 urgent"/></div><div className="admin-grid"><section className="panel"><PanelTitle title="Verification queue" action="View queue"/>{["NovaTech · New company","Northstar Labs · Job review","CloudPeak · Company update","Lumen Health · Job review"].map((x,i)=><div className="review-row" key={x}><div><strong>{x}</strong><span>{i+1} item{i===0?"":"s"} waiting</span></div><Badge tone={i===0?"amber":"soft"}>{i===0?"Priority":"Review"}</Badge><button><ArrowRight size={15}/></button></div>)}</section><section className="panel"><span className="kicker">MARKETPLACE HEALTH</span><h2 className="admin-number">98.2%</h2><p className="muted">Successful application delivery</p><div className="health-bars">{[["Listings verified","94%"],["Profiles complete","78%"],["Employer response","82%"],["Support resolution","96%"]].map(x=><div key={x[0]}><span>{x[0]}</span><b>{x[1]}</b><i><em style={{width:x[1]}}/></i></div>)}</div></section></div></div>}
+
+function Settings({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">ACCOUNT</span><h1>Settings</h1><p>Manage your account, preferences and privacy.</p></div></div><div className="settings-layout"><aside className="settings-nav">{["Account","Notifications","Privacy","Security","Preferences"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</aside><section className="panel settings-panel"><PanelTitle title="Account details"/><Field label="Email address" placeholder="alex@example.com"/><Field label="Display name" placeholder="Alex Carter"/><PanelTitle title="Job preferences"/><div className="toggle-row"><div><strong>Open to opportunities</strong><span>Let verified employers discover your profile.</span></div><button className="toggle on"><i/></button></div><div className="toggle-row"><div><strong>Weekly job digest</strong><span>Receive a curated email every Monday.</span></div><button className="toggle on"><i/></button></div><Button>Save changes <Check size={15}/></Button></section></div></div>}
+
+function EmptyState({title,text,action,onAction}){return <div className="empty-state"><div><Search size={20}/></div><h3>{title}</h3><p>{text}</p>{action&&<Button variant="outline" onClick={onAction}>{action}</Button>}</div>}
+
+function App(){
+  const initial=()=>window.location.hash.replace("#/","")||"home";
+  const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
+  const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
+  useEffect(()=>{const h=()=>setScreen(window.location.hash.replace("#/","")||"home");window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)},[]);
+  useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
+  let page;
+  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  return <>{page}{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
