@@ -131,30 +131,90 @@ function VerifyEmail({go}){
 function Onboarding({go}){
   const [step,setStep]=useState(1);
   const [country,setCountry]=useState("");
-  const [goal,setGoal]=useState("");
   const [experience,setExperience]=useState("");
+  const [adaptiveAnswer,setAdaptiveAnswer]=useState("");
   const [workType,setWorkType]=useState("");
-  const [availability,setAvailability]=useState("");
-  const [hours,setHours]=useState("");
+  const [goal,setGoal]=useState("");
   const [categories,setCategories]=useState([]);
   const toggleCategory=x=>setCategories(v=>v.includes(x)?v.filter(i=>i!==x):[...v,x]);
-  const steps=["About you","Work preferences","What you want"];
+  const canContinue=step===1?!!country:step===2?!!experience:step===3?!!adaptiveAnswer:step===4?!!workType:!!goal;
+  const next=()=>{if(!canContinue)return; if(step<5)setStep(step+1); else go("dashboard")};
+  const progress=["About you","Experience","Your next step","Work style","Your goals"];
+  const experienced=["Entry level","1–2 years","3–5 years","6–10 years","10+ years"].includes(experience);
   return <div className="flow-page onboarding-page">
-    <header className="flow-header"><Logo/><span className="onboarding-save">Your profile setup · {step} of 3</span></header>
-    <div className="flow-wrap">
-      <div className="flow-intro"><span className="kicker">QUICK ONBOARDING</span><h1>Let’s make your job search personal.</h1><p>A few answers help us show you more relevant opportunities. You can update these later.</p></div>
-      <div className="progress onboarding-progress">{steps.map((s,i)=><div key={s} className={step>=i+1?"done":""}><span>{step>i+1?<Check size={13}/>:i+1}</span><strong>{s}</strong></div>)}</div>
-      <div className="flow-card">
-        {step===1&&<><h2>Tell us about you</h2><p>These basics help employers and job recommendations understand where you are based.</p><label className="field"><span>Country <b className="required-mark">*</b></span><select value={country} onChange={e=>setCountry(e.target.value)}><option value="">Select your country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label><label className="field"><span>Years of experience</span><select value={experience} onChange={e=>setExperience(e.target.value)}><option value="">Choose one</option><option>Less than 1 year</option><option>1–2 years</option><option>3–5 years</option><option>6–10 years</option><option>10+ years</option></select></label></>}
-        {step===2&&<><h2>How do you want to work?</h2><p>Tell us what kind of opportunities fit your schedule and career stage.</p><div className="onboarding-choice-grid">{["Full-time","Part-time","Contract","Freelance"].map(x=><button type="button" className={workType===x?"selected":""} onClick={()=>setWorkType(x)} key={x}>{x}{workType===x&&<Check size={14}/>}</button>)}</div><label className="field"><span>How many hours can you work each week?</span><select value={hours} onChange={e=>setHours(e.target.value)}><option value="">Choose one</option><option>Less than 10 hours</option><option>10–20 hours</option><option>20–30 hours</option><option>30–40 hours</option><option>40+ hours</option></select></label><label className="field"><span>When could you start?</span><select value={availability} onChange={e=>setAvailability(e.target.value)}><option value="">Choose one</option><option>Immediately</option><option>Within 2 weeks</option><option>Within 1 month</option><option>Flexible</option></select></label></>}
-        {step===3&&<><h2>What are you looking for?</h2><p>Pick the areas you want RemotePath to prioritize in your job discovery experience.</p><label className="field"><span>Primary goal</span><select value={goal} onChange={e=>setGoal(e.target.value)}><option value="">Choose one</option><option>Find my next job</option><option>Find a better remote role</option><option>Change career direction</option><option>Explore opportunities</option></select></label><span className="field-label">Areas of interest</span><div className="onboarding-tags">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map(x=><button type="button" className={categories.includes(x)?"selected":""} onClick={()=>toggleCategory(x)} key={x}>{x}{categories.includes(x)&&<Check size={12}/>}</button>)}</div></>}
-        <div className="flow-actions"><Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1}>Back</Button><Button onClick={()=>step<3?setStep(step+1):go("dashboard")}>{step<3?"Continue":"Finish setup"} <ArrowRight size={15}/></Button></div>
+    <header className="flow-header"><Logo/><span className="onboarding-save">Profile setup · Step {step} of 5</span></header>
+    <div className="flow-wrap onboarding-wrap">
+      <div className="flow-intro onboarding-intro">
+        <span className="kicker">YOUR FIRST 5 MINUTES</span>
+        <h1>Let’s make your job search personal.</h1>
+        <p>We’ll ask five quick questions, one step at a time. Your answers help us show you more relevant opportunities.</p>
+      </div>
+      <div className="onboarding-progressbar" aria-label={`Step ${step} of 5`}><span style={{width:`${step*20}%`}}/></div>
+      <div className="onboarding-step-card">
+        <div className="onboarding-step-count">0{step} <span>/ 05</span></div>
+        {step===1&&<>
+          <span className="kicker">ABOUT YOU</span>
+          <h2>Where are you based?</h2>
+          <p>We use your location to show opportunities you can actually work from.</p>
+          <label className="field onboarding-select"><span>Your country <b className="required-mark">*</b></span><select value={country} onChange={e=>setCountry(e.target.value)}><option value="">Select your country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label>
+        </>}
+        {step===2&&<>
+          <span className="kicker">YOUR EXPERIENCE</span>
+          <h2>Where are you in your career?</h2>
+          <p>There’s no wrong answer. We support people starting out and people with years of experience.</p>
+          <div className="onboarding-choice-grid single-question-grid">{[
+            ["No professional experience","I’m looking for my first opportunity"],
+            ["Entry level","I have some early experience"],
+            ["1–2 years","I’m building my professional experience"],
+            ["3–5 years","I’m an experienced professional"],
+            ["6–10 years","I have substantial experience"],
+            ["10+ years","I’m a highly experienced professional"]
+          ].map(([title,sub])=><button type="button" className={experience===title?"selected":""} onClick={()=>{setExperience(title);setAdaptiveAnswer("")}} key={title}><span><strong>{title}</strong><small>{sub}</small></span>{experience===title&&<Check size={16}/>}</button>)}</div>
+        </>}
+        {step===3&&<>
+          <span className="kicker">{experienced?"BUILD ON YOUR EXPERIENCE":"GETTING STARTED"}</span>
+          <h2>{experienced?"Which area best matches your experience?":"Would you be open to learning for the right opportunity?"}</h2>
+          <p>{experienced?"Choose the area you most want us to use when matching you with roles.":"Some roles provide training or expect you to learn new skills. Tell us what feels right for you."}</p>
+          {!experienced?<div className="onboarding-choice-grid single-question-grid">{[
+            ["Yes, I’m open to learning","I’m happy to train for a good opportunity"],
+            ["Yes, with guidance","I’d like support while I learn"],
+            ["I prefer roles I already know","I want to start with familiar work"]
+          ].map(([title,sub])=><button type="button" className={adaptiveAnswer===title?"selected":""} onClick={()=>setAdaptiveAnswer(title)} key={title}><span><strong>{title}</strong><small>{sub}</small></span>{adaptiveAnswer===title&&<Check size={16}/>}</button>)}</div>:<div className="onboarding-choice-grid single-question-grid">{["Design & Creative","Technology & Development","Marketing & Sales","Customer Support","Operations & Administration","Finance & Data"].map(x=><button type="button" className={adaptiveAnswer===x?"selected":""} onClick={()=>setAdaptiveAnswer(x)} key={x}><span><strong>{x}</strong><small>Prioritize matching roles in this area</small></span>{adaptiveAnswer===x&&<Check size={16}/>}</button>)}</div>}
+        </>}
+        {step===4&&<>
+          <span className="kicker">WORK STYLE</span>
+          <h2>What kind of work are you looking for?</h2>
+          <p>Choose the arrangement that best matches what you want right now.</p>
+          <div className="onboarding-choice-grid single-question-grid">{[
+            ["Full-time","A regular full-time role"],
+            ["Part-time","A role with fewer weekly hours"],
+            ["Contract","A defined project or contract"],
+            ["Freelance","Independent work across projects"],
+            ["Flexible","I’m open to different arrangements"]
+          ].map(([title,sub])=><button type="button" className={workType===title?"selected":""} onClick={()=>setWorkType(title)} key={title}><span><strong>{title}</strong><small>{sub}</small></span>{workType===title&&<Check size={16}/>}</button>)}</div>
+        </>}
+        {step===5&&<>
+          <span className="kicker">YOUR GOALS</span>
+          <h2>What should we help you find?</h2>
+          <p>Choose your main goal. You can also add areas you’d like to explore.</p>
+          <span className="field-label">My main goal <b className="required-mark">*</b></span>
+          <div className="onboarding-tags goal-tags">{["Find my first remote job","Find my next remote job","Move into a new career","Build experience","Find better-paying work"].map(x=><button type="button" className={goal===x?"selected":""} onClick={()=>setGoal(x)} key={x}>{x}{goal===x&&<Check size={13}/>}</button>)}</div>
+          <span className="field-label">Areas I’m interested in <small>(optional)</small></span>
+          <div className="onboarding-tags">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map(x=><button type="button" className={categories.includes(x)?"selected":""} onClick={()=>toggleCategory(x)} key={x}>{x}{categories.includes(x)&&<Check size={12}/>}</button>)}</div>
+        </>}
+        <div className="onboarding-actions">
+          <Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1}>Back</Button>
+          <Button onClick={next} disabled={!canContinue}>{step<5?"Continue":"Finish my setup"} <ArrowRight size={15}/></Button>
+        </div>
       </div>
     </div>
   </div>
 }
 
-function Auth({go,mode="login"}){const login=mode==="login";const [country,setCountry]=useState("");return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Start discovering better remote opportunities."}</p><div className="social-row"><Button variant="outline" onClick={()=>login?go("dashboard"):go("onboarding")}><GoogleLogo/> Continue with Gmail</Button></div><div className="or"><span>or</span></div>{!login&&<><Field label="Full name" placeholder="Enter your full name"/><label className="field"><span>Country <b className="required-mark">*</b></span><select value={country} onChange={e=>setCountry(e.target.value)} required><option value="">Select your country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label></>}<Field label="Email address" placeholder="you@example.com" type="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password"/>{login&&<div className="forgot"><button>Forgot password?</button></div>}<Button className="full" onClick={()=>login?go("dashboard"):go("verify")} disabled={!login&&!country}>{login?"Sign in":"Create account"} <ArrowRight size={15}/></Button><label className="checkline"><input type="checkbox"/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>}
+function Auth({go,mode="login"}){
+  const login=mode==="login";
+  return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Start discovering better remote opportunities."}</p><div className="social-row"><Button variant="outline" onClick={()=>login?go("dashboard"):go("onboarding")}><GoogleLogo/> Continue with Gmail</Button></div><div className="or"><span>or</span></div>{!login&&<Field label="Full name" placeholder="Enter your full name"/>}<Field label="Email address" placeholder="you@example.com" type="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password"/>{login&&<div className="forgot"><button>Forgot password?</button></div>}<Button className="full" onClick={()=>login?go("dashboard"):go("verify")}>{login?"Sign in":"Create account"} <ArrowRight size={15}/></Button><label className="checkline"><input type="checkbox"/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>
+}
 
 function Field({label,placeholder,type="text"}){return <label className="field"><span>{label}</span><input type={type} placeholder={placeholder}/></label>}
 
