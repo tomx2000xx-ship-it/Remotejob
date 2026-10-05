@@ -86,3 +86,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .toast{left:14px;right:14px;bottom:14px;justify-content:flex-start}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+
+/* Registration country requirement */
+.required-mark{font-weight:700;text-transform:none;margin-left:2px}
