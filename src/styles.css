@@ -19,3 +19,70 @@
 @media(max-width:1050px){.hero{grid-template-columns:1fr}.hero-media{min-height:420px}.hero-photo{height:420px}.job-grid{grid-template-columns:repeat(2,1fr)}.category-row{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.detail-side{padding-top:0}.workspace-grid,.employer-grid,.admin-grid{grid-template-columns:1fr}.mini-job-grid{grid-template-columns:repeat(3,1fr)}.footer-grid{grid-template-columns:repeat(3,1fr)}.summary-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:800px){.public-nav{height:68px;padding:0 5%}.public-links{display:none}.public-links.open{display:flex;position:absolute;left:0;right:0;top:68px;background:var(--cream);padding:18px 5%;margin:0;flex-direction:column;border-bottom:1px solid var(--line)}.menu-trigger{display:block}.nav-actions .text-btn{display:none}.hero{padding:40px 5%}.hero-media{min-height:350px}.hero-photo{height:350px}.metric-strip{grid-template-columns:repeat(2,1fr);padding:20px 5%;gap:15px}.metric-strip>div{border:0;padding:0}.content-section,.jobs-page,.detail-page{padding-left:5%;padding-right:5%}.category-row{padding:0 5%}.category-list{grid-template-columns:repeat(2,1fr)}.how-section{margin-left:5%;margin-right:5%;grid-template-columns:1fr}.mountain-art{min-height:220px}.how-copy{padding:35px}.how-steps{grid-template-columns:repeat(2,1fr)}.trust-banner{margin-left:5%;margin-right:5%;gap:18px;align-items:flex-start;flex-direction:column}.footer{padding-left:6%;padding-right:6%}.footer-grid{grid-template-columns:repeat(2,1fr)}.results-layout{grid-template-columns:1fr}.filter-panel{display:none}.filter-panel.mobile-open{display:block}.filter-mobile{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 12px;font-size:10px;color:var(--green);margin-bottom:10px}.auth-page{grid-template-columns:1fr}.auth-art{display:none}.auth-form-wrap{padding:30px 6%}.app-sidebar{transform:translateX(-100%);transition:.2s}.app-sidebar.open{transform:translateX(0)}.mobile-close{display:block;border:0;background:none;color:#fff}.app-main{margin-left:0;width:100%}.mobile-menu{display:block}.workspace{padding:32px 5%}.workspace-head{align-items:flex-start;gap:15px}.workspace-head .btn{display:none}.profile-layout,.settings-layout{grid-template-columns:1fr}.interview-layout{grid-template-columns:1fr}.interview-side{display:none}.interview-main{padding:35px 5%}.question-card{padding:24px}.detail-main>h1{font-size:50px}}
 @media(max-width:560px){.hero h1{font-size:55px}.hero-search{grid-template-columns:1fr}.hero-search>div{border-right:0;border-bottom:1px solid #edf0eb;padding:11px}.hero-search .btn{width:100%;margin-top:4px}.floating-card.quote{left:8px}.floating-card.rating{right:8px}.section-title{align-items:flex-start;gap:10px}.section-title h2{font-size:37px}.job-grid,.workspace-jobs{grid-template-columns:1fr}.category-list{grid-template-columns:1fr 1fr}.how-steps{grid-template-columns:1fr 1fr}.footer-grid{grid-template-columns:1fr 1fr}.footer-bottom{flex-direction:column;gap:12px}.jobs-heading{display:block}.jobs-heading h1{font-size:48px}.search-bar-wide{grid-template-columns:1fr}.search-bar-wide .btn{width:100%}.job-row{grid-template-columns:auto 1fr}.job-row-actions{grid-column:2;justify-content:flex-start}.job-row-meta{flex-wrap:wrap}.detail-main>h1{font-size:44px}.detail-actions{flex-direction:column}.detail-actions .btn{width:100%}.social-row{grid-template-columns:1fr}.auth-card h2{font-size:36px}.summary-grid{grid-template-columns:1fr 1fr}.mini-job-grid{grid-template-columns:1fr}.two-fields{grid-template-columns:1fr}.workspace-head{display:block}.workspace-head h1{font-size:39px}.table-head{display:none}.table-row{grid-template-columns:1fr auto}.table-row>span{display:none}.candidate-table .candidate-row.large{grid-template-columns:auto 1fr auto}.candidate-row.large>span{display:none}.progress{grid-template-columns:repeat(4,1fr)}.progress>div strong{display:none}.flow-intro h1{font-size:39px}.flow-card{padding:20px}.question-card h1{font-size:32px}.answer-footer{flex-wrap:wrap}.answer-footer>span{width:100%;margin-bottom:5px}.interview-page .flow-header{padding:0 4%}}
+
+
+/* ===== UI/UX POLISH PASS — 06 OCT 2026 ===== */
+:root{--cream:#f8f6f0;--surface:#fff;--ink:#17211f;--muted:#6c7773;--green:#0d5a49;--green-deep:#0f3f35;--green-soft:#edf5ef;--line:#e1e6df;--gold:#c7933a;--focus:#a7c9b8}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(22,116,95,.22);outline-offset:2px}
+::selection{background:#cfe4d8;color:#12382f}
+.public-nav{backdrop-filter:saturate(1.1) blur(12px);background:rgba(248,246,240,.92)}
+.brand{letter-spacing:-.025em}
+.brand-mark{box-shadow:0 4px 12px rgba(13,90,73,.10)}
+.hero{min-height:680px}
+.hero-copy>p{max-width:600px}
+.hero-media{isolation:isolate}
+.hero-photo{background-image:url('/hero-remote.svg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.55);box-shadow:0 28px 70px rgba(21,42,35,.14)}
+.hero-media:after{content:"";position:absolute;inset:8% 4% 2% 8%;border:1px solid rgba(255,255,255,.25);border-radius:26px;pointer-events:none;z-index:-1}
+.floating-card{box-shadow:0 18px 44px rgba(24,40,34,.13);border:1px solid rgba(255,255,255,.78)}
+.metric-strip{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.job-card,.job-row,.panel,.summary-card,.flow-card,.apply-card,.company-card,.settings-nav,.settings-panel,.auth-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.job-card:hover,.job-row:hover{transform:translateY(-3px);box-shadow:0 18px 42px rgba(23,33,31,.08);border-color:#d4ded6}
+.job-card:focus-within,.job-row:focus-within{border-color:#bdd4c7}
+.icon-btn:hover{background:#edf4ef;color:var(--green)}
+.icon-btn.is-saved{color:var(--green);background:#edf4ef}
+.btn{min-height:40px;transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary:hover{box-shadow:0 8px 22px rgba(13,90,73,.18)}
+.section-title h2,.category-row h2,.how-copy h2{letter-spacing:-.035em}
+.kicker{letter-spacing:.13em}
+.search-bar-wide,.hero-search{box-shadow:0 12px 30px rgba(23,33,31,.055)}
+.filter-panel{position:sticky;top:92px;align-self:start}
+.results-toolbar{position:sticky;top:64px;background:rgba(248,246,240,.94);backdrop-filter:blur(10px);z-index:5;padding:10px 0}
+.detail-side{position:relative}
+.apply-card{position:sticky;top:88px}
+.detail-main{min-width:0}
+.auth-form-wrap{background:linear-gradient(180deg,#fff 0%,#fbfcf9 100%)}
+.app-topbar{backdrop-filter:blur(10px);background:rgba(255,255,255,.94)}
+.summary-card:hover,.panel:hover{box-shadow:0 12px 32px rgba(23,33,31,.045)}
+.progress>div span{transition:background .2s ease,border-color .2s ease,color .2s ease}
+.progress>div.active{color:var(--green);font-weight:700}
+.progress>div.active span{border-color:#a9c9ba;box-shadow:0 0 0 4px #edf5ef}
+.flow-card,.question-card{box-shadow:0 18px 50px rgba(23,33,31,.055)}
+.question-card textarea:focus{border-color:#a9c9ba;box-shadow:0 0 0 4px #edf5ef}
+.empty-state{min-height:250px;display:grid;place-items:center;align-content:center}
+.toast{animation:toast-in .22s ease both}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(max-width:800px){
+  .public-nav{position:sticky;top:0;z-index:60}
+  .results-toolbar{position:static}
+  .filter-panel{position:static}
+  .apply-card{position:static}
+  .hero{min-height:0}
+  .hero-media:after{inset:5% 2% 2% 5%}
+}
+@media(max-width:560px){
+  .hero{padding-top:30px}
+  .hero h1{letter-spacing:-.045em}
+  .hero-photo{background-position:center;min-height:320px}
+  .floating-card{transform:scale(.92)}
+  .job-card:hover,.job-row:hover{transform:none;box-shadow:none}
+  .section-title{margin-bottom:18px}
+  .footer-grid{gap:28px 18px}
+  .toast{left:14px;right:14px;bottom:14px;justify-content:flex-start}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
