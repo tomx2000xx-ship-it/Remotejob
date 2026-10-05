@@ -28,7 +28,7 @@ const navItems = [
 ];
 
 function Logo({light=false}){return <div className={`brand ${light?"brand-light":""}`}><span className="brand-mark">↗</span><span>RemotePath</span></div>}
-function Button({children,variant="primary",className="",onClick,type="button"}){return <button type={type} className={`btn btn-${variant} ${className}`} onClick={onClick}>{children}</button>}
+function Button({children,variant="primary",className="",onClick,type="button",disabled=false}){return <button type={type} className={`btn btn-${variant} ${className}`} onClick={onClick} disabled={disabled}>{children}</button>}
 function Badge({children,tone="soft"}){return <span className={`badge badge-${tone}`}>{children}</span>}
 function Avatar({letter="A",size="md"}){return <span className={`avatar avatar-${size}`}>{letter}</span>}
 function Toast({message,onClose}){return <div className="toast"><Check size={16}/>{message}<button onClick={onClose}><X size={14}/></button></div>}
