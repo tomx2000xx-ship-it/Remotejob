@@ -90,3 +90,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* Registration country requirement */
 .required-mark{font-weight:700;text-transform:none;margin-left:2px}
+
+/* Registration + onboarding polish */
+.social-row{grid-template-columns:1fr}
+.social-row .btn{width:100%}
+.google-logo{width:18px;height:18px;flex:none}
+.verify-card{text-align:center}
+.verify-card .logo{justify-content:center}
+.verify-icon{width:54px;height:54px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;margin:24px auto 12px}
+.verify-card .notice{text-align:left;margin:18px 0}
+.auth-secondary{border:0;background:none;color:var(--green);font-size:10px;margin-top:14px}
+.onboarding-page{background:#f7f8f4}
+.onboarding-save{font-size:10px;color:#7c8782}
+.onboarding-progress{max-width:620px;margin-left:auto;margin-right:auto}
+.onboarding-progress>div{justify-content:center}
+.onboarding-choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:8px 0 6px}
+.onboarding-choice-grid button,.onboarding-tags button{border:1px solid #dce4de;background:#fff;border-radius:9px;padding:12px;text-align:left;color:#53615b;font-size:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.onboarding-choice-grid button:hover,.onboarding-tags button:hover{border-color:#b9d0c2}
+.onboarding-choice-grid button.selected,.onboarding-tags button.selected{border-color:#9fc3b0;background:#edf5ef;color:var(--green);font-weight:700}
+.field-label{display:block;font-size:10px;font-weight:650;margin:17px 0 7px}
+.onboarding-tags{display:flex;flex-wrap:wrap;gap:7px}
+.onboarding-tags button{padding:8px 10px;text-align:center;justify-content:center}
+@media(max-width:560px){
+  .onboarding-choice-grid{grid-template-columns:1fr}
+  .onboarding-save{font-size:9px}
+  .onboarding-tags{gap:6px}
+}
