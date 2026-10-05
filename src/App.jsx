@@ -252,6 +252,78 @@ function Settings({go}){return <div className="workspace"><div className="worksp
 
 function EmptyState({title,text,action,onAction}){return <div className="empty-state"><div><Search size={20}/></div><h3>{title}</h3><p>{text}</p>{action&&<Button variant="outline" onClick={onAction}>{action}</Button>}</div>}
 
+function SupportWidget(){
+  const [open,setOpen]=useState(false);
+  const [view,setView]=useState("empty");
+  const [issueType,setIssueType]=useState("");
+  const [subject,setSubject]=useState("");
+  const [message,setMessage]=useState("");
+  const [draft,setDraft]=useState("");
+  const [messages,setMessages]=useState([]);
+
+  const openChat=()=>{setOpen(true);setView("empty")};
+  const startChat=()=>{setView("chat");if(messages.length===0)setMessages([{from:"support",text:"Hi there — how can we help today?",time:"Just now"}])};
+  const sendMessage=()=>{
+    const text=draft.trim();
+    if(!text)return;
+    setMessages(v=>[...v,{from:"user",text,time:"Just now"}]);
+    setDraft("");
+  };
+  const submitTicket=()=>{if(!issueType||!subject.trim()||!message.trim())return;setView("success")};
+  const reset=()=>{setView("empty");setIssueType("");setSubject("");setMessage("");setDraft("");setMessages([])};
+  const issueTypes=["Account & login","Job or application","Employer & hiring","Technical issue","Report a concern","Other"];
+
+  return <>
+    <button className={open?"support-launcher is-open":"support-launcher"} onClick={()=>open?setOpen(false):openChat()} aria-label={open?"Close support":"Open support"}>
+      {open?<X size={20}/>:<MessageCircle size={20}/>}<span>Support</span><i aria-hidden="true"/>
+    </button>
+    {open&&<section className="support-panel" aria-label="RemotePath Support">
+      <header className="support-header">
+        <div className="support-brand"><span className="support-avatar"><MessageCircle size={16}/></span><div><strong>RemotePath Support</strong><small>Here when you need us</small></div></div>
+        <button className="support-close" onClick={()=>setOpen(false)} aria-label="Close support"><X size={17}/></button>
+      </header>
+
+      {view==="empty"&&<div className="support-body support-empty">
+        <div className="support-welcome"><span className="support-welcome-icon"><CircleHelp size={22}/></span><span className="kicker">HOW CAN WE HELP?</span><h3>What can we help you with?</h3><p>Start a conversation or open a ticket and we’ll guide you from there.</p></div>
+        <div className="support-actions">
+          <button onClick={startChat}><span><MessageCircle size={17}/></span><div><strong>I need help</strong><small>Chat with support</small></div><ArrowRight size={15}/></button>
+          <button onClick={()=>setView("ticket")}><span><FileText size={17}/></span><div><strong>Open a support ticket</strong><small>For issues that need follow-up</small></div><ArrowRight size={15}/></button>
+          <button onClick={()=>setView("ticket")}><span><ShieldCheck size={17}/></span><div><strong>Report a concern</strong><small>Tell us about a problem</small></div><ArrowRight size={15}/></button>
+        </div>
+        <button className="support-faq" onClick={startChat}>Browse common questions <ArrowRight size={14}/></button>
+      </div>}
+
+      {view==="chat"&&<div className="support-body support-chat">
+        <div className="support-chat-meta"><button onClick={()=>setView("empty")}><ArrowLeft size={14}/> Support home</button><span><i/> Available</span></div>
+        <div className="support-messages">
+          {messages.map((m,i)=><div className={m.from==="user"?"support-message user":"support-message"} key={i}><div>{m.text}</div><small>{m.time}</small></div>)}
+          {messages.length===1&&<div className="support-suggestion"><span>Try asking about:</span><div><button onClick={()=>setDraft("I need help with my application.")}>My application</button><button onClick={()=>setDraft("I’m having trouble signing in.")}>Signing in</button><button onClick={()=>setDraft("I want to report a job.")}>Reporting a job</button></div></div>}
+        </div>
+        <div className="support-composer"><button aria-label="Add attachment" title="Attachments are coming later"><Plus size={17}/></button><input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendMessage()}} placeholder="Write a message..." aria-label="Write a message"/><button className="support-send" onClick={sendMessage} aria-label="Send message"><Send size={16}/></button></div>
+      </div>}
+
+      {view==="ticket"&&<div className="support-body support-ticket">
+        <div className="support-page-head"><button onClick={()=>setView("empty")}><ArrowLeft size={14}/> Back</button><span className="kicker">SUPPORT TICKET</span><h3>Tell us what happened.</h3><p>Give us enough detail to understand the issue. You can add attachments when support functionality is connected.</p></div>
+        <label className="support-field"><span>Issue type <b>*</b></span><select value={issueType} onChange={e=>setIssueType(e.target.value)}><option value="">Choose an issue</option>{issueTypes.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label className="support-field"><span>Subject <b>*</b></span><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Give your issue a short title"/></label>
+        <label className="support-field"><span>What happened? <b>*</b></span><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe the issue and what you were trying to do..."/></label>
+        <button className="support-attachment" title="Attachments are coming later"><Plus size={15}/> Add attachment <small>Coming later</small></button>
+        <Button className="support-submit" onClick={submitTicket} disabled={!issueType||!subject.trim()||!message.trim()}>Submit ticket <ArrowRight size={15}/></Button>
+      </div>}
+
+      {view==="success"&&<div className="support-body support-success">
+        <div className="support-success-icon"><Check size={24}/></div><span className="kicker">TICKET RECEIVED</span><h3>Your support request is in.</h3><p>We’ve captured the details. A ticket ID will appear here once support functionality is connected.</p><div className="support-ticket-preview"><span>Status</span><strong>Open</strong><small>Awaiting support</small></div><div className="support-success-actions"><Button onClick={()=>setView("chat")}>Back to chat</Button><Button variant="outline" onClick={reset}>Start a new request</Button></div>
+      </div>}
+
+      {view==="closed"&&<div className="support-body support-success">
+        <div className="support-success-icon"><Check size={24}/></div><span className="kicker">CONVERSATION CLOSED</span><h3>This conversation is closed.</h3><p>If you still need help, start a new conversation and we’ll take it from there.</p><Button onClick={reset}>Start a new conversation <ArrowRight size={15}/></Button>
+      </div>}
+
+      {view==="chat"&&<button className="support-close-conversation" onClick={()=>setView("closed")}>Close conversation</button>}
+    </section>}
+  </>;
+}
+
 function App(){
   const initial=()=>window.location.hash.replace("#/","")||"home";
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
