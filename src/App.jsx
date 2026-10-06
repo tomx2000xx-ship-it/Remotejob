@@ -76,7 +76,7 @@ function Home({go}){
           <div className="popular"><span>Popular:</span>{["Remote","Design","Development","Marketing","Customer Support","Data Entry"].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div>
         </div>
         <div className="hero-media">
-          <div className="hero-photo"/>
+          <div className="hero-photo"><div className="hero-photo-copy"><span className="kicker">REMOTE WORK, REIMAGINED</span><strong>Find work that moves with you.</strong><small>Verified opportunities, built for the way you want to work.</small></div></div>
           <div className="floating-card rating"><div className="avatar-stack"><Avatar letter="S" size="xs"/><Avatar letter="M" size="xs"/><Avatar letter="J" size="xs"/></div><div><strong>50,000+</strong><small>professionals finding work</small></div></div>
           <div className="floating-card quote"><Sparkles size={16}/><span><strong>Better opportunities.</strong><small>Built around your life.</small></span></div>
         </div>
@@ -87,7 +87,7 @@ function Home({go}){
         <div className="job-grid">{jobs.slice(0,4).map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div>
       </section>
       <section className="category-row"><div><span className="kicker">BROWSE BY CATEGORY</span><h2>Find your next direction.</h2></div><div className="category-list">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map((x,i)=><button key={x} onClick={()=>go("jobs",x)}><span>{["◈","</>","↗","◉","↗","▤","▥","+"][i]}</span>{x}<small>{1248-i*137} jobs</small></button>)}</div></section>
-      <section className="how-section"><div className="mountain-art"><img src="/hero-remote-man.webp" alt="Professional remote worker" /></div><div className="how-copy"><span className="kicker">HOW IT WORKS</span><h2>Get hired in <em>4 simple steps.</em></h2><p>Finding your next opportunity is easier than you think.</p><div className="how-steps">{[["01","Create your profile"],["02","Find the right jobs"],["03","Apply with ease"],["04","Get hired"]].map(([n,t])=><div key={n}><b>{n}</b><strong>{t}</strong><small>Simple, secure and built for you.</small></div>)}</div></div></section>
+      <section className="how-section"><div className="mountain-art" aria-label="Professional remote worker"></div><div className="how-copy"><span className="kicker">HOW IT WORKS</span><h2>Get hired in <em>4 simple steps.</em></h2><p>Finding your next opportunity is easier than you think.</p><div className="how-steps">{[["01","Create your profile"],["02","Find the right jobs"],["03","Apply with ease"],["04","Get hired"]].map(([n,t])=><div key={n}><b>{n}</b><strong>{t}</strong><small>Simple, secure and built for you.</small></div>)}</div></div></section>
       <section className="trust-banner"><div><ShieldCheck size={25}/><div><strong>Trusted. Verified. Secure.</strong><span>We verify companies and job listings so you can focus on your next move.</span></div></div><Button variant="outline" onClick={()=>go("jobs")}>Explore opportunities <ArrowRight size={15}/></Button></section>
     </main>
     <Footer go={go}/>
