@@ -30,7 +30,7 @@ const UNIVERSAL_FORM_TYPES = [
   {value:"country",label:"Country"}
 ];
 
-const formatCouponNumber=(value)=>String(value??"").replace(/\\D/g,"").slice(0,16).replace(/(\\d{4})(?=\\d)/g,"$1 ");
+const formatCouponNumber=(value)=>String(value??"").replace(/\D/g,"").slice(0,16).replace(/(\d{4})(?=\d)/g,"$1 ");
 const registrationCountries = [
   ["🇺🇸","United States"],["🇨🇦","Canada"],["🇬🇧","United Kingdom"],["🇩🇪","Germany"],["🇫🇷","France"],
   ["🇳🇱","Netherlands"],["🇮🇪","Ireland"],["🇸🇪","Sweden"],["🇩🇰","Denmark"],["🇳🇴","Norway"],
