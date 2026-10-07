@@ -944,3 +944,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .notification-copy strong{font-size:9px}
   .notification-copy>span{font-size:8px}
 }
+
+
+/* ===== ADMIN SUPPORT MANAGEMENT ===== */
+.admin-support-filters{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.admin-support-filters .field{margin:0}
+.admin-support-layout{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(0,1.35fr);gap:16px;align-items:start}
+.admin-support-list-panel,.admin-support-detail{min-width:0;overflow:hidden}
+.admin-support-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line,#e3e9e4)}
+.admin-support-summary strong{font-size:10px;color:#294039}.admin-support-summary span{font-size:8px;color:#849089}
+.admin-support-list{display:flex;flex-direction:column}
+.admin-support-row{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1ee;background:#fff;padding:14px 16px;cursor:pointer;color:inherit}
+.admin-support-row:hover,.admin-support-row.active{background:#f5faf7}.admin-support-row:last-child{border-bottom:0}
+.admin-support-row-main{min-width:0;display:flex;flex-direction:column;gap:3px}.admin-support-row-main strong{font-size:10px;color:#294039;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.admin-support-row-main small{font-size:7px;color:#7b8781;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-support-detail{min-height:620px}.admin-support-detail-head{display:flex;justify-content:space-between;gap:12px;padding:20px;border-bottom:1px solid #e5ebe6}.admin-support-detail-head h2{margin:4px 0 5px;font-size:19px;color:#294039}.admin-support-detail-head p{margin:0;font-size:8px;color:#7b8781;line-height:1.5}
+.admin-support-statusbar{display:flex;align-items:center;gap:9px;padding:11px 20px;background:#fafcf9;border-bottom:1px solid #edf1ee}.admin-support-statusbar span{font-size:8px;color:#78857e}.admin-support-statusbar select{min-height:32px;padding:6px 9px;border:1px solid #dfe7e1;border-radius:8px;background:#fff;font-size:8px;color:#40524a}.admin-support-statusbar small{margin-left:auto;font-size:7px;color:#99a29d}
+.admin-support-messages{padding:18px 20px;display:flex;flex-direction:column;gap:10px;max-height:390px;overflow:auto;background:#fbfcfa}
+.admin-support-message{max-width:86%;padding:11px 13px;border-radius:12px;border:1px solid #e2e9e3;background:#fff}.admin-support-message.support{align-self:flex-end;background:#edf6f0;border-color:#d4e6da}.admin-support-message.user{align-self:flex-start}.admin-support-message-meta{display:flex;gap:10px;align-items:center;margin-bottom:5px}.admin-support-message-meta strong{font-size:8px;color:#33483f}.admin-support-message-meta span{font-size:7px;color:#97a19c}.admin-support-message p{margin:0;font-size:9px;line-height:1.55;color:#53635b;white-space:pre-wrap}
+.admin-support-reply{padding:16px 20px;border-top:1px solid #e3e9e4}.admin-support-reply .field{margin:0}.admin-support-reply textarea{min-height:92px}.admin-support-reply>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}.admin-support-reply small{font-size:7px;color:#849089}.admin-support-reply .btn{min-height:36px;font-size:8px}
+@media(max-width:900px){.admin-support-layout{grid-template-columns:1fr}.admin-support-detail{min-height:500px}.admin-support-filters{grid-template-columns:1fr 1fr}.admin-support-filters .field:first-child{grid-column:1 / -1}}
+@media(max-width:600px){.admin-support-filters{grid-template-columns:1fr}.admin-support-filters .field:first-child{grid-column:auto}.admin-support-row{grid-template-columns:auto minmax(0,1fr) auto}.admin-support-row>svg{display:none}.admin-support-row>.badge{grid-column:2}.admin-support-detail-head{padding:16px}.admin-support-statusbar{padding:10px 16px;flex-wrap:wrap}.admin-support-statusbar small{width:100%;margin-left:0}.admin-support-messages{padding:14px 16px;max-height:350px}.admin-support-message{max-width:94%}.admin-support-reply{padding:14px 16px}.admin-support-reply>div{align-items:stretch;flex-direction:column}.admin-support-reply .btn{width:100%}}
