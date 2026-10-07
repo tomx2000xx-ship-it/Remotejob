@@ -542,7 +542,7 @@ function Payouts({go}){
   const [confirmed,setConfirmed]=useState(false);
   const [savedMethod,setSavedMethod]=useState(null);
   const [history,setHistory]=useState([]);
-  const [loading,setLoading]=useState(true);
+  const [loading,setLoading]=useState(true);\n  const [payoutConfigs,setPayoutConfigs]=useState([]);\n  const [customValues,setCustomValues]=useState({});
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [modalOpen,setModalOpen]=useState(false);
@@ -562,11 +562,11 @@ function Payouts({go}){
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
         supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("point_wallets").select("balance").eq("user_id",user.id).maybeSingle(),
-        supabase.from("point_packages").select("id,name,points,price,currency").eq("status","active").order("points")
+        supabase.from("point_packages").select("id,name,points,price,currency").eq("status","active").order("points"),\n        supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name")
       ]);
       if(!mounted)return;
-      if(methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error)setError((methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error).message);
-      setPointsBalance(walletRes.data?.balance||0);setPointPackages(packagesRes.data||[]);setPointsLoading(false);
+      if(methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error||p.error)setError((methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error||p.error).message);
+      setPointsBalance(walletRes.data?.balance||0);setPointPackages(packagesRes.data||[]);setPointsLoading(false);setPayoutConfigs(p.data||[]);
       const m=methodsRes.data||null;
       setSavedMethod(m);
       setHistory(payoutsRes.data||[]);
@@ -578,7 +578,7 @@ function Payouts({go}){
         setPaypalName(m.paypal_name||"");
         setPaypalEmail(m.paypal_email||"");
         setCardName(m.cardholder_name||"");
-        setCardLast4(m.card_last4||"");
+        setCardLast4(m.card_last4||"");\n        if(m.method_type==="custom")setCustomValues(m.details||{});
       }
       setLoading(false);
     })();
@@ -619,8 +619,8 @@ function Payouts({go}){
   };
 
   const purchasePoints=async()=>{if(!selectedPackage||pointCardName.trim().length<2||!/^[0-9]{4}$/.test(pointCardLast4)||pointsSaving)return;setPointsSaving(true);setPointsError("");try{const {data,error:e}=await supabase.rpc("purchase_points_demo",{p_package_id:selectedPackage.id,p_card_last4:pointCardLast4});if(e)throw e;setPointsBalance(v=>v+(selectedPackage.points||0));setPointCardLast4("");setPointCardName("");setSelectedPackage(null)}catch(err){setPointsError(err?.message||"We couldn't complete the demo points purchase.")}finally{setPointsSaving(false)}};
-  const methodLabel=m=>m==="bank"?"Bank transfer":m==="paypal"?"PayPal":"Debit card";
-  const methodSummary=m=>m.method_type==="bank"?`${m.bank_name||"Bank"} · ${m.bank_country||""} · Account ending ${m.account_last4||"••••"}`:m.method_type==="paypal"?`${m.paypal_name||""} · ${m.paypal_email||""}`:`${m.cardholder_name||""} · Card ending ${m.card_last4||"••••"}`;
+  const methodLabel=m=>payoutConfigs.find(x=>x.method_key===m)?.name||(m==="bank"?"Bank transfer":m==="paypal"?"PayPal":"Debit card");
+  const methodSummary=m=>m.method_type==="bank"?`${m.bank_name||"Bank"} · ${m.bank_country||""} · Account ending ${m.account_last4||"••••"}`:m.method_type==="paypal"?`${m.paypal_name||""} · ${m.paypal_email||""}`:m.method_type==="card"?`${m.cardholder_name||""} · Card ending ${m.card_last4||"••••"}`:`${methodLabel(m.method_type)} · ${Object.values(m.details||{}).filter(Boolean).join(" · ")}`;
 
   if(loading)return <div className="workspace"><div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Loading your payout settings securely…</p></div></div></div>;
 
@@ -631,11 +631,7 @@ function Payouts({go}){
     <section className="payout-warning"><div className="payout-warning-icon"><CircleHelp size={19}/></div><div><strong>Take your time before you save.</strong><p>Make sure your name, bank or PayPal details are exactly correct. Incorrect payout information can cause a payment to fail or be sent to the wrong destination. Once saved, changes may be restricted and you may need to contact <button onClick={()=>go("home")}>Customer Care</button> to request an update.</p></div></section>
     <section className="payout-method-panel">
       <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{savedMethod?"Change your payout method":"Where should we send your earnings?"}</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
-      <div className="payout-method-grid">
-        <button className="payout-method-card" onClick={()=>{setMethod("bank");setModalOpen(true)}}><span className="payout-method-icon"><Landmark size={19}/></span><div><strong>Bank transfer</strong><small>Send earnings directly to your bank account.</small></div><i><ArrowRight size={13}/></i></button>
-        <button className="payout-method-card" onClick={()=>{setMethod("paypal");setModalOpen(true)}}><span className="payout-method-icon paypal-mark">P</span><div><strong>PayPal</strong><small>Receive earnings through your PayPal account.</small></div><i><ArrowRight size={13}/></i></button>
-        <button className="payout-method-card" onClick={()=>{setMethod("card");setModalOpen(true)}}><span className="payout-method-icon"><CreditCard size={19}/></span><div><strong>Debit card</strong><small>Receive earnings to an eligible debit card.</small></div><i><ArrowRight size={13}/></i></button>
-      </div>
+      <div className="payout-method-grid">{payoutConfigs.map(cfg=><button key={cfg.id} className="payout-method-card" onClick={()=>{setMethod(cfg.method_key);setCustomValues({});setModalOpen(true)}}><span className="payout-method-icon">{cfg.method_type==="bank"?<Landmark size={19}/>:cfg.method_type==="paypal"?<span className="paypal-mark">P</span>:cfg.method_type==="card"?<CreditCard size={19}/>:<WalletCards size={19}/>}</span><div><strong>{cfg.name}</strong><small>{cfg.description||"Choose this payout method."}</small></div><i><ArrowRight size={13}/></i></button>)}</div>
       {modalOpen&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><div className="payout-modal" role="dialog" aria-modal="true">
         <div className="payout-modal-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{methodLabel(method)}</h2><p>Enter the details required for this payout method.</p></div><button className="payout-modal-close" onClick={()=>setModalOpen(false)} aria-label="Close"><X size={18}/></button></div>
         {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Where should we send the bank transfer?</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
@@ -652,7 +648,7 @@ function Payouts({go}){
           <label className="field"><span>Cardholder name</span><input value={cardName} onChange={e=>setCardName(e.target.value)} placeholder="Name on your debit card" autoComplete="cc-name"/></label>
           <label className="field"><span>Card ending</span><input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label>
         </div><div className="payout-country-note"><CreditCard size={15}/><span>RemotePath will not store a full card number, CVV or PIN.</span></div></div>}
-        <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
+        {methodConfig&&methodConfig.method_type==="custom"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYMENT DETAILS</span><h3>{methodConfig.name}</h3><p>{methodConfig.description||"Enter the information required for this payout method."}</p></div><div className="payout-form-grid">{(methodConfig.fields||[]).map(f=><label className="field" key={f.key}><span>{f.label}{f.required?"":" (optional)"}</span><input type={f.type==="email"?"email":"text"} inputMode={f.type==="last4"?"numeric":undefined} value={customValues[f.key]||""} onChange={e=>setCustomValues(v=>({...v,[f.key]:f.type==="last4"?e.target.value.replace(/\D/g,"").slice(0,4):e.target.value}))} placeholder={f.label}/></label>)}</div><div className="payout-country-note"><WalletCards size={15}/><span>{methodConfig.instructions||"Your payout details are stored according to RemotePath's security policy."}</span></div></div>}\n        <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
         <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed||saving}>{saving?"Saving…":"Save payout method"} {!saving&&<ArrowRight size={15}/>}</Button></div>
       </div></div>}
     </section>
