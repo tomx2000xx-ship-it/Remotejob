@@ -755,8 +755,12 @@ function Admin({go}){
   const [forms,setForms]=useState([]); const [templates,setTemplates]=useState([]);
   const load=async()=>{
     setLoading(true);setError("");
-    const {data,error}=await supabase.from("jobs").select("*").order("created_at",{ascending:false});
-    if(error)setError(error.message);
+    const [{data,error:e},{data:formsData},{data:templatesData}]=await Promise.all([
+      supabase.from("jobs").select("*").order("created_at",{ascending:false}),
+      supabase.from("form_definitions").select("id,name,status").order("name"),
+      supabase.from("interview_templates").select("id,name,status").order("name")
+    ]);
+    if(e)setError(e.message);
     setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
     setLoading(false);
   };
