@@ -829,6 +829,10 @@ function EmptyState({title,text,action,onAction}){return <div className="empty-s
 function Verification({go}){
   const [step,setStep]=useState(1);
   const [submitted,setSubmitted]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const [existing,setExisting]=useState(null);
   const [legalName,setLegalName]=useState("");
   const [dob,setDob]=useState("");
   const [address,setAddress]=useState("");
@@ -841,28 +845,66 @@ function Verification({go}){
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Government tax / identity number","France":"Government tax / identity number","Netherlands":"Government identity / tax number","Ireland":"Government identity / tax number","Sweden":"Government identity / tax number","Denmark":"Government identity / tax number","Norway":"Government identity / tax number","Finland":"Government identity / tax number","Belgium":"Government identity / tax number","Switzerland":"Government identity / tax number","Austria":"Government identity / tax number","Poland":"Government identity / tax number"};
   const docs=["Passport","Driver’s licence","National identity card","Residence permit"];
   const required=step===1?legalName.trim().length>2:step===2?!!dob:step===3?address.trim().length>5:step===4?identifier.trim().length>3:!!documentType&&!!frontFile&&!!backFile;
-  const next=()=>{if(!required)return; if(step<5)setStep(v=>v+1); else setStep(6)};
+  useEffect(()=>{
+    let mounted=true;
+    (async()=>{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user){if(mounted)setLoading(false);return;}
+      const {data,error:e}=await supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle();
+      if(!mounted)return;
+      if(e)setError(e.message);
+      if(data){
+        setExisting(data);
+        setCountry(data.country||"United States");
+        setDocumentType(data.document_type||"");
+        if(data.status==="in_progress")setStep(5);
+      }
+      setLoading(false);
+    })();
+    return()=>{mounted=false};
+  },[]);
+  const startVerification=async()=>{
+    if(saving)return;
+    setSaving(true);setError("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const payload={user_id:user.id,status:"in_progress",country,document_type:documentType,started_at:existing?.started_at||new Date().toISOString()};
+      if(existing){
+        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:documentType,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        if(e)throw e;
+        setExisting(data);
+      }else{
+        const {data,error:e}=await supabase.from("verification_profiles").insert(payload).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        if(e)throw e;
+        setExisting(data);
+      }
+      setSubmitted(true);
+    }catch(err){setError(err?.message||"We couldn't start verification.");}
+    finally{setSaving(false);}
+  };
   const back=()=>{if(step>1)setStep(v=>v-1);};
-  if(submitted) return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFICATION RECEIVED</span><h1>Your verification is ready for review.</h1><p>This is the UI preview only. No government identifiers or identity documents are being uploaded or stored yet. The secure verification functionality will be connected later.</p><div className="verification-complete-note"><ShieldCheck size={17}/><span>When functionality is enabled, sensitive verification data will use dedicated security controls and a private document flow.</span></div><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
+  if(loading)return <div className="verification-page"><div className="verification-complete"><ShieldCheck size={28}/><span className="kicker">IDENTITY VERIFICATION</span><h1>Loading your verification status…</h1></div></div>;
+  if(existing?.status==="verified")return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFIED</span><h1>Your identity is verified.</h1><p>Your verification status is securely recorded. No raw government identifier, date of birth, residential address, or identity document is stored in RemotePath.</p><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
+  if(submitted)return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFICATION STARTED</span><h1>Your verification has been securely started.</h1><p>RemotePath saved only the verification workflow status, country and document type. Sensitive identity details and documents are not retained by this application.</p><div className="verification-complete-note"><ShieldCheck size={17}/><span>The next production step is the secure identity-provider handoff. Verification decisions and document handling will be managed by that provider.</span></div><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
   return <div className="verification-page">
     <header className="verification-topbar"><Logo/><button className="back-link" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Back to dashboard</button></header>
     <main className="verification-wrap">
-      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Use your legal details and a government-issued document so we can confirm that your account belongs to a real person.</p><div className="verification-security-note"><LockKeyhole size={16}/><span><strong>Security-first design.</strong> This screen is currently a UI prototype. Nothing below is sent to a server.</span></div></div>
-      <div className="verification-progress"><span style={{width:`${step===6?100:(step/5)*100}%`}}/></div>
+      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete the guided identity flow. Sensitive identity details are intentionally not written to the RemotePath database.</p><div className="verification-security-note"><LockKeyhole size={16}/><span><strong>Security-first design.</strong> RemotePath stores verification status and minimal workflow metadata only.</span></div></div>
+      {error&&<div className="auth-message auth-error">{error}</div>}
+      <div className="verification-progress"><span style={{width:`${(step/5)*100}%`}}/></div>
       <div className="verification-step-card">
-        <div className="verification-step-meta"><span>STEP {step===6?5:step} <em>OF 5</em></span><Badge tone={step===6?"green":"soft"}>{step===6?"Review":"In progress"}</Badge></div>
-        {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the government document you will use for verification.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>setLegalName(e.target.value)} placeholder="e.g. Alex Carter" autoComplete="name"/></label></>}
-        {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth helps us distinguish your identity from other accounts.</p><label className="field"><span>Date of birth</span><input type="date" value={dob} onChange={e=>setDob(e.target.value)} autoComplete="bday"/></label></>}
-        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Use your current residential address. A PO box should only be used if the verification provider explicitly allows it.</p><label className="field"><span>Home address</span><textarea className="verification-textarea" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address, city, region/state and postal code" rows="4" autoComplete="street-address"/></label></>}
-        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country first so the verification flow can use the appropriate identifier label later. Do not enter a real number in this prototype.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Prototype field — not submitted" inputMode="text"/></label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>Later, this field should be handled through a secure verification service or protected server-side workflow rather than ordinary client-side storage.</span></div></>}
-        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Upload your government-issued ID.</h2><p>For the future live flow, users will be able to capture or upload the front and back of an accepted document.</p><label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setFrontFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile||"Upload or capture front"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setBackFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile||"Upload or capture back"}</small></label></div><div className="verification-sensitive-note"><ShieldCheck size={15}/><span>In the live version, documents belong in a private storage flow with strict access controls and short-lived access links.</span></div></>}
-        {step===6&&<><span className="kicker">REVIEW</span><h2>Check your details before submitting.</h2><p>Review the information you entered. The live version will validate and securely process these details before a verification decision is made.</p><div className="verification-review-list"><div><span>Legal name</span><strong>{legalName||"Not provided"}</strong></div><div><span>Date of birth</span><strong>{dob||"Not provided"}</strong></div><div><span>Address</span><strong>{address||"Not provided"}</strong></div><div><span>Country</span><strong>{country}</strong></div><div><span>Government identifier</span><strong>{identifier?"Provided in prototype":"Not provided"}</strong></div><div><span>Identity document</span><strong>{documentType||"Not provided"} · Front + back selected</strong></div></div><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>Prototype only: clicking the button below changes the screen locally and does not transmit or store this information.</span></div></>}
-        <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1}>Back</Button>{step<6?<Button onClick={next} disabled={!required}>Continue <ArrowRight size={15}/></Button>:<Button onClick={()=>setSubmitted(true)}>Submit for verification <ArrowRight size={15}/></Button>}</div>
+        <div className="verification-step-meta"><span>STEP {step} <em>OF 5</em></span><Badge tone="soft">In progress</Badge></div>
+        {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the document you will use. It is used only in this session and is not saved to RemotePath.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>setLegalName(e.target.value)} placeholder="e.g. Alex Carter" autoComplete="name"/></label></>}
+        {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is used only to prepare the secure verification handoff and is not saved to RemotePath.</p><label className="field"><span>Date of birth</span><input type="date" value={dob} onChange={e=>setDob(e.target.value)} autoComplete="bday"/></label></>}
+        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. It is not saved to the RemotePath database.</p><label className="field"><span>Home address</span><textarea className="verification-textarea" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address, city, region/state and postal code" rows="4" autoComplete="street-address"/></label></>}
+        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier only when a secure verification provider is connected. This field is not saved to RemotePath.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Not stored by RemotePath" inputMode="text"/></label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>Government identifiers must be handled by a dedicated verification provider or protected server-side workflow—not ordinary client-side database fields.</span></div></>}
+        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Select your government-issued ID.</h2><p>Select the document you plan to use. The file itself is not uploaded or stored by RemotePath in this phase.</p><label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setFrontFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile||"Select front file"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setBackFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile||"Select back file"}</small></label></div><div className="verification-sensitive-note"><ShieldCheck size={15}/><span>The selected files remain local to this browser session. A future provider integration will upload them directly through a protected flow.</span></div></>}
+        <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1}>Back</Button>{step<5?<Button onClick={()=>setStep(v=>v+1)} disabled={!required}>Continue <ArrowRight size={15}/></Button>:<Button onClick={startVerification} disabled={!required||saving}>{saving?"Starting…":"Start secure verification"} <ArrowRight size={15}/></Button>}</div>
       </div>
     </main>
   </div>
 }
-
 function SupportWidget(){
   const [open,setOpen]=useState(false);
   const [view,setView]=useState("empty");
