@@ -404,8 +404,126 @@ function Applications({go}){const [items,setItems]=useState([]);const [loading,s
 function ApplicationFlow({go,id=1}){const [job,setJob]=useState(null);const [profile,setProfile]=useState(null);const [resumes,setResumes]=useState([]);const [resumeId,setResumeId]=useState(null);const [step,setStep]=useState(1);const [answers,setAnswers]=useState({interest:"",availability:"",remote:"Yes"});const [saving,setSaving]=useState(false);const [uploading,setUploading]=useState(false);const [error,setError]=useState("");useEffect(()=>{let mounted=true;(async()=>{const [{data:jobRow},{data:{user}}]=await Promise.all([supabase.from("jobs").select("*").eq("id",Number(id)).maybeSingle(),supabase.auth.getUser()]);if(!user){go("login");return}const [{data:profileRow},{data:resumeRows}]=await Promise.all([supabase.from("profiles").select("full_name,country").eq("id",user.id).maybeSingle(),supabase.from("resumes").select("*").eq("user_id",user.id).order("created_at",{ascending:false})]);if(mounted){setJob(jobRow);setProfile({...profileRow,email:user.email||""});setResumes(resumeRows||[]);if(resumeRows?.[0])setResumeId(resumeRows[0].id)}})();return()=>{mounted=false}},[id]);if(!job)return <div className="flow-page"><header className="flow-header"><Logo/></header><div className="flow-wrap"><div className="empty-state"><h3>Loading application…</h3><p>Preparing this application for you.</p></div></div></div>;const uploadResume=async e=>{const file=e.target.files?.[0];if(!file)return;if(file.type!=="application/pdf"){setError("Please upload a PDF resume.");return}if(file.size>5*1024*1024){setError("Your resume must be 5 MB or smaller.");return}setUploading(true);setError("");try{const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("Your session has expired. Please sign in again.");const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const path=user.id+"/"+Date.now()+"-"+safeName;const {error:uploadError}=await supabase.storage.from("resumes").upload(path,file,{contentType:file.type,upsert:false});if(uploadError)throw uploadError;const {data:row,error:rowError}=await supabase.from("resumes").insert({user_id:user.id,file_name:file.name,storage_path:path,file_size:file.size,mime_type:file.type}).select().single();if(rowError)throw rowError;setResumes(prev=>[row,...prev]);setResumeId(row.id)}catch(err){setError(err?.message||"We couldn't upload your resume yet. Please try again.")}finally{setUploading(false)}};const submit=async()=>{if(!resumeId){setError("Please select or upload a resume before submitting.");setStep(2);return}if(!answers.interest||!answers.availability){setError("Please complete the application questions before submitting.");setStep(3);return}setSaving(true);setError("");try{const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("Your session has expired. Please sign in again.");const payload=[{question:"Why are you interested in this role?",answer:answers.interest},{question:"What is your availability to start?",answer:answers.availability},{question:"Are you comfortable working remotely?",answer:answers.remote}];const {error}=await supabase.from("applications").upsert({user_id:user.id,job_id:job.id,status:"submitted",resume_id:resumeId,answers:payload,submitted_at:new Date().toISOString()},{onConflict:"user_id,job_id"});if(error)throw error;go("applications")}catch(err){setError(err?.message||"We couldn't submit your application yet. Please try again.")}finally{setSaving(false)}};return <div className="flow-page"><header className="flow-header"><Logo/><button onClick={()=>go("job",job.id)}>Save and exit</button></header><div className="flow-wrap"><div className="flow-intro"><span className="kicker">APPLICATION</span><h1>Apply for {job.title}</h1><p>{job.company_name} · {job.location}</p></div><div className="progress">{["Profile","Resume","Questions","Review"].map((s,i)=><div key={s} className={step>=i+1?"done":""}><span>{step>i+1?<Check size={13}/>:i+1}</span><strong>{s}</strong></div>)}</div><div className="flow-card">{step===1&&<><h2>Your profile</h2><p>Tell the employer a little about you. This information will be included with your application.</p><Field label="Full name" value={profile?.full_name||""} placeholder="Your full name" readOnly/><Field label="Email address" value={profile?.email||""} placeholder="you@example.com" readOnly/><Field label="Location" value={profile?.country||""} placeholder="Your country" readOnly/></>}{step===2&&<><h2>Your resume</h2><p>Choose the resume you want to use for this application.</p>{resumes.length===0&&<div className="resume-card"><FileText size={23}/><div><strong>No resume uploaded yet</strong><span>Upload your PDF resume to continue.</span></div></div>}{resumes.map(r=><button type="button" key={r.id} className="resume-card" onClick={()=>setResumeId(r.id)} style={{width:"100%",textAlign:"left",border:resumeId===r.id?"2px solid var(--green)":"1px solid var(--line)",cursor:"pointer"}}><FileText size={23}/><div><strong>{r.file_name}</strong><span>{Math.round((r.file_size||0)/1024)} KB · {new Date(r.created_at).toLocaleDateString()}</span></div>{resumeId===r.id&&<Badge tone="green"><Check size={12}/> Selected</Badge>}</button>)}<label className="btn btn-outline" style={{display:"inline-flex",marginTop:12,cursor:uploading?"wait":"pointer"}}><Plus size={15}/>{uploading?"Uploading…":"Upload resume"}<input type="file" accept="application/pdf,.pdf" hidden onChange={uploadResume} disabled={uploading}/></label></>}{step===3&&<><h2>A few questions</h2><p>These questions are specific to {job.company_name}.</p><label className="field"><span>Why are you interested in this role?</span><textarea value={answers.interest} onChange={e=>setAnswers({...answers,interest:e.target.value})} placeholder="Tell us what makes this opportunity a good fit..."/></label><Field label="What is your availability to start?" value={answers.availability} onChange={e=>setAnswers({...answers,availability:e.target.value})} placeholder="e.g. 2 weeks"/><label className="field"><span>Are you comfortable working remotely?</span><select value={answers.remote} onChange={e=>setAnswers({...answers,remote:e.target.value})}><option>Yes</option><option>No</option></select></label></>}{step===4&&<><h2>Review your application</h2><p>Everything looks good? You can submit now or go back to edit.</p><div className="review-list"><ReviewItem label="Profile" value={(profile?.full_name||"Your profile")+" · "+(profile?.country||"Location not set")}/><ReviewItem label="Resume" value={resumes.find(r=>r.id===resumeId)?.file_name||"No resume selected"}/><ReviewItem label="Questions" value={(answers.interest&&answers.availability)?"3 answers completed":"Complete your answers before submitting"}/></div><div className="notice"><ShieldCheck size={18}/><span>Your application is shared only with {job.company_name} for this role.</span></div>{error&&<div className="auth-error">{error}</div>}</>}<div className="flow-actions"><Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1||saving||uploading}>Back</Button><Button onClick={()=>step<4?setStep(step+1):submit()} disabled={saving||uploading}>{saving?"Submitting…":step<4?"Continue":"Submit application"} {!saving&&<ArrowRight size={15}/>}</Button></div></div></div></div>}
 function ReviewItem({label,value}){return <div className="review-item"><span>{label}</span><strong>{value}</strong><Check size={15}/></div>}
 
-function Interview({go}){return <div className="interview-page"><header className="flow-header"><Logo/><div><Badge tone="green"><span className="dot"/> Interview in progress</Badge></div><Avatar letter="A" size="sm"/></header><div className="interview-layout"><aside className="interview-side"><div><span className="kicker">NOVATECH</span><h2>Senior Product Designer</h2><p>Interview workspace</p></div><nav>{["Introduction","Portfolio","Product thinking","Collaboration","Final questions"].map((x,i)=><button className={i===1?"active":i<1?"done":""} key={x}><span>{i<1?<Check size={13}/>:i+1}</span>{x}{i<1&&<Check size={13}/>}</button>)}</nav><div className="interview-help"><CircleHelp size={17}/><span><strong>Need help?</strong>Review interview tips</span></div></aside><main className="interview-main"><div className="question-meta"><span>Question 2 of 5</span><div><span>Estimated 12 min left</span><div className="progress-line"><i style={{width:"40%"}}/></div></div></div><div className="question-card"><span className="kicker">PORTFOLIO</span><h1>Tell us about a project you’re particularly proud of.</h1><p>We’d love to understand your process, the problem you were solving and what changed because of your work.</p><textarea placeholder="Type your answer here..." maxLength={1500}/><div className="answer-footer"><span>0 / 1,500</span><Button variant="soft">Save draft</Button><Button onClick={()=>go("dashboard")}>Next question <ArrowRight size={15}/></Button></div></div></main></div></div>}
+function Interview({go}){
+  const [interviews,setInterviews]=useState([]);
+  const [activeId,setActiveId]=useState(null);
+  const [questions,setQuestions]=useState([]);
+  const [answers,setAnswers]=useState({});
+  const [loading,setLoading]=useState(true);
+  const [loadingQuestions,setLoadingQuestions]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const [completed,setCompleted]=useState(false);
 
+  useEffect(()=>{
+    let mounted=true;
+    (async()=>{
+      setLoading(true);setError("");
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user){if(mounted){setError("Your session has expired. Please sign in again.");setLoading(false)};return}
+      const {data,error}=await supabase.from("interviews").select("id,title,company_name,status,scheduled_at,duration_minutes,current_question,started_at,completed_at").eq("candidate_id",user.id).order("scheduled_at",{ascending:true,nullsFirst:false}).order("created_at",{ascending:false});
+      if(!mounted)return;
+      if(error){setError(error.message);setInterviews([])}
+      else{const rows=data||[];setInterviews(rows);setActiveId(rows[0]?.id||null);setCompleted(rows[0]?.status==="completed")}
+      setLoading(false);
+    })();
+    return()=>{mounted=false};
+  },[]);
+
+  const activeInterview=interviews.find(x=>x.id===activeId)||null;
+
+  useEffect(()=>{
+    if(!activeInterview)return;
+    let mounted=true;
+    (async()=>{
+      setLoadingQuestions(true);setError("");
+      const [{data:questionRows,error:qError},{data:answerRows,error:aError}]=await Promise.all([
+        supabase.from("interview_questions").select("id,position,section,prompt,help_text,max_length").eq("interview_id",activeInterview.id).order("position",{ascending:true}),
+        supabase.from("interview_answers").select("question_id,answer").eq("interview_id",activeInterview.id)
+      ]);
+      if(!mounted)return;
+      if(qError||aError){setError((qError||aError).message);setQuestions([]);setAnswers({})}
+      else{const answerMap={};(answerRows||[]).forEach(row=>{answerMap[row.question_id]=row.answer||""});setQuestions(questionRows||[]);setAnswers(answerMap);setCompleted(activeInterview.status==="completed")}
+      setLoadingQuestions(false);
+    })();
+    return()=>{mounted=false};
+  },[activeInterview?.id]);
+
+  const currentIndex=Math.max(0,(activeInterview?.current_question||1)-1);
+  const question=questions[currentIndex]||questions[0];
+  const currentAnswer=question?answers[question.id]||"":"";
+  const progress=questions.length?Math.min(100,Math.round(((currentIndex+1)/questions.length)*100)):0;
+
+  const saveAnswer=async()=>{
+    if(!activeInterview||!question)return true;
+    setSaving(true);setError("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {error:answerError}=await supabase.from("interview_answers").upsert({interview_id:activeInterview.id,question_id:question.id,candidate_id:user.id,answer:currentAnswer,submitted_at:null},{onConflict:"interview_id,question_id"});
+      if(answerError)throw answerError;
+      return true;
+    }catch(err){setError(err?.message||"We couldn't save your answer yet.");return false}
+    finally{setSaving(false)}
+  };
+
+  const startInterview=async()=>{
+    if(!activeInterview)return;
+    setSaving(true);setError("");
+    const {error:updateError}=await supabase.from("interviews").update({status:"in_progress",started_at:activeInterview.started_at||new Date().toISOString(),current_question:Math.max(1,activeInterview.current_question||1)}).eq("id",activeInterview.id);
+    if(updateError)setError(updateError.message);
+    else setInterviews(prev=>prev.map(x=>x.id===activeInterview.id?{...x,status:"in_progress",started_at:x.started_at||new Date().toISOString()}:x));
+    setSaving(false);
+  };
+
+  const nextQuestion=async()=>{
+    if(!activeInterview||!question||saving)return;
+    const saved=await saveAnswer();if(!saved)return;
+    if(currentIndex>=questions.length-1){
+      setSaving(true);
+      const {error:updateError}=await supabase.from("interviews").update({status:"completed",completed_at:new Date().toISOString(),current_question:questions.length||1}).eq("id",activeInterview.id);
+      if(updateError)setError(updateError.message);
+      else{setCompleted(true);setInterviews(prev=>prev.map(x=>x.id===activeInterview.id?{...x,status:"completed",completed_at:new Date().toISOString(),current_question:questions.length||1}:x))}
+      setSaving(false);return;
+    }
+    const next=currentIndex+2;
+    setSaving(true);
+    const {error:updateError}=await supabase.from("interviews").update({current_question:next}).eq("id",activeInterview.id);
+    if(updateError)setError(updateError.message);
+    else setInterviews(prev=>prev.map(x=>x.id===activeInterview.id?{...x,current_question:next}:x));
+    setSaving(false);
+  };
+
+  if(loading)return <div className="interview-page"><header className="flow-header"><Logo/><Badge tone="soft">Loading interview</Badge><Avatar letter="R" size="sm"/></header><div className="interview-empty"><Clock3 size={24}/><h2>Loading your interviews…</h2><p>We’re preparing your interview workspace.</p></div></div>;
+  if(error&&!activeInterview)return <div className="interview-page"><header className="flow-header"><Logo/><Badge tone="soft">Interview workspace</Badge><Avatar letter="R" size="sm"/></header><div className="interview-empty"><X size={24}/><h2>We couldn't load your interviews</h2><p>{error}</p><Button onClick={()=>go("dashboard")}>Back to dashboard</Button></div></div>;
+  if(!activeInterview)return <div className="interview-page"><header className="flow-header"><Logo/><Badge tone="soft">Interview workspace</Badge><Avatar letter="R" size="sm"/></header><div className="interview-empty"><MessageCircle size={28}/><span className="kicker">YOUR INTERVIEWS</span><h2>No interviews yet.</h2><p>When a company invites you to an interview, it will appear here with the schedule and interview workspace.</p><Button onClick={()=>go("applications")}>View applications <ArrowRight size={15}/></Button></div></div>;
+
+  const statusLabel=activeInterview.status==="completed"?"Interview completed":activeInterview.status==="in_progress"?"Interview in progress":activeInterview.status==="cancelled"?"Interview cancelled":"Interview scheduled";
+  const questionCount=questions.length||5;
+  const displayIndex=questions.length?currentIndex+1:1;
+  const timeLeft=Math.max(1,(questionCount-displayIndex+1)*3);
+
+  return <div className="interview-page">
+    <header className="flow-header"><Logo/><div className="interview-top-status">{interviews.length>1&&<select value={activeInterview.id} onChange={e=>{setActiveId(Number(e.target.value));setError("")}}>{interviews.map(x=><option key={x.id} value={x.id}>{x.company_name} · {x.title}</option>)}</select>}<Badge tone={activeInterview.status==="completed"?"soft":"green"}><span className="dot"/>{statusLabel}</Badge></div><Avatar letter="R" size="sm"/></header>
+    <div className="interview-layout">
+      <aside className="interview-side"><div><span className="kicker">{activeInterview.company_name}</span><h2>{activeInterview.title}</h2><p>Interview workspace</p></div>
+        <nav>{questions.map((q,i)=>{const done=i<currentIndex||activeInterview.status==="completed";const active=i===currentIndex&&activeInterview.status!=="completed";return <button className={active?"active":done?"done":""} key={q.id}><span>{done?<Check size={13}/>:i+1}</span>{q.section}{done&&<Check size={13}/>}</button>})}</nav>
+        <div className="interview-help"><CircleHelp size={17}/><span><strong>Need help?</strong>Review interview tips</span></div>
+      </aside>
+      <main className="interview-main">
+        {activeInterview.status==="scheduled"&&<div className="interview-start-card"><div><span className="kicker">READY WHEN YOU ARE</span><h2>Your interview is scheduled.</h2><p>{activeInterview.scheduled_at?new Date(activeInterview.scheduled_at).toLocaleString():"Estimated "+activeInterview.duration_minutes+" minutes"}</p></div><Button onClick={startInterview} disabled={saving}>Start interview <ArrowRight size={15}/></Button></div>}
+        {loadingQuestions&&<div className="question-card"><h1>Loading questions…</h1><p>Preparing your interview.</p></div>}
+        {!loadingQuestions&&questions.length===0&&<div className="question-card"><span className="kicker">INTERVIEW</span><h1>Your questions are not ready yet.</h1><p>This interview has been created, but the question set hasn't been published yet. Please check back shortly.</p></div>}
+        {!loadingQuestions&&questions.length>0&&<><div className="question-meta"><span>Question {displayIndex} of {questionCount}</span><div><span>{activeInterview.status==="completed"?"Completed":"Estimated "+timeLeft+" min left"}</span><div className="progress-line"><i style={{width:progress+"%"}}/></div></div></div>
+          <div className="question-card"><span className="kicker">{question.section}</span><h1>{question.prompt}</h1>{question.help_text&&<p>{question.help_text}</p>}
+            {activeInterview.status==="completed"?<div className="interview-complete"><Check size={24}/><strong>Interview completed</strong><span>Your responses have been saved.</span></div>:activeInterview.status==="cancelled"?<div className="interview-complete"><X size={24}/><strong>This interview was cancelled</strong><span>Please contact the hiring team if you believe this is an error.</span></div>:<><textarea value={currentAnswer} onChange={e=>setAnswers(prev=>({...prev,[question.id]:e.target.value}))} placeholder="Type your answer here..." maxLength={question.max_length||1500}/><div className="answer-footer"><span>{currentAnswer.length} / {question.max_length||1500}</span><Button variant="soft" onClick={saveAnswer} disabled={saving}>Save draft</Button><Button onClick={nextQuestion} disabled={saving}>{saving?"Saving…":currentIndex===questions.length-1?"Complete interview":"Next question"} <ArrowRight size={15}/></Button></div></>}
+          </div>
+        </>}
+        {error&&activeInterview&&<div className="auth-error interview-inline-error">{error}</div>}
+      </main>
+    </div>
+  </div>;
+}
 function Profile({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR PROFILE</span><h1>Profile & preferences</h1><p>Keep your professional story ready for every application.</p></div><Button onClick={()=>go("jobs")}>Preview jobs <ArrowRight size={15}/></Button></div><div className="profile-layout"><aside className="profile-card panel"><div className="profile-avatar"><Avatar letter="A" size="xl"/><button><PenLine size={14}/></button></div><h2>Alex Carter</h2><p>Product Designer</p><Badge tone="green">Profile 86% complete</Badge><div className="profile-links"><span><MapPin size={14}/>Lagos, Nigeria</span><span><Globe2 size={14}/>Open to worldwide</span></div></aside><section className="profile-editor panel"><PanelTitle title="About you"/><Field label="Professional headline" placeholder="Senior Product Designer"/><Field label="About" placeholder="A short introduction about your experience and the work you want to do."/><div className="two-fields"><Field label="Years of experience" placeholder="5"/><Field label="Availability" placeholder="Open to opportunities"/></div><PanelTitle title="Skills"/><div className="skill-editor">{["Product Design","Figma","UX Research","Design Systems","Prototyping"].map(x=><Badge key={x} tone="soft">{x} <X size={11}/></Badge>)}<button><Plus size={13}/> Add skill</button></div><Button>Save changes <Check size={15}/></Button></section></div></div>}
 
 function Employer({go}){return <div className="workspace employer-workspace"><div className="workspace-head"><div><span className="kicker">EMPLOYER WORKSPACE</span><h1>Welcome back, Sarah <span>✦</span></h1><p>Here’s what’s happening with your hiring pipeline.</p></div><Button onClick={()=>go("postjob")}>Post a job <Plus size={15}/></Button></div><div className="summary-grid"><Summary icon={BriefcaseBusiness} value="8" label="Active jobs" change="+2 this month"/><Summary icon={Users} value="126" label="Applications" change="+18 this week"/><Summary icon={MessageCircle} value="14" label="Interviews" change="+4 scheduled"/><Summary icon={Star} value="6" label="Hires" change="+2 this month"/></div><div className="employer-grid"><section className="panel"><PanelTitle title="Recent applications" action="View all" onAction={()=>go("candidates")}/>{[["Alex Carter","Senior Product Designer","Interview"],["Jamie Wilson","Frontend Developer","Shortlisted"],["Taylor Kim","Marketing Specialist","Under review"]].map((a,i)=><div className="candidate-row" key={a[0]}><Avatar letter={a[0][0]}/><div><strong>{a[0]}</strong><span>{a[1]}</span></div><Badge tone={i===0?"green":i===1?"soft":"amber"}>{a[2]}</Badge></div>)}</section><section className="panel hiring-card"><span className="kicker">HIRING HEALTH</span><h2>Your pipeline is moving.</h2><p>Keep candidates informed and your next hire closer.</p><div className="pipeline"><span style={{width:"76%"}}/></div><div className="pipeline-meta"><span>76% response rate</span><span>Above average</span></div><Button variant="soft" onClick={()=>go("candidates")}>Review candidates <ArrowRight size={14}/></Button></section></div></div>}
@@ -549,7 +667,7 @@ function App(){
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
-  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin"];
+  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","onboarding"];
   useEffect(()=>{
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)){go("login")}
