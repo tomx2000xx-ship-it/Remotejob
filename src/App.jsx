@@ -138,9 +138,33 @@ function Onboarding({go}){
   const [workType,setWorkType]=useState("");
   const [goal,setGoal]=useState("");
   const [categories,setCategories]=useState([]);
+  const [saving,setSaving]=useState(false);
+  const [saveError,setSaveError]=useState("");
   const toggleCategory=x=>setCategories(v=>v.includes(x)?v.filter(i=>i!==x):[...v,x]);
   const canContinue=step===1?!!country:step===2?!!experience:step===3?!!adaptiveAnswer:step===4?!!workType:!!goal;
-  const next=()=>{if(!canContinue)return; if(step<5)setStep(step+1); else go("dashboard")};
+  const next=async()=>{
+    if(!canContinue||saving)return;
+    setSaveError("");
+    if(step<5){setStep(step+1);return}
+    setSaving(true);
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {error}=await supabase.from("profiles").update({
+        country,
+        experience,
+        adaptive_answer:adaptiveAnswer,
+        work_type:workType,
+        goal,
+        interest_areas:categories,
+        onboarding_completed:true
+      }).eq("id",user.id);
+      if(error)throw error;
+      go("dashboard");
+    }catch(err){
+      setSaveError(err?.message||"We couldn't save your profile yet. Please try again.");
+    }finally{setSaving(false)}
+  };
   const progress=["About you","Experience","Your next step","Work style","Your goals"];
   const experienced=["Entry level","1–2 years","3–5 years","6–10 years","10+ years"].includes(experience);
   return <div className="flow-page onboarding-page">
@@ -204,9 +228,10 @@ function Onboarding({go}){
           <span className="field-label">Areas I’m interested in <small>(optional)</small></span>
           <div className="onboarding-tags">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map(x=><button type="button" className={categories.includes(x)?"selected":""} onClick={()=>toggleCategory(x)} key={x}>{x}{categories.includes(x)&&<Check size={12}/>}</button>)}</div>
         </>}
+        {saveError&&<div className="auth-message auth-error" role="alert">{saveError}</div>}
         <div className="onboarding-actions">
-          <Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1}>Back</Button>
-          <Button onClick={next} disabled={!canContinue}>{step<5?"Continue":"Finish my setup"} <ArrowRight size={15}/></Button>
+          <Button variant="outline" onClick={()=>step>1&&setStep(step-1)} disabled={step===1||saving}>Back</Button>
+          <Button onClick={next} disabled={!canContinue||saving}>{saving?"Saving…":step<5?"Continue":"Finish my setup"} {!saving&&<ArrowRight size={15}/>}</Button>
         </div>
       </div>
     </div>
