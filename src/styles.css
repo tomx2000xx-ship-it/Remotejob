@@ -1036,3 +1036,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* ===== UNIVERSAL STUDIO FORM ELEMENTS ===== */
 .studio-universal-field{border:1px solid #e2e9e3;background:#fbfcfa;border-radius:12px;padding:13px;margin-bottom:10px}.studio-field-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.studio-field-toolbar>strong{font-size:10px;color:#31453d}.studio-field-actions{display:flex;gap:5px;margin-left:auto}.studio-field-actions .btn{min-height:28px;padding:5px 8px;font-size:7px}.withdrawal-config-panel{margin-top:16px}.universal-choice-list{display:flex;flex-direction:column;gap:8px;padding:8px 0}.universal-choice-list label,.checkbox-field{display:flex;align-items:center;gap:8px;font-size:9px;color:#52615a}.field small{display:block;margin-top:5px;font-size:7px;color:#89948f;line-height:1.4}@media(max-width:600px){.studio-field-actions{width:100%;margin-left:0}.studio-field-actions .btn{flex:1}.studio-universal-field{padding:11px}}
+
+/* RemotePath branded loading experience */
+.app-loader{min-height:100vh;display:grid;place-items:center;align-content:center;gap:18px;background:var(--cream);color:var(--ink);padding:32px}
+.loader-logo{display:flex;align-items:center;gap:11px;animation:loader-rise .55s ease both}
+.loader-mark{width:46px;height:46px;border-radius:50% 50% 50% 7px;background:var(--green);color:#eef7f1;display:grid;place-items:center;font-size:23px;font-weight:700;letter-spacing:-.05em;transform:rotate(-8deg);box-shadow:0 10px 28px rgba(13,90,73,.16);animation:loader-pulse 1.35s ease-in-out infinite}
+.loader-mark span{display:block;transform:rotate(8deg)}
+.loader-word{font-size:24px;font-weight:700;letter-spacing:-.055em}
+.loader-track{width:148px;height:3px;border-radius:999px;background:rgba(13,90,73,.10);overflow:hidden}
+.loader-track span{display:block;width:45%;height:100%;border-radius:inherit;background:var(--green);animation:loader-slide 1.05s ease-in-out infinite}
+.app-loader p{margin:0;color:var(--muted);font-size:11px;letter-spacing:.02em;animation:loader-fade 1.35s ease-in-out infinite}
+@keyframes loader-pulse{0%,100%{transform:rotate(-8deg) scale(1);opacity:.92}50%{transform:rotate(-8deg) scale(1.07);opacity:1}}
+@keyframes loader-slide{0%{transform:translateX(-115%)}50%{transform:translateX(125%)}100%{transform:translateX(250%)}}
+@keyframes loader-rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes loader-fade{0%,100%{opacity:.55}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.loader-mark,.loader-logo,.loader-track span,.app-loader p{animation:none}.loader-track span{width:100%;opacity:.55}}
