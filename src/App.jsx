@@ -602,7 +602,7 @@ function AdminApplications({go}){
   const load=async()=>{
     setLoading(true);setError("");
     const [{data:apps,error:appError},{data:jobRows,error:jobError}]=await Promise.all([
-      supabase.from("applications").select("id,user_id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id,jobs!inner(id,title,company_name,status),profiles!applications_user_id_fkey(id,full_name,country,experience,work_type,goal,interest_areas,onboarding_completed),resumes(id,file_name,file_size,mime_type,storage_path,created_at)").order("created_at",{ascending:false}),
+      supabase.from("applications").select("id,user_id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id,jobs!inner(id,title,company_name,status),profiles!applications_user_id_fkey(id,full_name,country,experience,work_type,goal,interest_areas,onboarding_completed),resumes(id,file_name,file_size,mime_type,storage_path,created_at)").neq("status","draft").order("created_at",{ascending:false}),
       supabase.from("jobs").select("id,title,company_name").order("created_at",{ascending:false})
     ]);
     if(appError||jobError){setError((appError||jobError).message);setRows([]);setJobs([])}
