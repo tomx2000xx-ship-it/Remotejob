@@ -1085,7 +1085,8 @@ function Verification({go}){
   const [documentType,setDocumentType]=useState("");
   const [frontFile,setFrontFile]=useState(null);
   const [backFile,setBackFile]=useState(null);
-  const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);\n  const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
+  const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);
+  const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
   const [country,setCountry]=useState("United States");
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Government tax / identity number","France":"Government tax / identity number","Netherlands":"Government identity / tax number","Ireland":"Government identity / tax number","Sweden":"Government identity / tax number","Denmark":"Government identity / tax number","Norway":"Government identity / tax number","Finland":"Government identity / tax number","Belgium":"Government identity / tax number","Switzerland":"Government identity / tax number","Austria":"Government identity / tax number","Poland":"Government identity / tax number"};
@@ -1099,7 +1100,8 @@ function Verification({go}){
       const [{data,error:e},{data:demoSetting},{data:identityDemoSetting}]=await Promise.all([supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_identity_storage").maybeSingle()]);
       if(!mounted)return;
       if(e)setError(e.message);
-      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);\n      setDemoIdentityStorageEnabled(identityDemoSetting?.value?.enabled===true);
+      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);
+      setDemoIdentityStorageEnabled(identityDemoSetting?.value?.enabled===true);
       if(data){
         setExisting(data);
         setCountry(data.country||"United States");
