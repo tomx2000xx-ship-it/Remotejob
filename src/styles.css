@@ -998,3 +998,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .studio-team-row>div:nth-child(2){flex:1}
 @media(max-width:900px){.studio-grid,.studio-two-col{grid-template-columns:1fr}.studio-grid>.panel:last-child{grid-column:auto}}
 @media(max-width:600px){.studio-fields{grid-template-columns:1fr}.studio-field-row{grid-template-columns:1fr!important}.studio-question-row{grid-template-columns:22px minmax(0,1fr)!important}.studio-question-row .badge{grid-column:2}.studio-tabs{margin-left:-2px;margin-right:-2px}}
+
+
+/* Verification demo controls */
+.studio-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:16px 0}
+.studio-toggle-row>div{display:grid;gap:4px}.studio-toggle-row strong{font-size:14px}.studio-toggle-row small{color:var(--muted);line-height:1.45}
