@@ -310,6 +310,11 @@ function Dashboard({go}){
  const firstName=(profile?.full_name||"there").trim().split(/\s+/)[0]||"there";
  return <div className="workspace">
    <div className="workspace-head"><div><span className="kicker">REMOTE PATH WORKSPACE</span><h1>Good morning, {firstName} <span>✦</span></h1><p>{profile?.onboarding_completed?"Here’s what’s happening with your job search.":"Finish your profile setup to personalize your job search."}</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div>
+   {!profile?.onboarding_completed&&<section className="payout-reminder" aria-label="Profile setup reminder">
+     <div className="payout-reminder-icon"><UserRound size={20}/></div>
+     <div className="payout-reminder-copy"><span className="kicker">PROFILE SETUP</span><h2>Finish your profile setup</h2><p>Tell us where you’re based, your experience, work style and goals so we can personalize the opportunities you see.</p></div>
+     <button className="payout-reminder-action" onClick={()=>go("onboarding")}><span>Complete profile</span><ArrowRight size={16}/></button>
+   </section>}
    <section className="verification-banner verification-required">
      <div className="verification-banner-icon"><CircleHelp size={20}/></div>
      <div className="verification-banner-copy"><span className="kicker">ACCOUNT VERIFICATION</span><h2>Complete your verification</h2><p>Your profile is almost ready. Confirm your identity so RemotePath can keep the marketplace trusted and secure.</p><div className="verification-status"><span><i/> Verification required</span><small>Usually takes a few minutes once verification is connected.</small></div></div>
