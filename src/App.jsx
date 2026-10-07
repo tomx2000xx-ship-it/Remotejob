@@ -1254,14 +1254,14 @@ function App(){
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
-  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","notifications","onboarding"];
+  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","notifications","onboarding"];
   useEffect(()=>{
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)){go("login")}
     if(session&&(screen==="login"||screen==="signup"||screen==="verify"))go("dashboard");
-    if(session&&accountStatus!=="active"&&role!=="admin"&&screen!=="restricted"&&screen!=="support")go("restricted");
+    if(session&&accountStatus!=="active"&&role!=="admin"&&role!=="super_admin"&&screen!=="restricted"&&screen!=="support")go("restricted");
     if(session&&["employer","postjob","candidates"].includes(screen)){go("dashboard")}
-    if(session&&["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"].includes(screen)&&role!=="admin"){go("dashboard")}
+    if(session&&["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"].includes(screen)&&role!=="admin"&&role!=="super_admin"){go("dashboard")}
   },[authReady,session,screen]);
   if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
   let page;
