@@ -17,10 +17,10 @@ const registrationCountries = [
   ["🇫🇮","Finland"],["🇧🇪","Belgium"],["🇨🇭","Switzerland"],["🇦🇹","Austria"],["🇵🇱","Poland"]
 ];
 
-function normalizeGovernmentIdentifier(value){return String(value||"").toUpperCase().replace(/[\\s-]/g,"");}
+function normalizeGovernmentIdentifier(value){return String(value||"").toUpperCase().replace(/[\s-]/g,"");}
 function luhnValid(value){
   const digits=normalizeGovernmentIdentifier(value);
-  if(!/^\\d+$/.test(digits))return false;
+  if(!/^\d+$/.test(digits))return false;
   let sum=0,doubleIt=false;
   for(let i=digits.length-1;i>=0;i--){let n=Number(digits[i]);if(doubleIt){n*=2;if(n>9)n-=9;}sum+=n;doubleIt=!doubleIt;}
   return sum%10===0;
@@ -32,33 +32,39 @@ function validDateParts(value){
   const date=new Date(Date.UTC(year,m-1,d));
   return date.getUTCMonth()===m-1&&date.getUTCDate()===d;
 }
+function validDanishDateParts(value){
+  const d=Number(value.slice(0,2)),m=Number(value.slice(2,4)),y=Number(value.slice(4,6));
+  if(m<1||m>12||d<1||d>31)return false;
+  const date=new Date(Date.UTC(2000+y,m-1,d));
+  return date.getUTCMonth()===m-1&&date.getUTCDate()===d;
+}
 function validateGovernmentIdentifier(country,value){
   const raw=String(value||"").trim();
   const id=normalizeGovernmentIdentifier(raw);
   if(!raw)return {valid:false,message:"Enter your government identifier."};
   if(id.length<6)return {valid:false,message:"This identifier is too short."};
   if(country==="United States"){
-    if(!/^\\d{9}$/.test(id))return {valid:false,message:"A U.S. SSN must contain exactly 9 digits."};
+    if(!/^\d{9}$/.test(id))return {valid:false,message:"A U.S. SSN must contain exactly 9 digits."};
     const area=id.slice(0,3),group=id.slice(3,5),serial=id.slice(5);
     if(area==="000"||area==="666"||Number(area)>=900)return {valid:false,message:"That SSN area number is not valid."};
     if(group==="00"||serial==="0000")return {valid:false,message:"That SSN contains an invalid group or serial number."};
     return {valid:true,normalized:id,message:"Format check passed. Identity ownership is not verified by this demo."};
   }
   if(country==="Canada"){
-    if(!/^\\d{9}$/.test(id))return {valid:false,message:"A Canadian SIN must contain exactly 9 digits."};
+    if(!/^\d{9}$/.test(id))return {valid:false,message:"A Canadian SIN must contain exactly 9 digits."};
     if(/^0{9}$/.test(id)||id[0]==="0")return {valid:false,message:"That SIN cannot begin with 0 or be all zeros."};
     if(!luhnValid(id))return {valid:false,message:"The SIN check digit is invalid."};
     return {valid:true,normalized:id,message:"Format and check digit passed. Identity ownership is not verified by this demo."};
   }
   if(country==="United Kingdom"){
-    if(!/^[A-CEGHJ-PR-TW-Z]{2}\\d{6}[A-D]$/.test(id))return {valid:false,message:"A UK National Insurance number must be 2 letters, 6 numbers, then A, B, C or D."};
+    if(!/^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$/.test(id))return {valid:false,message:"A UK National Insurance number must be 2 letters, 6 numbers, then A, B, C or D."};
     const prefix=id.slice(0,2);
     const blocked=["BG","GB","KN","NK","NT","TN","ZZ"];
     if(/[DFIQUV]/.test(prefix)||prefix[1]==="O"||blocked.includes(prefix))return {valid:false,message:"That National Insurance prefix is not valid."};
     return {valid:true,normalized:id,message:"Format check passed. A National Insurance number is not proof of identity by itself."};
   }
   if(country==="Germany"){
-    if(!/^\\d{11}$/.test(id))return {valid:false,message:"A German tax identification number must contain exactly 11 digits."};
+    if(!/^\d{11}$/.test(id))return {valid:false,message:"A German tax identification number must contain exactly 11 digits."};
     if(/^0{11}$/.test(id))return {valid:false,message:"That tax identification number is not valid."};
     let product=10;
     for(let i=0;i<10;i++){let digit=(Number(id[i])+product)%10;if(digit===0)digit=10;product=(2*digit)%11;}
@@ -67,26 +73,26 @@ function validateGovernmentIdentifier(country,value){
     return {valid:true,normalized:id,message:"Format and check digit passed."};
   }
   if(country==="France"){
-    if(!/^\\d{15}$/.test(id))return {valid:false,message:"A French NIR/social-security number must contain 15 digits in this demo."};
+    if(!/^\d{15}$/.test(id))return {valid:false,message:"A French NIR/social-security number must contain 15 digits in this demo."};
     const base=BigInt(id.slice(0,13)),key=Number(id.slice(13));
     if(97-Number(base%97n)!==key)return {valid:false,message:"The French identifier check key is invalid."};
     return {valid:true,normalized:id,message:"Format and check key passed."};
   }
   if(country==="Netherlands"){
-    if(!/^\\d{9}$/.test(id))return {valid:false,message:"A Dutch BSN must contain exactly 9 digits."};
+    if(!/^\d{9}$/.test(id))return {valid:false,message:"A Dutch BSN must contain exactly 9 digits."};
     if(/^0{9}$/.test(id))return {valid:false,message:"That BSN is not valid."};
     const sum=id.split("").reduce((t,d,i)=>t+Number(d)*(9-i),0);
     if(sum%11!==0)return {valid:false,message:"The Dutch BSN 11-test check failed."};
     return {valid:true,normalized:id,message:"Format and check rule passed."};
   }
   if(country==="Sweden"){
-    if(!/^\\d{10}$/.test(id))return {valid:false,message:"A Swedish personal identity number must contain 10 digits in this demo."};
+    if(!/^\d{10}$/.test(id))return {valid:false,message:"A Swedish personal identity number must contain 10 digits in this demo."};
     if(!validDateParts(id))return {valid:false,message:"The date portion of this Swedish identifier is not valid."};
     if(!luhnValid(id))return {valid:false,message:"The Swedish personal identity number check digit is invalid."};
     return {valid:true,normalized:id,message:"Format, date and check digit passed."};
   }
   if(country==="Norway"){
-    if(!/^\\d{11}$/.test(id))return {valid:false,message:"A Norwegian national identity number must contain exactly 11 digits."};
+    if(!/^\d{11}$/.test(id))return {valid:false,message:"A Norwegian national identity number must contain exactly 11 digits."};
     const a=[3,7,6,1,8,9,4,5,2],b=[5,4,3,2,7,6,5,4,3,2];
     let s1=a.reduce((t,w,i)=>t+Number(id[i])*w,0),r1=11-(s1%11);
     if(r1===11)r1=0;if(r1===10||r1!==Number(id[9]))return {valid:false,message:"The first Norwegian check digit is invalid."};
@@ -95,42 +101,42 @@ function validateGovernmentIdentifier(country,value){
     return {valid:true,normalized:id,message:"Format and check digits passed."};
   }
   if(country==="Finland"){
-    if(!/^\\d{6}[+\\-A]\\d{3}[0-9A-Z]$/.test(id))return {valid:false,message:"A Finnish personal identity code has 6 digits, a century marker, 3 digits and a check character."};
+    if(!/^\d{6}[+\-A]\d{3}[0-9A-Z]$/.test(id))return {valid:false,message:"A Finnish personal identity code has 6 digits, a century marker, 3 digits and a check character."};
     const chars="0123456789ABCDEFHJKLMNPRSTUVWXY";
     const remainder=Number(id.slice(0,6)+id.slice(7,10))%31;
     if(id[10]!==chars[remainder])return {valid:false,message:"The Finnish identity code check character is invalid."};
     return {valid:true,normalized:id,message:"Format and check character passed."};
   }
   if(country==="Belgium"){
-    if(!/^\\d{11}$/.test(id))return {valid:false,message:"A Belgian national number must contain exactly 11 digits."};
+    if(!/^\d{11}$/.test(id))return {valid:false,message:"A Belgian national number must contain exactly 11 digits."};
     const first9=BigInt(id.slice(0,9)),tail=Number(id.slice(9));
     const ok=(97-Number(first9%97n)===tail)||(97-Number(BigInt("2"+id.slice(0,9))%97n)===tail);
     if(!ok)return {valid:false,message:"The Belgian national number check digits are invalid."};
     return {valid:true,normalized:id,message:"Format and check digits passed."};
   }
   if(country==="Austria"){
-    if(!/^\\d{10}$/.test(id))return {valid:false,message:"An Austrian social insurance number must contain exactly 10 digits."};
+    if(!/^\d{10}$/.test(id))return {valid:false,message:"An Austrian social insurance number must contain exactly 10 digits."};
     const weights=[3,7,9,5,8,4,2,1,6],sum=weights.reduce((t,w,i)=>t+Number(id[i])*w,0);
     if(sum%11!==Number(id[9]))return {valid:false,message:"The Austrian social insurance check digit is invalid."};
     return {valid:true,normalized:id,message:"Format and check digit passed."};
   }
   if(country==="Poland"){
-    if(!/^\\d{11}$/.test(id))return {valid:false,message:"A Polish PESEL must contain exactly 11 digits."};
+    if(!/^\d{11}$/.test(id))return {valid:false,message:"A Polish PESEL must contain exactly 11 digits."};
     const weights=[1,3,7,9,1,3,7,9,1,3],sum=weights.reduce((t,w,i)=>t+Number(id[i])*w,0),check=(10-(sum%10))%10;
     if(check!==Number(id[10]))return {valid:false,message:"The Polish PESEL check digit is invalid."};
     return {valid:true,normalized:id,message:"Format and check digit passed."};
   }
   if(country==="Denmark"){
-    if(!/^\\d{10}$/.test(id))return {valid:false,message:"A Danish CPR number must contain exactly 10 digits."};
-    if(!validDateParts(id))return {valid:false,message:"The date portion of this Danish CPR number is not valid."};
+    if(!/^\d{10}$/.test(id))return {valid:false,message:"A Danish CPR number must contain exactly 10 digits."};
+    if(!validDanishDateParts(id))return {valid:false,message:"The date portion of this Danish CPR number is not valid."};
     return {valid:true,normalized:id,message:"Format and date check passed. CPR check digits are not used as a universal validation rule for all modern numbers."};
   }
   if(country==="Ireland"){
-    if(!/^\\d{7}[A-Z]{1,2}$/.test(id))return {valid:false,message:"An Irish PPS number must contain 7 digits followed by 1 or 2 letters."};
+    if(!/^\d{7}[A-Z]{1,2}$/.test(id))return {valid:false,message:"An Irish PPS number must contain 7 digits followed by 1 or 2 letters."};
     return {valid:true,normalized:id,message:"Format check passed. Final eligibility/ownership checks require the official authority/provider."};
   }
   if(country==="Switzerland"){
-    if(!/^756\\d{10}$/.test(id))return {valid:false,message:"A Swiss AHV number must contain 13 digits and begin with 756."};
+    if(!/^756\d{10}$/.test(id))return {valid:false,message:"A Swiss AHV number must contain 13 digits and begin with 756."};
     return {valid:true,normalized:id,message:"Format check passed. Official issuance/ownership requires the authority or provider."};
   }
   return {valid:false,message:"This country does not yet have a configured validation rule."};
