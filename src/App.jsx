@@ -803,18 +803,78 @@ function SupportWidget(){
   const [message,setMessage]=useState("");
   const [draft,setDraft]=useState("");
   const [messages,setMessages]=useState([]);
+  const [ticket,setTicket]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [error,setError]=useState("");
 
-  const openChat=()=>{setOpen(true);setView("empty")};
-  const startChat=()=>{setView("chat");if(messages.length===0)setMessages([{from:"support",text:"Hi there — how can we help today?",time:"Just now"}])};
-  const sendMessage=()=>{
-    const text=draft.trim();
-    if(!text)return;
-    setMessages(v=>[...v,{from:"user",text,time:"Just now"}]);
-    setDraft("");
-  };
-  const submitTicket=()=>{if(!issueType||!subject.trim()||!message.trim())return;setView("success")};
-  const reset=()=>{setView("empty");setIssueType("");setSubject("");setMessage("");setDraft("");setMessages([])};
   const issueTypes=["Account & login","Job or application","Partner company / job","Technical issue","Report a concern","Other"];
+
+  const loadTicket=async(ticketId)=>{
+    const {data,error:e}=await supabase.from("support_messages").select("id,sender_type,body,created_at").eq("ticket_id",ticketId).order("created_at",{ascending:true});
+    if(e){setError(e.message);return;}
+    setMessages((data||[]).map(m=>({id:m.id,from:m.sender_type==="user"?"user":"support",text:m.body,time:new Date(m.created_at).toLocaleString()})));
+  };
+
+  const loadLatestTicket=async()=>{
+    setLoading(true);setError("");
+    const {data,error:e}=await supabase.from("support_tickets").select("id,issue_type,subject,status,created_at,updated_at").order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    if(e){setError(e.message);setLoading(false);return;}
+    if(data){setTicket(data);await loadTicket(data.id);setView("chat");}
+    setLoading(false);
+  };
+
+  const openChat=async()=>{
+    setOpen(true);setView("empty");setError("");
+    await loadLatestTicket();
+  };
+
+  const startChat=async()=>{
+    setError("");
+    if(ticket){setView("chat");await loadTicket(ticket.id);return;}
+    setView("chat");
+    setMessages([{from:"support",text:"Hi there — how can we help today?",time:"Just now"}]);
+  };
+
+  const sendMessage=async()=>{
+    const text=draft.trim();
+    if(!text||sending)return;
+    setSending(true);setError("");
+    try{
+      let activeTicket=ticket;
+      if(!activeTicket){
+        const {data:{user}}=await supabase.auth.getUser();
+        if(!user)throw new Error("Your session has expired. Please sign in again.");
+        const {data:newTicket,error:ticketError}=await supabase.from("support_tickets").insert({user_id:user.id,issue_type:"Other",subject:"Support conversation"}).select("id,issue_type,subject,status,created_at,updated_at").single();
+        if(ticketError)throw ticketError;
+        activeTicket=newTicket;setTicket(newTicket);
+      }
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {data:newMessage,error:messageError}=await supabase.from("support_messages").insert({ticket_id:activeTicket.id,user_id:user.id,sender_type:"user",body:text}).select("id,sender_type,body,created_at").single();
+      if(messageError)throw messageError;
+      setMessages(v=>[...v,{id:newMessage.id,from:"user",text:newMessage.body,time:new Date(newMessage.created_at).toLocaleString()}]);
+      setDraft("");
+    }catch(err){setError(err?.message||"We couldn't send your message.");}
+    finally{setSending(false);}
+  };
+
+  const submitTicket=async()=>{
+    if(!issueType||!subject.trim()||!message.trim()||sending)return;
+    setSending(true);setError("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {data:newTicket,error:ticketError}=await supabase.from("support_tickets").insert({user_id:user.id,issue_type:issueType,subject:subject.trim()}).select("id,issue_type,subject,status,created_at,updated_at").single();
+      if(ticketError)throw ticketError;
+      const {error:messageError}=await supabase.from("support_messages").insert({ticket_id:newTicket.id,user_id:user.id,sender_type:"user",body:message.trim()});
+      if(messageError)throw messageError;
+      setTicket(newTicket);setMessages([{from:"user",text:message.trim(),time:"Just now"}]);setView("success");
+    }catch(err){setError(err?.message||"We couldn't create your ticket.");}
+    finally{setSending(false);}
+  };
+
+  const reset=()=>{setView("empty");setIssueType("");setSubject("");setMessage("");setDraft("");setMessages([]);setTicket(null);setError("");};
 
   return <>
     <button className={open?"support-launcher is-open":"support-launcher"} onClick={()=>open?setOpen(false):openChat()} aria-label={open?"Close support":"Open support"}>
@@ -828,34 +888,38 @@ function SupportWidget(){
 
       {view==="empty"&&<div className="support-body support-empty">
         <div className="support-welcome"><span className="support-welcome-icon"><CircleHelp size={22}/></span><span className="kicker">HOW CAN WE HELP?</span><h3>What can we help you with?</h3><p>Start a conversation or open a ticket and we’ll guide you from there.</p></div>
+        {error&&<div className="auth-message auth-error">{error}</div>}
         <div className="support-actions">
-          <button onClick={startChat}><span><MessageCircle size={17}/></span><div><strong>I need help</strong><small>Chat with support</small></div><ArrowRight size={15}/></button>
-          <button onClick={()=>setView("ticket")}><span><FileText size={17}/></span><div><strong>Open a support ticket</strong><small>For issues that need follow-up</small></div><ArrowRight size={15}/></button>
-          <button onClick={()=>setView("ticket")}><span><ShieldCheck size={17}/></span><div><strong>Report a concern</strong><small>Tell us about a problem</small></div><ArrowRight size={15}/></button>
+          <button onClick={startChat} disabled={loading}><span><MessageCircle size={17}/></span><div><strong>{loading?"Loading…":"I need help"}</strong><small>Chat with support</small></div><ArrowRight size={15}/></button>
+          <button onClick={()=>{setError("");setView("ticket")}}><span><FileText size={17}/></span><div><strong>Open a support ticket</strong><small>For issues that need follow-up</small></div><ArrowRight size={15}/></button>
+          <button onClick={()=>{setIssueType("Report a concern");setError("");setView("ticket")}}><span><ShieldCheck size={17}/></span><div><strong>Report a concern</strong><small>Tell us about a problem</small></div><ArrowRight size={15}/></button>
         </div>
         <button className="support-faq" onClick={startChat}>Browse common questions <ArrowRight size={14}/></button>
       </div>}
 
       {view==="chat"&&<div className="support-body support-chat">
         <div className="support-chat-meta"><button onClick={()=>setView("empty")}><ArrowLeft size={14}/> Support home</button><span><i/> Available</span></div>
+        {error&&<div className="auth-message auth-error">{error}</div>}
         <div className="support-messages">
-          {messages.map((m,i)=><div className={m.from==="user"?"support-message user":"support-message"} key={i}><div>{m.text}</div><small>{m.time}</small></div>)}
-          {messages.length===1&&<div className="support-suggestion"><span>Try asking about:</span><div><button onClick={()=>setDraft("I need help with my application.")}>My application</button><button onClick={()=>setDraft("I’m having trouble signing in.")}>Signing in</button><button onClick={()=>setDraft("I want to report a job.")}>Reporting a job</button></div></div>}
+          {messages.map((m,i)=><div className={m.from==="user"?"support-message user":"support-message"} key={m.id||i}><div>{m.text}</div><small>{m.time}</small></div>)}
+          {messages.length===0&&<div className="support-message"><div>Hi there — how can we help today?</div><small>Just now</small></div>}
+          {messages.length<=1&&<div className="support-suggestion"><span>Try asking about:</span><div><button onClick={()=>setDraft("I need help with my application.")}>My application</button><button onClick={()=>setDraft("I’m having trouble signing in.")}>Signing in</button><button onClick={()=>setDraft("I want to report a job.")}>Reporting a job</button></div></div>}
         </div>
-        <div className="support-composer"><button aria-label="Add attachment" title="Attachments are coming later"><Plus size={17}/></button><input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendMessage()}} placeholder="Write a message..." aria-label="Write a message"/><button className="support-send" onClick={sendMessage} aria-label="Send message"><Send size={16}/></button></div>
+        <div className="support-composer"><button aria-label="Add attachment" title="Attachments are coming later"><Plus size={17}/></button><input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendMessage()}} placeholder="Write a message..." aria-label="Write a message"/><button className="support-send" onClick={sendMessage} disabled={sending} aria-label="Send message"><Send size={16}/></button></div>
       </div>}
 
       {view==="ticket"&&<div className="support-body support-ticket">
         <div className="support-page-head"><button onClick={()=>setView("empty")}><ArrowLeft size={14}/> Back</button><span className="kicker">SUPPORT TICKET</span><h3>Tell us what happened.</h3><p>Give us enough detail to understand the issue. You can add attachments when support functionality is connected.</p></div>
+        {error&&<div className="auth-message auth-error">{error}</div>}
         <label className="support-field"><span>Issue type <b>*</b></span><select value={issueType} onChange={e=>setIssueType(e.target.value)}><option value="">Choose an issue</option>{issueTypes.map(x=><option key={x}>{x}</option>)}</select></label>
         <label className="support-field"><span>Subject <b>*</b></span><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Give your issue a short title"/></label>
         <label className="support-field"><span>What happened? <b>*</b></span><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe the issue and what you were trying to do..."/></label>
         <button className="support-attachment" title="Attachments are coming later"><Plus size={15}/> Add attachment <small>Coming later</small></button>
-        <Button className="support-submit" onClick={submitTicket} disabled={!issueType||!subject.trim()||!message.trim()}>Submit ticket <ArrowRight size={15}/></Button>
+        <Button className="support-submit" onClick={submitTicket} disabled={sending||!issueType||!subject.trim()||!message.trim()}>{sending?"Submitting…":"Submit ticket"} {!sending&&<ArrowRight size={15}/>}</Button>
       </div>}
 
       {view==="success"&&<div className="support-body support-success">
-        <div className="support-success-icon"><Check size={24}/></div><span className="kicker">TICKET RECEIVED</span><h3>Your support request is in.</h3><p>We’ve captured the details. A ticket ID will appear here once support functionality is connected.</p><div className="support-ticket-preview"><span>Status</span><strong>Open</strong><small>Awaiting support</small></div><div className="support-success-actions"><Button onClick={()=>setView("chat")}>Back to chat</Button><Button variant="outline" onClick={reset}>Start a new request</Button></div>
+        <div className="support-success-icon"><Check size={24}/></div><span className="kicker">TICKET RECEIVED</span><h3>Your support request is in.</h3><p>We’ve captured the details. Your support ticket is now stored securely and can be followed up by the RemotePath team.</p><div className="support-ticket-preview"><span>Ticket</span><strong>#{ticket?.id}</strong><small>Status: {ticket?.status||"Open"}</small></div><div className="support-success-actions"><Button onClick={startChat}>Back to chat</Button><Button variant="outline" onClick={reset}>Start a new request</Button></div>
       </div>}
 
       {view==="closed"&&<div className="support-body support-success">
@@ -866,7 +930,6 @@ function SupportWidget(){
     </section>}
   </>;
 }
-
 function App(){
   const initial=()=>window.location.hash.replace("#/","")||"home";
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
