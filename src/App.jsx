@@ -5,7 +5,7 @@ import {
   Globe2, Heart, LayoutDashboard, LockKeyhole, Mail, MapPin,
   Menu, MessageCircle, MoreHorizontal, PenLine, Plus, Search, Send,
   Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Star, UserRound,
-  Users, X, Zap
+  Users, WalletCards, X, Zap
 } from "lucide-react";
 
 const jobs = [
@@ -25,7 +25,7 @@ const registrationCountries = [
 
 const navItems = [
   ["dashboard","Dashboard",LayoutDashboard],["jobs","Find Jobs",Search],["saved","Saved Jobs",Bookmark],
-  ["applications","Applications",FileText],["interview","Interviews",MessageCircle],["profile","Profile",UserRound],
+  ["applications","Applications",FileText],["interview","Interviews",MessageCircle],["profile","Profile",UserRound],["payouts","Payouts",WalletCards],
   ["verification","Verification",ShieldCheck]
 ];
 
@@ -239,6 +239,68 @@ function Dashboard({go}){
 function Summary({icon:Icon,value,label,change}){return <div className="summary-card"><div><Icon size={17}/><span>{label}</span></div><strong>{value}</strong><small>{change}</small></div>}
 function PanelTitle({title,action,onAction}){return <div className="panel-title"><h2>{title}</h2>{action&&<button onClick={onAction}>{action} <ArrowRight size={14}/></button>}</div>}
 
+const payoutBanks = {
+  "United States":["JPMorgan Chase","Bank of America","Wells Fargo","Citibank","Capital One","U.S. Bank","PNC Bank","Truist"],
+  "Canada":["Royal Bank of Canada (RBC)","TD Canada Trust","Bank of Montreal (BMO)","Scotiabank","CIBC","National Bank of Canada","Desjardins"],
+  "United Kingdom":["HSBC UK","Barclays","Lloyds Bank","NatWest","Santander UK","Halifax","Nationwide"],
+  "Germany":["Deutsche Bank","Commerzbank","DZ Bank","ING Germany","DKB","Sparkasse","Volksbank Raiffeisenbank"],
+  "France":["BNP Paribas","Crédit Agricole","Société Générale","Groupe BPCE","Crédit Mutuel","La Banque Postale"],
+  "Netherlands":["ING","ABN AMRO","Rabobank","ASN Bank","de Volksbank","Triodos Bank"],
+  "Ireland":["AIB","Bank of Ireland","Permanent TSB","Ulster Bank","Revolut"],
+  "Sweden":["Nordea","SEB","Swedbank","Svenska Handelsbanken","SBAB Bank"],
+  "Denmark":["Danske Bank","Jyske Bank","Nordea","Sydbank","Nykredit"],
+  "Norway":["DNB","SpareBank 1","Nordea","Danske Bank","Sbanken"],
+  "Finland":["Nordea","OP Financial Group","Danske Bank","S-Bank","Aktia"],
+  "Belgium":["KBC","Belfius","BNP Paribas Fortis","ING Belgium","Argenta"],
+  "Switzerland":["UBS","Zürcher Kantonalbank","Raiffeisen Switzerland","PostFinance","Banque Cantonale Vaudoise"],
+  "Austria":["Erste Bank","Raiffeisen Bank International","Bank Austria","BAWAG","Oberbank"],
+  "Poland":["PKO Bank Polski","Bank Pekao","Santander Bank Polska","mBank","ING Bank Śląski","Alior Bank"]
+};
+
+function Payouts({go}){
+  const [method,setMethod]=useState("bank");
+  const [country,setCountry]=useState("United States");
+  const [bank,setBank]=useState("");
+  const [name,setName]=useState("");
+  const [account,setAccount]=useState("");
+  const [paypalEmail,setPaypalEmail]=useState("");
+  const [paypalName,setPaypalName]=useState("");
+  const [confirmed,setConfirmed]=useState(false);
+  const [saved,setSaved]=useState(false);
+  const banks=payoutBanks[country]||[];
+  const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
+  const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
+  const canSave=method==="bank"?bankReady:paypalReady;
+  const selectCountry=(value)=>{setCountry(value);setBank("");};
+  const saveMethod=()=>{if(!canSave||!confirmed)return;setSaved(true);};
+
+  if(saved) return <div className="workspace"><div className="workspace-head"><div><span className="kicker">PAYOUT SETTINGS</span><h1>Payment method saved.</h1><p>Your payout details are ready for the payout functionality to be connected later.</p></div><Button variant="outline" onClick={()=>setSaved(false)}><PenLine size={15}/> Review details</Button></div><section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{method==="bank"?"Bank transfer":"PayPal"}</h2><p>{method==="bank"?bank+" · "+country+" · Account ending "+(account.slice(-4)||"••••"):paypalName+" · "+paypalEmail}</p><Badge tone="green">Ready for payouts</Badge></div></section><section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section></div>;
+
+  return <div className="workspace">
+    <div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Choose where you want your earnings sent and keep your payment details up to date.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Secure payout details</Badge></div>
+    <section className="payout-warning"><div className="payout-warning-icon"><CircleHelp size={19}/></div><div><strong>Take your time before you save.</strong><p>Make sure your name, bank or PayPal details are exactly correct. Incorrect payout information can cause a payment to fail or be sent to the wrong destination. Once saved, changes may be restricted and you may need to contact <button onClick={()=>go("home")}>Customer Care</button> to request an update.</p></div></section>
+    <section className="payout-method-panel">
+      <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>Where should we send your earnings?</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
+      <div className="payout-method-grid">
+        <button className={method==="bank"?"payout-method-card active":"payout-method-card"} onClick={()=>setMethod("bank")}><span className="payout-method-icon"><Landmark size={19}/></span><div><strong>Bank transfer</strong><small>Send earnings directly to your bank account.</small></div><i>{method==="bank"?<Check size={13}/>:null}</i></button>
+        <button className={method==="paypal"?"payout-method-card active":"payout-method-card"} onClick={()=>setMethod("paypal")}><span className="payout-method-icon paypal-mark">P</span><div><strong>PayPal</strong><small>Receive earnings through your PayPal account.</small></div><i>{method==="paypal"?<Check size={13}/>:null}</i></button>
+      </div>
+      {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Tell us where to send the bank transfer.</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
+        <label className="field"><span>Bank country</span><select value={country} onChange={e=>selectCountry(e.target.value)}>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select></label>
+        <label className="field"><span>Bank name</span><select value={bank} onChange={e=>setBank(e.target.value)}><option value="">Select your bank</option>{banks.map(b=><option key={b}>{b}</option>)}</select></label>
+        <label className="field"><span>Account holder name</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Name on the bank account" autoComplete="name"/></label>
+        <label className="field"><span>Account number / IBAN</span><input value={account} onChange={e=>setAccount(e.target.value)} placeholder="Enter your account details" inputMode="text" autoComplete="off"/></label>
+      </div><div className="payout-country-note"><Globe2 size={15}/><span>Some countries require additional banking details such as routing, sort code, transit/institution numbers, IBAN or BIC/SWIFT. Those country-specific fields will be added during the secure functionality phase.</span></div></div>}
+      {method==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Use the PayPal account that should receive your earnings.</h3><p>PayPal can send funds using the recipient's email address. Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
+        <label className="field"><span>PayPal account name</span><input value={paypalName} onChange={e=>setPaypalName(e.target.value)} placeholder="Name on your PayPal account" autoComplete="name"/></label>
+        <label className="field"><span>PayPal email</span><input type="email" value={paypalEmail} onChange={e=>setPaypalEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/></label>
+      </div><div className="payout-country-note"><Mail size={15}/><span>Use an email address associated with the PayPal account you want to receive the payout. Availability and receiving features can vary by country.</span></div></div>}
+      <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully and understand that changes may require Customer Care assistance.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed}>Save payout method <ArrowRight size={15}/></Button></div>
+    </section>
+    <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section>
+  </div>
+}
+
 function Saved({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR SHORTLIST</span><h1>Saved jobs</h1><p>Keep promising opportunities close at hand.</p></div><Button onClick={()=>go("jobs")}>Find more jobs <ArrowRight size={15}/></Button></div><div className="tabs"><button className="active">All saved <Badge>8</Badge></button><button>Closing soon <Badge tone="amber">3</Badge></button></div><div className="job-grid workspace-jobs">{jobs.map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div></div>}
 
 function Applications({go}){const apps=[["Senior Product Designer","NovaTech","Interview scheduled","amber"],["Frontend Developer","Summit Digital","Shortlisted","green"],["Marketing Specialist","BrightPath","Under review","soft"],["Customer Success Manager","CloudWave","Application sent","soft"]];return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR JOB SEARCH</span><h1>Applications</h1><p>Track every opportunity from application to offer.</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div><div className="application-tabs"><button className="active">All <span>12</span></button><button>In progress <span>8</span></button><button>Interviews <span>3</span></button><button>Closed <span>4</span></button></div><div className="application-table"><div className="table-head"><span>Role</span><span>Status</span><span>Last updated</span><span/></div>{apps.map((a,i)=><div className="table-row" key={a[0]}><div className="role-cell"><div className="company-avatar">{jobs[i].logo}</div><div><strong>{a[0]}</strong><small>{a[1]} · Remote</small></div></div><Badge tone={a[3]}>{a[2]}</Badge><span>{i===0?"Today":i===1?"Yesterday":"3 days ago"}</span><button onClick={()=>i===0?go("interview"):go("job",jobs[i].id)}><MoreHorizontal size={17}/></button></div>)}</div></div>}
@@ -378,7 +440,7 @@ function App(){
   useEffect(()=>{const h=()=>setScreen(window.location.hash.replace("#/","")||"home");window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)},[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
   let page;
-  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}<SupportWidget/>{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
