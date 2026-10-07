@@ -833,7 +833,7 @@ return <div className="workspace admin-workspace"><div className="workspace-head
 function AdminStudio({go,role}){
  const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [settings,setSettings]=useState({brand:{site_name:"RemotePath",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false},verification_demo_identity_storage:{enabled:false}});
- const [sections,setSections]=useState([]),[forms,setForms]=useState([]),[selectedForm,setSelectedForm]=useState(null),[formFields,setFormFields]=useState([]),[templates,setTemplates]=useState([]),[selectedTemplate,setSelectedTemplate]=useState(null),[templateQuestions,setTemplateQuestions]=useState([]),[admins,setAdmins]=useState([]),[invite,setInvite]=useState({email:"",full_name:""}),[saving,setSaving]=useState(false);
+ const [sections,setSections]=useState([]),[forms,setForms]=useState([]),[selectedForm,setSelectedForm]=useState(null),[formFields,setFormFields]=useState([]),[templates,setTemplates]=useState([]),[selectedTemplate,setSelectedTemplate]=useState(null),[templateQuestions,setTemplateQuestions]=useState([]),[admins,setAdmins]=useState([]),[invite,setInvite]=useState({email:"",full_name:""}),[payoutConfigs,setPayoutConfigs]=useState([]),[payoutEditor,setPayoutEditor]=useState(null),[payoutField,setPayoutField]=useState({key:"",label:"",type:"text",required:true}),[saving,setSaving]=useState(false);
  const flash=(msg)=>{setNotice(msg);setTimeout(()=>setNotice(""),2600)};
  const load=async()=>{
    setError("");
@@ -841,12 +841,13 @@ function AdminStudio({go,role}){
      supabase.from("site_settings").select("key,value").order("key"),
      supabase.from("form_definitions").select("*").order("created_at",{ascending:false}),
      supabase.from("interview_templates").select("*").order("created_at",{ascending:false}),
-     supabase.from("profiles").select("id,full_name,role,account_status,created_at").in("role",["admin","super_admin"]).order("created_at",{ascending:false})
+     supabase.from("profiles").select("id,full_name,role,account_status,created_at").in("role",["admin","super_admin"]).order("created_at",{ascending:false}),
+     supabase.from("payout_method_configs").select("*").order("sort_order").order("name")
    ]);
-   if(s.error||f.error||t.error||a.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||"Some control-center data could not be loaded.");
+   if(s.error||f.error||t.error||a.error||p.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||p.error?.message||"Some control-center data could not be loaded.");
    const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map}));
    const {data:secs}=await supabase.from("site_sections").select("*").order("sort_order");setSections(secs||[]);
-   setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);
+   setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);setPayoutConfigs(p.data||[]);
  };
  useEffect(()=>{load()},[]);
  const saveSetting=async(key,value)=>{setSaving(true);const {data:{user}}=await supabase.auth.getUser();const {error:e}=await supabase.from("site_settings").upsert({key,value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:"key"});setSaving(false);if(e)setError(e.message);else flash("Site settings saved.")};
