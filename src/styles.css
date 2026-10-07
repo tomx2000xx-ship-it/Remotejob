@@ -767,3 +767,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   opacity:.65;
   cursor:not-allowed;
 }
+
+
+/* ===== REAL INTERVIEW WORKSPACE — 07 OCT 2026 ===== */
+.interview-top-status{display:flex;align-items:center;gap:10px}
+.interview-top-status select{
+  min-height:34px;padding:7px 10px;border:1px solid var(--line,#dfe7e1);border-radius:9px;
+  background:#fff;color:#415149;font-size:9px;max-width:220px
+}
+.interview-empty{
+  min-height:65vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:32px;color:#738078
+}
+.interview-empty>svg{color:var(--green);margin-bottom:12px}
+.interview-empty .kicker{margin-bottom:7px}
+.interview-empty h2{margin:0 0 8px;font-family:'DM Serif Display',Georgia,serif;font-size:32px;font-weight:400;color:#263b33}
+.interview-empty p{max-width:430px;margin:0 0 20px;font-size:11px;line-height:1.6;color:#7a8780}
+.interview-start-card{
+  display:flex;align-items:center;justify-content:space-between;gap:22px;margin-bottom:18px;
+  padding:18px 20px;background:#fff;border:1px solid #dfe8e2;border-radius:16px;
+  box-shadow:0 12px 35px rgba(23,33,31,.045)
+}
+.interview-start-card h2{margin:3px 0 5px;font-size:18px;color:#263b33}
+.interview-start-card p{margin:0;color:#7b8781;font-size:9px}
+.interview-complete{
+  min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;border:1px solid #dce9e1;border-radius:14px;background:#f7fbf8;color:#60736a;gap:7px
+}
+.interview-complete svg{color:var(--green);margin-bottom:4px}
+.interview-complete strong{font-size:14px;color:#30463d}
+.interview-complete span{font-size:9px;color:#7d8a83}
+.interview-inline-error{margin-top:12px}
+@media(max-width:760px){
+  .interview-top-status select{max-width:145px;font-size:8px}
+  .interview-start-card{align-items:stretch;flex-direction:column}
+  .interview-start-card .btn{width:100%}
+}
+@media(max-width:560px){
+  .interview-top-status select{display:none}
+  .interview-empty h2{font-size:27px}
+  .interview-empty p{font-size:10px}
+}
