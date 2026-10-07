@@ -1546,15 +1546,24 @@ function Notifications({go}){
 }
 
 function AccessRestricted({status,go}){return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><ShieldCheck size={28}/></div><span className="kicker">ACCOUNT ACCESS</span><h1>{status==="suspended"?"Your account is suspended.":"Your account is temporarily restricted."}</h1><p>{status==="suspended"?"Your RemotePath account is currently suspended. Please contact Support if you believe this was a mistake.":"Some account features are temporarily restricted. Please contact Support for assistance."}</p><Button onClick={()=>go("dashboard")}>Contact support <ArrowRight size={15}/></Button></div></div>}
+function RemotePathLoader(){
+  return <div className="app-loader" role="status" aria-label="Loading RemotePath">
+    <div className="loader-logo"><span className="loader-mark"><span>R</span></span><span className="loader-word">RemotePath</span></div>
+    <div className="loader-track"><span/></div>
+    <p>Preparing your workspace</p>
+  </div>;
+}
+
 function App(){
   const routeFromLocation=()=>{const hash=window.location.hash.replace("#/","");if(hash)return hash;const path=window.location.pathname.replace(/^\/+|\/+$/g,"");return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
   const initial=routeFromLocation;
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
-  const [authReady,setAuthReady]=useState(false);
+  const [authReady,setAuthReady]=useState(false); const [loaderVisible,setLoaderVisible]=useState(true);
   const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
   useEffect(()=>{
     let mounted=true;
+    const loaderTimer=setTimeout(()=>{if(mounted)setLoaderVisible(false)},700);
     const loadSession=async()=>{
       const {data}=await supabase.auth.getSession();
       if(!mounted)return;
@@ -1575,7 +1584,7 @@ function App(){
       }else setRole("user");
       setAuthReady(true);
     });
-    return()=>{mounted=false;subscription.unsubscribe()};
+    return()=>{mounted=false;clearTimeout(loaderTimer);subscription.unsubscribe()};
   },[]);
   useEffect(()=>{
     const h=()=>{setScreen(routeFromLocation())};
@@ -1594,7 +1603,7 @@ function App(){
     if(session&&adminScreens.includes(screen)&&role!=="admin"&&role!=="super_admin"){go("dashboard")}
     if(session&&["admin","super_admin"].includes(role)&&memberScreens.includes(screen)){go("admin")}
   },[authReady,session,screen]);
-  if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
+  if(!authReady||loaderVisible)return <RemotePathLoader/>;
   // Keep the private admin route expression build-safe.
   let page;
   if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=session&&["admin","super_admin"].includes(role)?<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>:<AdminAuth go={go}/>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="admin-support") page=<AppShell go={go} screen={screen}><AdminSupport go={go}/></AppShell>; else if(screen==="admin-studio") page=<AppShell go={go} screen={screen}><AdminStudio go={go} role={role}/></AppShell>; else if(screen==="notifications") page=<AppShell go={go} screen={screen}><Notifications go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
