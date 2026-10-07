@@ -203,7 +203,7 @@ function Home({go}){
   const hero=cfg?.home_hero||{badge:"Trusted by 2,500+ companies worldwide",title:"Work that fits your life.",description:"Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.",search_button:"Search Jobs",popular:["Remote","Design","Development","Marketing","Customer Support","Data Entry"]};
   const metrics=cfg?.home_metrics?.items||[["50,000+","Active job seekers"],["3,200+","Trusted companies"],["120+","Countries"],["98%","Satisfaction rate"]];
   const section=(key)=>cfg?true:true;
-  return <div style={{"--site-accent":cfg?.brand?.accent||"#2f6b52","--site-bg":cfg?.brand?.background||"#f7f4ec"}}>
+  return <div className="site" style={{"--green":cfg?.brand?.accent||"#2f6b52","--green2":cfg?.brand?.accent||"#2f6b52","--cream":cfg?.brand?.background||"#f7f4ec","--surface":"#fff"}}>
     <PublicNav go={go}/>
     <main>
       <section className="hero">
@@ -552,10 +552,11 @@ function Payouts({go}){
   const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
   const cardReady=cardName.trim().length>2&&/^\d{4}$/.test(cardLast4.trim());
-  const methodConfig=payoutConfigs.find(x=>x.method_key===method);
+  const methodConfig=payoutConfigs.find(x=>x.method_key===method)||payoutConfigs.find(x=>x.method_type===method);
+  const methodType=methodConfig?.method_type||method;
   const universalFields=methodConfig?.fields||[];
   const customReady=universalFields.filter(f=>f.required).every(f=>{const value=customValues[f.key];return f.type==="checkbox"?value===true||value==="true":String(value??"").trim().length>0;});
-  const coreReady=method==="bank"?bankReady:method==="paypal"?paypalReady:method==="card"?cardReady:true;
+  const coreReady=methodType==="bank"?bankReady:methodType==="paypal"?paypalReady:methodType==="card"?cardReady:true;
   const canSave=coreReady&&customReady;
 
   useEffect(()=>{
@@ -600,15 +601,15 @@ function Payouts({go}){
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)throw new Error("Your session has expired. Please sign in again.");
       const payload={
-        user_id:user.id,method_type:method,is_default:true,status:"active",
-        bank_country:method==="bank"?country:null,
-        bank_name:method==="bank"?bank:null,
-        account_holder_name:method==="bank"?name.trim():null,
-        account_last4:method==="bank"?account.slice(-4):null,
-        paypal_name:method==="paypal"?paypalName.trim():null,
-        paypal_email:method==="paypal"?paypalEmail.trim():null,
-        cardholder_name:method==="card"?cardName.trim():null,
-        card_last4:method==="card"?cardLast4.trim():null,
+        user_id:user.id,method_type:methodType,is_default:true,status:"active",
+        bank_country:methodType==="bank"?country:null,
+        bank_name:methodType==="bank"?bank:null,
+        account_holder_name:methodType==="bank"?name.trim():null,
+        account_last4:methodType==="bank"?account.slice(-4):null,
+        paypal_name:methodType==="paypal"?paypalName.trim():null,
+        paypal_email:methodType==="paypal"?paypalEmail.trim():null,
+        cardholder_name:methodType==="card"?cardName.trim():null,
+        card_last4:methodType==="card"?cardLast4.trim():null,
         details:customValues
       };
       if(savedMethod){
@@ -640,17 +641,17 @@ function Payouts({go}){
       <div className="payout-method-grid">{payoutConfigs.map(cfg=><button key={cfg.id} className="payout-method-card" onClick={()=>{setMethod(cfg.method_key);setCustomValues({});setModalOpen(true)}}><span className="payout-method-icon">{cfg.method_type==="bank"?<Landmark size={19}/>:cfg.method_type==="paypal"?<span className="paypal-mark">P</span>:cfg.method_type==="card"?<CreditCard size={19}/>:<WalletCards size={19}/>}</span><div><strong>{cfg.name}</strong><small>{cfg.description||"Choose this payout method."}</small></div><i><ArrowRight size={13}/></i></button>)}</div>
       {modalOpen&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><div className="payout-modal" role="dialog" aria-modal="true">
         <div className="payout-modal-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{methodLabel(method)}</h2><p>Enter the details required for this payout method.</p></div><button className="payout-modal-close" onClick={()=>setModalOpen(false)} aria-label="Close"><X size={18}/></button></div>
-        {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Where should we send the bank transfer?</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
+        {methodType==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Where should we send the bank transfer?</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
           <label className="field"><span>Bank country</span><select value={country} onChange={e=>selectCountry(e.target.value)}>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select></label>
           <label className="field"><span>Bank name</span><select value={bank} onChange={e=>setBank(e.target.value)}><option value="">Select your bank</option>{banks.map(b=><option key={b}>{b}</option>)}</select></label>
           <label className="field"><span>Account holder name</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Name on the bank account" autoComplete="name"/></label>
           <label className="field"><span>Account number / IBAN</span><input value={account} onChange={e=>setAccount(e.target.value)} placeholder="Enter your account details" autoComplete="off"/></label>
         </div><div className="payout-country-note"><Globe2 size={15}/><span>RemotePath stores only the last 4 digits for this payout method. Additional bank routing details should be collected by the eventual payout provider.</span></div></div>}
-        {method==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Which PayPal account should receive your earnings?</h3><p>Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
+        {methodType==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Which PayPal account should receive your earnings?</h3><p>Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
           <label className="field"><span>PayPal account name</span><input value={paypalName} onChange={e=>setPaypalName(e.target.value)} placeholder="Name on your PayPal account" autoComplete="name"/></label>
           <label className="field"><span>PayPal email</span><input type="email" value={paypalEmail} onChange={e=>setPaypalEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/></label>
         </div><div className="payout-country-note"><Mail size={15}/><span>PayPal receiving features can vary by country.</span></div></div>}
-        {method==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Only the last 4 digits are retained by RemotePath. Full card details must be handled by the eventual payout provider.</p></div><div className="payout-form-grid">
+        {methodType==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Only the last 4 digits are retained by RemotePath. Full card details must be handled by the eventual payout provider.</p></div><div className="payout-form-grid">
           <label className="field"><span>Cardholder name</span><input value={cardName} onChange={e=>setCardName(e.target.value)} placeholder="Name on your debit card" autoComplete="cc-name"/></label>
           <label className="field"><span>Card ending</span><input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label>
         </div><div className="payout-country-note"><CreditCard size={15}/><span>RemotePath will not store a full card number, CVV or PIN.</span></div></div>}
