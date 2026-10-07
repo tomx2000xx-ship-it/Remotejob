@@ -234,6 +234,19 @@ function Field({label,placeholder,type="text",value,onChange,autoComplete}){retu
 function AppShell({go,screen,children}){
   const [mobile,setMobile]=useState(false);
   const [profile,setProfile]=useState(null);
+  const [unreadNotifications,setUnreadNotifications]=useState(0);
+
+  useEffect(()=>{
+    let mounted=true;
+    const loadUnread=async()=>{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user||!mounted)return;
+      const {count}=await supabase.from("notifications").select("id",{count:"exact",head:true}).is("read_at",null);
+      if(mounted)setUnreadNotifications(count||0);
+    };
+    loadUnread();
+    return()=>{mounted=false};
+  },[screen]);
 
   useEffect(()=>{
     let mounted=true;
@@ -300,7 +313,7 @@ function AppShell({go,screen,children}){
                 className={screen==="admin-members"?"active":""}
                 onClick={()=>{go("admin-members");setMobile(false)}}
               >
-                <UsersRound size={17}/>Members
+                <Users size={17}/>Members
               </button>
             </>
           )}
@@ -316,10 +329,10 @@ function AppShell({go,screen,children}){
         <header className="app-topbar">
           <button className="mobile-menu" onClick={()=>setMobile(true)}><Menu/></button>
           <div className="crumb">
-            {screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin-members"?"Member management":screen==="admin"?"Job management":"Workspace"}
+            {screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin-members"?"Member management":screen==="admin"?"Job management":screen==="notifications"?"Notifications":"Workspace"}
           </div>
           <div className="top-actions">
-            <button><Bell size={18}/><i/></button>
+            <button className="notification-bell" onClick={()=>go("notifications")} aria-label="Notifications"><Bell size={18}/>{unreadNotifications>0&&<i>{unreadNotifications>99?"99+":unreadNotifications}</i>}</button>
             <Avatar letter={letter} size="sm"/>
           </div>
         </header>
@@ -1133,6 +1146,18 @@ function SupportWidget(){
     </section>}
   </>;
 }
+function Notifications({go}){
+  const [items,setItems]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+  const load=async()=>{setLoading(true);setError("");const {data:{user}}=await supabase.auth.getUser();if(!user){setItems([]);setLoading(false);return;}const {data,error}=await supabase.from("notifications").select("id,type,title,body,related_type,related_id,read_at,created_at").order("created_at",{ascending:false}).limit(100);if(error)setError(error.message);else setItems(data||[]);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  const markRead=async id=>{const now=new Date().toISOString();setItems(p=>p.map(n=>n.id===id?{...n,read_at:n.read_at||now}:n));const {error}=await supabase.from("notifications").update({read_at:now}).eq("id",id);if(error)load()};
+  const markAllRead=async()=>{const unread=items.some(n=>!n.read_at);if(!unread)return;setBusy(true);const {data:{user}}=await supabase.auth.getUser();if(user){const now=new Date().toISOString();const {error}=await supabase.from("notifications").update({read_at:now}).eq("user_id",user.id).is("read_at",null);if(error)setError(error.message);else setItems(p=>p.map(n=>({...n,read_at:n.read_at||now})));}setBusy(false)};
+  const unread=items.filter(n=>!n.read_at).length;
+  const iconFor=t=>t==="application"?<FileText size={17}/>:t==="interview"?<MessageCircle size={17}/>:t==="payout"?<WalletCards size={17}/>:t==="verification"?<ShieldCheck size={17}/>:t==="support"?<CircleHelp size={17}/>:<Bell size={17}/>;
+  const openRelated=n=>{markRead(n.id);if(n.related_type==="application")go("applications");else if(n.related_type==="interview")go("interview");else if(n.related_type==="payout")go("payouts");else if(n.related_type==="verification")go("verification");else if(n.related_type==="support_ticket")go("dashboard")};
+  return <div className="workspace notifications-page"><div className="workspace-head"><div><span className="kicker">YOUR NOTIFICATIONS</span><h1>Stay in the loop.</h1><p>Important updates about your applications, interviews, payouts and account.</p></div><Button variant="outline" onClick={markAllRead} disabled={busy||unread===0}>{busy?"Updating…":"Mark all as read"}</Button></div><section className="panel notifications-panel"><div className="notifications-toolbar"><strong>{unread?unread+" unread":"All caught up"}</strong><span>{items.length} total notifications</span></div>{loading&&<div className="empty-state"><h3>Loading notifications…</h3><p>Fetching your latest account updates.</p></div>}{!loading&&error&&<div className="empty-state"><h3>We couldn’t load notifications</h3><p>{error}</p><Button variant="outline" onClick={load}>Try again</Button></div>}{!loading&&!error&&items.length===0&&<div className="empty-state"><Bell size={24}/><h3>No notifications yet</h3><p>When something important happens on RemotePath, you’ll see it here.</p><Button onClick={()=>go("jobs")}>Explore jobs <ArrowRight size={15}/></Button></div>}{!loading&&!error&&items.length>0&&<div className="notification-list">{items.map(n=><button key={n.id} className={`notification-row ${n.read_at?"read":"unread"}`} onClick={()=>openRelated(n)}><span className="notification-icon">{iconFor(n.type)}</span><span className="notification-copy"><strong>{n.title}</strong><span>{n.body}</span><small>{relativePosted(n.created_at)}</small></span>{!n.read_at&&<i aria-label="Unread"/>}<ChevronRight size={16}/></button>)}</div>}</section></div>;
+}
+
 function AccessRestricted({status,go}){return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><ShieldCheck size={28}/></div><span className="kicker">ACCOUNT ACCESS</span><h1>{status==="suspended"?"Your account is suspended.":"Your account is temporarily restricted."}</h1><p>{status==="suspended"?"Your RemotePath account is currently suspended. Please contact Support if you believe this was a mistake.":"Some account features are temporarily restricted. Please contact Support for assistance."}</p><Button onClick={()=>go("dashboard")}>Contact support <ArrowRight size={15}/></Button></div></div>}
 function App(){
   const initial=()=>window.location.hash.replace("#/","")||"home";
@@ -1169,7 +1194,7 @@ function App(){
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
-  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","onboarding"];
+  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","notifications","onboarding"];
   useEffect(()=>{
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)){go("login")}
@@ -1180,7 +1205,7 @@ function App(){
   },[authReady,session,screen]);
   if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
   let page;
-  if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="notifications") page=<AppShell go={go} screen={screen}><Notifications go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}<SupportWidget/>{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
