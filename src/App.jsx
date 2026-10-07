@@ -1487,7 +1487,8 @@ function Notifications({go}){
 
 function AccessRestricted({status,go}){return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><ShieldCheck size={28}/></div><span className="kicker">ACCOUNT ACCESS</span><h1>{status==="suspended"?"Your account is suspended.":"Your account is temporarily restricted."}</h1><p>{status==="suspended"?"Your RemotePath account is currently suspended. Please contact Support if you believe this was a mistake.":"Some account features are temporarily restricted. Please contact Support for assistance."}</p><Button onClick={()=>go("dashboard")}>Contact support <ArrowRight size={15}/></Button></div></div>}
 function App(){
-  const initial=()=>window.location.hash.replace("#/","")||"home";
+  const routeFromLocation=()=>{const hash=window.location.hash.replace("#/","");if(hash)return hash;const path=window.location.pathname.replace(/^\/+|\/+$/g,"");return path||"home"};
+  const initial=routeFromLocation;
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
   const [authReady,setAuthReady]=useState(false);
@@ -1517,7 +1518,7 @@ function App(){
     return()=>{mounted=false;subscription.unsubscribe()};
   },[]);
   useEffect(()=>{
-    const h=()=>{const hash=window.location.hash.replace("#/","")||"home";setScreen(hash)};
+    const h=()=>{setScreen(routeFromLocation())};
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
