@@ -1133,10 +1133,11 @@ function SupportWidget(){
     </section>}
   </>;
 }
+function AccessRestricted({status,go}){return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><ShieldCheck size={28}/></div><span className="kicker">ACCOUNT ACCESS</span><h1>{status==="suspended"?"Your account is suspended.":"Your account is temporarily restricted."}</h1><p>{status==="suspended"?"Your RemotePath account is currently suspended. Please contact Support if you believe this was a mistake.":"Some account features are temporarily restricted. Please contact Support for assistance."}</p><Button onClick={()=>go("support")}>Contact support <ArrowRight size={15}/></Button></div></div>}
 function App(){
   const initial=()=>window.location.hash.replace("#/","")||"home";
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
-  const [session,setSession]=useState(null); const [role,setRole]=useState("user");
+  const [session,setSession]=useState(null); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
   const [authReady,setAuthReady]=useState(false);
   const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
   useEffect(()=>{
@@ -1146,9 +1147,9 @@ function App(){
       if(!mounted)return;
       setSession(data.session);
       if(data.session){
-        const {data:profile}=await supabase.from("profiles").select("role").eq("id",data.session.user.id).maybeSingle();
-        if(mounted)setRole(profile?.role||"user");
-      }else setRole("user");
+        const {data:profile}=await supabase.from("profiles").select("role,account_status").eq("id",data.session.user.id).maybeSingle();
+        if(mounted)setRole(profile?.role||"user"); setAccountStatus(profile?.account_status||"active");
+      }else {setRole("user");setAccountStatus("active");}
       setAuthReady(true);
     };
     loadSession();
@@ -1173,12 +1174,13 @@ function App(){
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)){go("login")}
     if(session&&(screen==="login"||screen==="signup"||screen==="verify"))go("dashboard");
+    if(session&&accountStatus!=="active"&&role!=="admin"&&screen!=="restricted"&&screen!=="support")go("restricted");
     if(session&&["employer","postjob","candidates"].includes(screen)){go("dashboard")}
     if(session&&["admin","admin-applications"].includes(screen)&&role!=="admin"){go("dashboard")}
   },[authReady,session,screen]);
   if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
   let page;
-  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}<SupportWidget/>{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
