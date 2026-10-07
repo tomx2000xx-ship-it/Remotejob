@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "./lib/supabase";
 import {
   ArrowLeft, ArrowRight, Bell, Bookmark, BriefcaseBusiness, Check,
   ChevronDown, ChevronRight, CircleHelp, Clock3, CreditCard, FileText, Filter,
@@ -214,10 +215,44 @@ function Onboarding({go}){
 
 function Auth({go,mode="login"}){
   const login=mode==="login";
-  return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Start discovering better remote opportunities."}</p><div className="social-row"><Button variant="outline" onClick={()=>login?go("dashboard"):go("onboarding")}><GoogleLogo/> Continue with Gmail</Button></div><div className="or"><span>or</span></div>{!login&&<Field label="Full name" placeholder="Enter your full name"/>}<Field label="Email address" placeholder="you@example.com" type="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password"/>{login&&<div className="forgot"><button>Forgot password?</button></div>}<Button className="full" onClick={()=>login?go("dashboard"):go("verify")}>{login?"Sign in":"Create account"} <ArrowRight size={15}/></Button><label className="checkline"><input type="checkbox"/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>
+  const [fullName,setFullName]=useState("");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [agreed,setAgreed]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [info,setInfo]=useState("");
+
+  const submit=async()=>{
+    setError(""); setInfo("");
+    if(!email.trim()||!password){setError("Please enter your email address and password.");return}
+    if(!login&&fullName.trim().length<2){setError("Please enter your full name.");return}
+    if(!login&&!agreed){setError("Please agree to the Terms of Service and Privacy Policy.");return}
+    setLoading(true);
+    try{
+      if(login){
+        const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+        if(error)throw error;
+        go("dashboard");
+      }else{
+        const {data,error}=await supabase.auth.signUp({
+          email:email.trim(),
+          password,
+          options:{data:{full_name:fullName.trim(),account_type:"job_seeker"}}
+        });
+        if(error)throw error;
+        if(data.session) go("dashboard");
+        else setInfo("Your account was created. Email confirmation is currently enabled in Supabase, so you’ll need to confirm your email before signing in.");
+      }
+    }catch(err){
+      setError(err?.message||"Something went wrong. Please try again.");
+    }finally{setLoading(false)}
+  };
+
+  return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Start discovering better remote opportunities."}</p><div className="social-row"><Button variant="outline" disabled><GoogleLogo/> Continue with Gmail</Button></div><div className="or"><span>or</span></div>{!login&&<Field label="Full name" placeholder="Enter your full name" value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name"/>}<Field label="Email address" placeholder="you@example.com" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={login?"current-password":"new-password"}/>{login&&<div className="forgot"><button type="button" onClick={()=>setInfo("Password recovery will be connected when the production email/domain setup is added.")}>Forgot password?</button></div>}{error&&<div className="auth-message auth-error" role="alert">{error}</div>}{info&&<div className="auth-message auth-info" role="status">{info}</div>}<Button className="full" onClick={submit} disabled={loading}>{loading?"Please wait…":login?"Sign in":"Create account"} {!loading&&<ArrowRight size={15}/>}</Button><label className="checkline"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>
 }
 
-function Field({label,placeholder,type="text"}){return <label className="field"><span>{label}</span><input type={type} placeholder={placeholder}/></label>}
+function Field({label,placeholder,type="text",value,onChange,autoComplete}){return <label className="field"><span>{label}</span><input type={type} placeholder={placeholder} value={value} onChange={onChange} autoComplete={autoComplete}/></label>}
 
 function AppShell({go,screen,children}){
   const [mobile,setMobile]=useState(false);
@@ -454,9 +489,30 @@ function SupportWidget(){
 function App(){
   const initial=()=>window.location.hash.replace("#/","")||"home";
   const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
+  const [session,setSession]=useState(null);
+  const [authReady,setAuthReady]=useState(false);
   const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
-  useEffect(()=>{const h=()=>setScreen(window.location.hash.replace("#/","")||"home");window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)},[]);
+  useEffect(()=>{
+    let mounted=true;
+    supabase.auth.getSession().then(({data})=>{if(mounted){setSession(data.session);setAuthReady(true)}});
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,nextSession)=>{
+      setSession(nextSession);
+      setAuthReady(true);
+    });
+    return()=>{mounted=false;subscription.unsubscribe()};
+  },[]);
+  useEffect(()=>{
+    const h=()=>{const hash=window.location.hash.replace("#/","")||"home";setScreen(hash)};
+    window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
+  },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
+  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin"];
+  useEffect(()=>{
+    if(!authReady)return;
+    if(!session&&protectedScreens.includes(screen)){go("login")}
+    if(session&&(screen==="login"||screen==="signup"||screen==="verify"))go("dashboard");
+  },[authReady,session,screen]);
+  if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
   let page;
   if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}<SupportWidget/>{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
