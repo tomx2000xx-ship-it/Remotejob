@@ -281,12 +281,35 @@ function Field({label,placeholder,type="text",value,onChange,autoComplete}){retu
 
 function AppShell({go,screen,children}){
   const [mobile,setMobile]=useState(false);
-  return <div className="app-shell"><aside className={mobile?"app-sidebar open":"app-sidebar"}><div className="side-top"><Logo/><button onClick={()=>setMobile(false)} className="mobile-close"><X/></button></div><div className="profile-mini"><Avatar letter="A"/><div><strong>Alex Carter</strong><small>Job seeker</small></div><ChevronDown size={14}/></div><nav>{navItems.map(([key,label,Icon])=><button className={screen===key?"active":""} key={key} onClick={()=>{go(key);setMobile(false)}}><Icon size={17}/>{label}</button>)}</nav><div className="side-bottom"><button onClick={()=>go("settings")}><SettingsIcon size={17}/>Settings</button><button onClick={()=>go("home")}><ArrowLeft size={17}/>Exit workspace</button></div></aside><div className="app-main"><header className="app-topbar"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu/></button><div className="crumb">{screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":"Workspace"}</div><div className="top-actions"><button><Bell size={18}/><i/></button><Avatar letter="A" size="sm"/></div></header>{children}</div></div>
+  const [profile,setProfile]=useState(null);
+  useEffect(()=>{
+    let mounted=true;
+    supabase.auth.getUser().then(async({data})=>{
+      if(!data.user||!mounted)return;
+      const {data:row}=await supabase.from("profiles").select("full_name,account_type").eq("id",data.user.id).maybeSingle();
+      if(mounted)setProfile(row);
+    });
+    return()=>{mounted=false};
+  },[]);
+  const displayName=profile?.full_name||"RemotePath member";
+  const letter=(displayName.trim()[0]||"R").toUpperCase();
+  return <div className="app-shell"><aside className={mobile?"app-sidebar open":"app-sidebar"}><div className="side-top"><Logo/><button onClick={()=>setMobile(false)} className="mobile-close"><X/></button></div><div className="profile-mini"><Avatar letter={letter}/><div><strong>{displayName}</strong><small>{profile?.account_type==="employer"?"Employer":"Job seeker"}</small></div><ChevronDown size={14}/></div><nav>{navItems.map(([key,label,Icon])=><button className={screen===key?"active":""} key={key} onClick={()=>{go(key);setMobile(false)}}><Icon size={17}/>{label}</button>)}</nav><div className="side-bottom"><button onClick={()=>go("settings")}><SettingsIcon size={17}/>Settings</button><button onClick={async()=>{await supabase.auth.signOut();go("home")}}><ArrowLeft size={17}/>Sign out</button></div></aside><div className="app-main"><header className="app-topbar"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu/></button><div className="crumb">{screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":"Workspace"}</div><div className="top-actions"><button><Bell size={18}/><i/></button><Avatar letter={letter} size="sm"/></div></header>{children}</div></div>
 }
 
 function Dashboard({go}){
+ const [profile,setProfile]=useState(null);
+ useEffect(()=>{
+   let mounted=true;
+   supabase.auth.getUser().then(async({data})=>{
+     if(!data.user||!mounted)return;
+     const {data:row}=await supabase.from("profiles").select("full_name,onboarding_completed").eq("id",data.user.id).maybeSingle();
+     if(mounted)setProfile(row);
+   });
+   return()=>{mounted=false};
+ },[]);
+ const firstName=(profile?.full_name||"there").trim().split(/\s+/)[0]||"there";
  return <div className="workspace">
-   <div className="workspace-head"><div><span className="kicker">MONDAY, OCTOBER 6</span><h1>Good morning, Alex <span>✦</span></h1><p>Here’s what’s happening with your job search.</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div>
+   <div className="workspace-head"><div><span className="kicker">REMOTE PATH WORKSPACE</span><h1>Good morning, {firstName} <span>✦</span></h1><p>{profile?.onboarding_completed?"Here’s what’s happening with your job search.":"Finish your profile setup to personalize your job search."}</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div>
    <section className="verification-banner verification-required">
      <div className="verification-banner-icon"><CircleHelp size={20}/></div>
      <div className="verification-banner-copy"><span className="kicker">ACCOUNT VERIFICATION</span><h2>Complete your verification</h2><p>Your profile is almost ready. Confirm your identity so RemotePath can keep the marketplace trusted and secure.</p><div className="verification-status"><span><i/> Verification required</span><small>Usually takes a few minutes once verification is connected.</small></div></div>
