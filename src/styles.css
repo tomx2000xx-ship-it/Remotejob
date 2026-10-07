@@ -543,7 +543,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .payout-method-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:25px;box-shadow:0 18px 50px rgba(23,33,31,.05)}
 .payout-section-head h2{font-family:'DM Serif Display',Georgia,serif;font-size:29px;font-weight:400;line-height:1.05;letter-spacing:-.025em;margin:6px 0 7px}
 .payout-section-head p{font-size:8px;color:#7d8882;margin:0 0 19px}
-.payout-method-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.payout-method-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .payout-method-card{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;text-align:left;padding:15px;border:1px solid #dfe6e1;border-radius:12px;background:#fbfcfa;cursor:pointer;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease,transform .15s ease}
 .payout-method-card:hover{transform:translateY(-1px);border-color:#b7cdbf}
 .payout-method-card.active{border-color:#8fb9a4;background:#f3faf6;box-shadow:0 0 0 3px rgba(13,90,73,.06)}
@@ -573,6 +573,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .payout-success-icon{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--green-soft);color:var(--green)}
 .payout-success h2{font-family:'DM Serif Display',Georgia,serif;font-size:26px;font-weight:400;margin:4px 0 4px}
 .payout-success p{font-size:8px;color:#7d8882;margin:0 0 8px}
+@media(max-width:900px){
+  .payout-method-grid{grid-template-columns:1fr 1fr}
+}
 @media(max-width:760px){
   .payout-method-grid,.payout-form-grid{grid-template-columns:1fr}
   .payout-confirm-row{align-items:stretch;flex-direction:column}
