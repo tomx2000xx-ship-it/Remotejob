@@ -848,3 +848,42 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .admin-job-main strong{font-size:10px}
   .admin-status select{max-width:150px}
 }
+
+/* ===== ADMIN APPLICATION MANAGEMENT ===== */
+.application-admin-filters{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;align-items:end}
+.application-admin-filters .field{margin:0}
+.admin-application-row{width:100%;border:0;background:#fff;text-align:left;display:grid;grid-template-columns:auto minmax(180px,1.5fr) 1fr 110px auto auto;gap:13px;align-items:center;padding:14px 0;border-bottom:1px solid #edf1ee;color:inherit}
+.admin-application-row:last-child{border-bottom:0}
+.admin-application-row:hover{background:#fbfcfa}
+.admin-application-row>div:nth-child(2){min-width:0}
+.admin-application-row strong,.admin-application-row span{display:block}
+.admin-application-row strong{font-size:10px;color:#294039}
+.admin-application-row div span{font-size:8px;color:#7a8981;margin-top:3px}
+.admin-application-row>span{font-size:8px;color:#7a8981}
+.admin-application-modal{width:min(760px,100%);max-height:90vh;overflow:auto}
+.admin-application-modal .review-list{margin-bottom:14px}
+.admin-application-modal .btn-soft{margin-bottom:14px}
+.admin-answer-list{border-top:1px solid var(--line);padding-top:15px;margin-top:4px}
+.admin-answer-list>.kicker{display:block;margin-bottom:10px}
+.admin-answer{padding:11px 12px;background:#fbfcfa;border:1px solid #e3e9e4;border-radius:10px;margin-bottom:8px}
+.admin-answer strong{display:block;font-size:9px;color:#3b4d45}
+.admin-answer p{margin:5px 0 0;font-size:9px;line-height:1.6;color:#707d76;white-space:pre-wrap}
+.admin-application-actions{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:15px;margin-top:14px}
+.admin-application-actions .field{margin:0;min-width:230px}
+@media(max-width:900px){
+  .application-admin-filters{grid-template-columns:1fr 1fr}
+  .application-admin-filters .field:first-child{grid-column:1 / -1}
+  .admin-application-row{grid-template-columns:auto minmax(0,1fr) auto auto}
+  .admin-application-row>span:nth-of-type(1),.admin-application-row>span:nth-of-type(2){display:none}
+}
+@media(max-width:600px){
+  .application-admin-filters{grid-template-columns:1fr}
+  .application-admin-filters .field:first-child{grid-column:auto}
+  .admin-application-row{grid-template-columns:auto 1fr auto;gap:9px}
+  .admin-application-row>.badge{grid-column:2}
+  .admin-application-row>.candidate-action{grid-column:3;grid-row:1 / span 2}
+  .admin-application-modal{max-height:calc(100vh - 20px);padding:17px}
+  .admin-application-actions{align-items:stretch;flex-direction:column}
+  .admin-application-actions .field{min-width:0;width:100%}
+  .admin-application-actions .btn{width:100%}
+}
