@@ -101,7 +101,7 @@ function validateGovernmentIdentifier(country,value){
     return {valid:true,normalized:id,message:"Format and check digits passed."};
   }
   if(country==="Finland"){
-    if(!/^\d{6}[+\-A]\d{3}[0-9A-Z]$/.test(id))return {valid:false,message:"A Finnish personal identity code has 6 digits, a century marker, 3 digits and a check character."};
+    if(!/^\d{6}[-+A]\d{3}[0-9A-Z]$/.test(id))return {valid:false,message:"A Finnish personal identity code has 6 digits, a century marker, 3 digits and a check character."};
     const chars="0123456789ABCDEFHJKLMNPRSTUVWXY";
     const remainder=Number(id.slice(0,6)+id.slice(7,10))%31;
     if(id[10]!==chars[remainder])return {valid:false,message:"The Finnish identity code check character is invalid."};
