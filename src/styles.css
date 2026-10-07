@@ -704,3 +704,41 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .payout-modal .payout-confirm-row>label{font-size:8px}
   .payout-modal .payout-confirm-row .btn{min-width:132px;padding:8px 10px;font-size:8px}
 }
+
+/* ===== PAYOUT WITHDRAWAL REMINDER — 07 OCT 2026 ===== */
+.payout-reminder{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  margin:0 0 18px;
+  padding:17px 19px;
+  border:1px solid #cfe1d7;
+  border-radius:15px;
+  background:linear-gradient(135deg,#f0f8f3 0%,#fff 72%);
+  box-shadow:0 10px 30px rgba(23,33,31,.045);
+}
+.payout-reminder-icon{
+  width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  background:#dceee5;color:var(--green);border:1px solid #c7dfd3;
+}
+.payout-reminder-copy .kicker{display:block;font-size:8px;margin-bottom:4px}
+.payout-reminder-copy h2{
+  margin:0;color:#263b33;font-size:18px;line-height:1.15;font-weight:700;letter-spacing:-.02em;
+}
+.payout-reminder-copy p{margin:5px 0 0;max-width:700px;color:#68766f;font-size:10px;line-height:1.55}
+.payout-reminder-action{
+  min-height:42px;padding:10px 13px;border:1px solid var(--green);border-radius:10px;
+  background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:10px;font-weight:750;white-space:nowrap;box-shadow:0 7px 17px rgba(13,90,73,.13);
+}
+.payout-reminder-action:hover{background:#08483a;transform:translateY(-1px)}
+@media(max-width:760px){
+  .payout-reminder{grid-template-columns:auto 1fr;align-items:start;padding:15px}
+  .payout-reminder-action{grid-column:1 / -1;width:100%}
+}
+@media(max-width:420px){
+  .payout-reminder-copy h2{font-size:16px}
+  .payout-reminder-copy p{font-size:9px}
+  .payout-reminder-icon{width:38px;height:38px}
+}
