@@ -357,7 +357,7 @@ function Onboarding({go}){
 function Auth({go,mode="login"}){
  const login=mode==="login";
  const [fullName,setFullName]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[agreed,setAgreed]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(""),[info,setInfo]=useState("");
- const submit=async()=>{setError("");setInfo("");if(!email.trim()||!password){setError("Please enter your email address and password.");return}if(!login&&fullName.trim().length<2){setError("Please enter your full name.");return}if(!login&&!agreed){setError("Please agree to the Terms of Service and Privacy Policy.");return}setLoading(true);try{if(login){const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password});if(error)throw error;go("dashboard")}else{const {data,error}=await supabase.auth.signUp({email:email.trim(),password,options:{data:{full_name:fullName.trim(),account_type:"job_seeker"}}});if(error)throw error;if(data.session)go("dashboard");else setInfo("Your account was created. Email confirmation is currently enabled in Supabase, so you’ll need to confirm your email before signing in.")}}catch(err){setError(err?.message||"Something went wrong. Please try again.")}finally{setLoading(false)}};
+ const submit=async()=>{setError("");setInfo("");if(!email.trim()||!password){setError("Please enter your email address and password.");return}if(!login&&fullName.trim().length<2){setError("Please enter your full name.");return}if(!login&&!agreed){setError("Please agree to the Terms of Service and Privacy Policy.");return}setLoading(true);try{if(login){const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password});if(error)throw error;go("dashboard")}else{const {data,error}=await supabase.auth.signUp({email:email.trim(),password,options:{data:{full_name:fullName.trim(),account_type:"job_seeker"}}});if(error)throw error;if(data.session){const {data:profile}=await supabase.from("profiles").select("onboarding_completed").eq("id",data.user.id).maybeSingle();go(profile?.onboarding_completed?"dashboard":"onboarding")}else setInfo("Your account was created. Email confirmation is currently enabled in Supabase, so you’ll need to confirm your email before signing in.")}}catch(err){setError(err?.message||"Something went wrong. Please try again.")}finally{setLoading(false)}};
  return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">REMOTE WORK, REIMAGINED</span><h1>Build a career that moves with you.</h1><p>One trusted place to discover opportunities, manage applications and grow your remote career.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><button className="back-link" onClick={()=>go("home")}><ArrowLeft size={15}/> Back to home</button><div className="auth-card"><Logo/><h2>{login?"Welcome back":"Create your account"}</h2><p>{login?"Sign in to continue your remote journey.":"Create your free RemotePath job-seeker account."}</p><div className="social-row"><Button variant="outline" disabled><GoogleLogo/> Continue with Gmail</Button></div><div className="or"><span>or</span></div>{!login&&<Field label="Full name" placeholder="Enter your full name" value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name"/>}<Field label="Email address" placeholder="you@example.com" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/><Field label="Password" placeholder={login?"Enter your password":"Create a password"} type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={login?"current-password":"new-password"}/>{login&&<div className="forgot"><button type="button" onClick={()=>setInfo("Password recovery will be connected when the production email/domain setup is added.")}>Forgot password?</button></div>}{error&&<div className="auth-message auth-error" role="alert">{error}</div>}{info&&<div className="auth-message auth-info" role="status">{info}</div>}<Button className="full" onClick={submit} disabled={loading}>{loading?"Please wait…":login?"Sign in":"Create account"} {!loading&&<ArrowRight size={15}/>}</Button><label className="checkline"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>I agree to the Terms of Service and Privacy Policy.</span></label><p className="auth-switch">{login?"Don't have an account?":"Already have an account?"} <button onClick={()=>go(login?"signup":"login")}>{login?"Create one":"Log in"}</button></p></div></div></div>;
 }
 function Field({label,placeholder,type="text",value,onChange,autoComplete}){return <label className="field"><span>{label}</span><input type={type} placeholder={placeholder} value={value} onChange={onChange} autoComplete={autoComplete}/></label>}
@@ -779,15 +779,71 @@ function Interview({go}){
 function Profile({go}){
   const [profile,setProfile]=useState(null),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[saved,setSaved]=useState(false);
   const [fullName,setFullName]=useState(""),[country,setCountry]=useState(""),[experience,setExperience]=useState(""),[adaptiveAnswer,setAdaptiveAnswer]=useState(""),[workType,setWorkType]=useState(""),[goal,setGoal]=useState(""),[interestAreas,setInterestAreas]=useState([]);
-  useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!user){if(mounted){setError("Your session has expired. Please sign in again.");setLoading(false)}return}const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,avatar_url,onboarding_completed").eq("id",user.id).maybeSingle();if(!mounted)return;if(e){setError(e.message);setLoading(false);return}if(data){setProfile(data);setFullName(data.full_name||"");setCountry(data.country||"");setExperience(data.experience||"");setAdaptiveAnswer(data.adaptive_answer||"");setWorkType(data.work_type||"");setGoal(data.goal||"");setInterestAreas(Array.isArray(data.interest_areas)?data.interest_areas:[])}setLoading(false)})();return()=>{mounted=false}},[]);
-  const saveProfile=async()=>{setSaving(true);setSaved(false);setError("");try{const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("Your session has expired. Please sign in again.");const payload={full_name:fullName.trim(),country:country||null,experience:experience||null,adaptive_answer:adaptiveAnswer.trim()||null,work_type:workType||null,goal:goal||null,interest_areas:interestAreas};const {data,error:e}=await supabase.from("profiles").update(payload).eq("id",user.id).select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,avatar_url,onboarding_completed").single();if(e)throw e;setProfile(data);setSaved(true);setTimeout(()=>setSaved(false),2500)}catch(err){setError(err?.message||"We couldn't save your profile yet. Please try again.")}finally{setSaving(false)}};
+
+  const experiencedOptions=["Design & Creative","Technology & Development","Marketing & Sales","Customer Support","Operations & Administration","Finance & Data"];
+  const starterOptions=["Yes, I’m open to learning","Yes, with guidance","I prefer roles I already know"];
+  const goalOptions=["Find my first remote job","Find my next remote job","Move into a new career","Build experience","Find better-paying work"];
+  const interestOptions=["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"];
+
+  useEffect(()=>{let mounted=true;(async()=>{
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){if(mounted){setError("Your session has expired. Please sign in again.");setLoading(false)}return}
+    const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,avatar_url,onboarding_completed").eq("id",user.id).maybeSingle();
+    if(!mounted)return;
+    if(e){setError(e.message);setLoading(false);return}
+    if(data){
+      setProfile(data);
+      setFullName(data.full_name||"");
+      setCountry(data.country||"");
+      setExperience(data.experience||"");
+      setAdaptiveAnswer(data.adaptive_answer||"");
+      setWorkType(data.work_type||"");
+      setGoal(data.goal||"");
+      setInterestAreas(Array.isArray(data.interest_areas)?data.interest_areas:[]);
+    }
+    setLoading(false)
+  })();return()=>{mounted=false}},[]);
+
+  const saveProfile=async()=>{
+    setSaving(true);setSaved(false);setError("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const payload={
+        full_name:fullName.trim(),
+        country:country||null,
+        experience:experience||null,
+        adaptive_answer:adaptiveAnswer||null,
+        work_type:workType||null,
+        goal:goal||null,
+        interest_areas:interestAreas,
+        onboarding_completed:true
+      };
+      const {data,error:e}=await supabase.from("profiles").update(payload).eq("id",user.id).select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,avatar_url,onboarding_completed").single();
+      if(e)throw e;
+      setProfile(data);setSaved(true);setTimeout(()=>setSaved(false),2500)
+    }catch(err){setError(err?.message||"We couldn't save your profile yet. Please try again.")}
+    finally{setSaving(false)}
+  };
+
   const toggleInterest=(item)=>setInterestAreas(prev=>prev.includes(item)?prev.filter(x=>x!==item):[...prev,item]);
-  const completionFields=[fullName,country,experience,adaptiveAnswer,workType,goal,interestAreas.length?interestAreas:null];const completion=Math.round(completionFields.filter(Boolean).length/completionFields.length*100);
+  const adaptiveOptions=experience==="No professional experience"?starterOptions:experiencedOptions;
+  const adaptiveLabel=experience==="No professional experience"?"Learning preference":"Experience focus";
+  const completionFields=[fullName,country,experience,adaptiveAnswer,workType,goal,interestAreas.length?interestAreas:null];
+  const completion=Math.round(completionFields.filter(Boolean).length/completionFields.length*100);
+
   if(loading)return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR PROFILE</span><h1>Profile & preferences</h1><p>Loading your profile…</p></div></div></div>;
+
   return <div className="workspace"><div className="workspace-head"><div><span className="kicker">YOUR PROFILE</span><h1>Profile & preferences</h1><p>Keep your profile information ready for every application.</p></div><Button onClick={()=>go("jobs")}>Preview jobs <ArrowRight size={15}/></Button></div>
     {error&&<div className="auth-message auth-error">{error}</div>}{saved&&<div className="auth-message auth-success"><Check size={15}/> Your profile has been saved.</div>}
     <div className="profile-layout"><aside className="profile-card panel"><div className="profile-avatar"><Avatar letter={(fullName||"U").trim().charAt(0).toUpperCase()} size="xl"/></div><h2>{fullName||"Your name"}</h2><p>{experience||"Add your experience"}</p><Badge tone="green">Profile {completion}% complete</Badge><div className="profile-links">{country&&<span><MapPin size={14}/>{country}</span>}{workType&&<span><Globe2 size={14}/>{workType}</span>}</div></aside>
-      <section className="profile-editor panel"><PanelTitle title="About you"/><Field label="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Your full name"/><Field label="What best describes your experience?" value={adaptiveAnswer} onChange={e=>setAdaptiveAnswer(e.target.value)} placeholder="Tell us about your experience or preferred area"/><div className="two-fields"><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}><option value="">Select country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label><label className="field"><span>Experience</span><select value={experience} onChange={e=>setExperience(e.target.value)}><option value="">Select experience</option>{["No professional experience","Entry level","1–2 years","3–5 years","6–10 years","10+ years"].map(x=><option key={x} value={x}>{x}</option>)}</select></label></div><div className="two-fields"><label className="field"><span>Work type</span><select value={workType} onChange={e=>setWorkType(e.target.value)}><option value="">Select work type</option>{["Full-time","Part-time","Contract","Freelance","Flexible"].map(x=><option key={x} value={x}>{x}</option>)}</select></label><Field label="Main goal" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="What are you hoping to achieve?"/></div><PanelTitle title="Interest areas"/><div className="skill-editor">{["Design","Technology","Customer Support","Marketing","Writing","Data","Finance","Operations"].map(x=><button type="button" className={interestAreas.includes(x)?"selected":""} onClick={()=>toggleInterest(x)} key={x}><Badge tone={interestAreas.includes(x)?"green":"soft"}>{x}{interestAreas.includes(x)&&<Check size={11}/>}</Badge></button>)}</div><Button onClick={saveProfile} disabled={saving}>{saving?"Saving…":"Save changes"} {!saving&&<Check size={15}/>}</Button></section></div></div>;
+      <section className="profile-editor panel"><PanelTitle title="About you"/><Field label="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Your full name"/>
+        <div className="two-fields"><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}><option value="">Select country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label><label className="field"><span>Experience</span><select value={experience} onChange={e=>{setExperience(e.target.value);setAdaptiveAnswer("")}}><option value="">Select experience</option>{["No professional experience","Entry level","1–2 years","3–5 years","6–10 years","10+ years"].map(x=><option key={x} value={x}>{x}</option>)}</select></label></div>
+        <label className="field"><span>{adaptiveLabel}</span><select value={adaptiveAnswer} onChange={e=>setAdaptiveAnswer(e.target.value)}><option value="">Select {adaptiveLabel.toLowerCase()}</option>{adaptiveOptions.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+        <div className="two-fields"><label className="field"><span>Work type</span><select value={workType} onChange={e=>setWorkType(e.target.value)}><option value="">Select work type</option>{["Full-time","Part-time","Contract","Freelance","Flexible"].map(x=><option key={x} value={x}>{x}</option>)}</select></label><label className="field"><span>Main goal</span><select value={goal} onChange={e=>setGoal(e.target.value)}><option value="">Select your main goal</option>{goalOptions.map(x=><option key={x} value={x}>{x}</option>)}</select></label></div>
+        <PanelTitle title="Interest areas"/><div className="skill-editor">{interestOptions.map(x=><button type="button" className={interestAreas.includes(x)?"selected":""} onClick={()=>toggleInterest(x)} key={x}><Badge tone={interestAreas.includes(x)?"green":"soft"}>{x}{interestAreas.includes(x)&&<Check size={11}/>}</Badge></button>)}</div>
+        <Button onClick={saveProfile} disabled={saving}>{saving?"Saving…":"Save changes"} {!saving&&<Check size={15}/>}</Button>
+      </section></div></div>;
 }
 function Employer({go}){
  const [profile,setProfile]=useState(null),[jobs,setJobs]=useState([]),[applications,setApplications]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState("");
@@ -1528,7 +1584,7 @@ function App(){
   useEffect(()=>{
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){go("login")}
-    if(session&&(screen==="login"||screen==="signup"||screen==="verify"))go("dashboard");
+    if(session&&(screen==="login"||screen==="verify")){(async()=>{const {data:profile}=await supabase.from("profiles").select("onboarding_completed").eq("id",session.user.id).maybeSingle();if(profile?.onboarding_completed)go("dashboard");else go("onboarding")})()}
     if(session&&accountStatus!=="active"&&role!=="admin"&&role!=="super_admin"&&screen!=="restricted"&&screen!=="support")go("restricted");
     if(session&&["employer","postjob","candidates"].includes(screen)){go("dashboard")}
     const adminScreens=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"];
