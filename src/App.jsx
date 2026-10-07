@@ -260,7 +260,7 @@ function AppShell({go,screen,children}){
           <Avatar letter={letter}/>
           <div>
             <strong>{displayName}</strong>
-            <small>{profile?.(role==="admin"||role==="super_admin")?"Administrator":"Job seeker"}</small>
+            <small>{(profile?.role==="admin"||profile?.role==="super_admin")?"Administrator":"Job seeker"}</small>
           </div>
           <ChevronDown size={14}/>
         </div>
@@ -276,7 +276,7 @@ function AppShell({go,screen,children}){
             </button>
           ))}
 
-          {profile?.(role==="admin"||role==="super_admin") && (
+          {(profile?.role==="admin"||profile?.role==="super_admin") && (
             <>
               <button
                 className={screen==="admin"?"active":""}
