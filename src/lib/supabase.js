@@ -1,13 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://grtnpvoyqeogzgeyiqce.supabase.co";
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_g0TvvM9eG6QMINl1xRrrLw_NcZtzPKL";
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  console.warn("Supabase environment variables are not configured.");
-}
-
-export const supabase = createClient(
-  supabaseUrl || "https://grtnpvoyqeogzgeyiqce.supabase.co",
-  supabasePublishableKey || ""
-);
+export const supabase = createClient(supabaseUrl, supabasePublishableKey);
