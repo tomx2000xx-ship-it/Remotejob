@@ -400,52 +400,120 @@ function Payouts({go}){
   const [cardName,setCardName]=useState("");
   const [cardLast4,setCardLast4]=useState("");
   const [confirmed,setConfirmed]=useState(false);
-  const [saved,setSaved]=useState(false);
+  const [savedMethod,setSavedMethod]=useState(null);
+  const [history,setHistory]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
   const [modalOpen,setModalOpen]=useState(false);
   const banks=payoutBanks[country]||[];
   const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
   const cardReady=cardName.trim().length>2&&/^\d{4}$/.test(cardLast4.trim());
   const canSave=method==="bank"?bankReady:method==="paypal"?paypalReady:cardReady;
-  const selectCountry=(value)=>{setCountry(value);setBank("");};
-  const saveMethod=()=>{if(!canSave||!confirmed)return;setSaved(true);setModalOpen(false);};
 
-  if(saved) return <div className="workspace"><div className="workspace-head"><div><span className="kicker">PAYOUT SETTINGS</span><h1>Payment method saved.</h1><p>Your payout details are ready for the payout functionality to be connected later.</p></div><Button variant="outline" onClick={()=>setSaved(false)}><PenLine size={15}/> Review details</Button></div><section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{method==="bank"?"Bank transfer":method==="paypal"?"PayPal":"Debit card"}</h2><p>{method==="bank"?bank+" · "+country+" · Account ending "+(account.slice(-4)||"••••"):method==="paypal"?paypalName+" · "+paypalEmail:cardName+" · Card ending "+cardLast4}</p><Badge tone="green">Ready for payouts</Badge></div></section><section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section></div>;
+  useEffect(()=>{
+    let mounted=true;
+    (async()=>{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user){if(mounted)setLoading(false);return;}
+      const [methodsRes,payoutsRes]=await Promise.all([
+        supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+        supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20)
+      ]);
+      if(!mounted)return;
+      if(methodsRes.error||payoutsRes.error)setError((methodsRes.error||payoutsRes.error).message);
+      const m=methodsRes.data||null;
+      setSavedMethod(m);
+      setHistory(payoutsRes.data||[]);
+      if(m){
+        setMethod(m.method_type);
+        setCountry(m.bank_country||"United States");
+        setBank(m.bank_name||"");
+        setName(m.account_holder_name||"");
+        setPaypalName(m.paypal_name||"");
+        setPaypalEmail(m.paypal_email||"");
+        setCardName(m.cardholder_name||"");
+        setCardLast4(m.card_last4||"");
+      }
+      setLoading(false);
+    })();
+    return()=>{mounted=false};
+  },[]);
+
+  const selectCountry=(value)=>{setCountry(value);setBank("");};
+
+  const saveMethod=async()=>{
+    if(!canSave||!confirmed||saving)return;
+    setSaving(true);setError("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const payload={
+        user_id:user.id,method_type:method,is_default:true,status:"active",
+        bank_country:method==="bank"?country:null,
+        bank_name:method==="bank"?bank:null,
+        account_holder_name:method==="bank"?name.trim():null,
+        account_last4:method==="bank"?account.slice(-4):null,
+        paypal_name:method==="paypal"?paypalName.trim():null,
+        paypal_email:method==="paypal"?paypalEmail.trim():null,
+        cardholder_name:method==="card"?cardName.trim():null,
+        card_last4:method==="card"?cardLast4.trim():null
+      };
+      if(savedMethod){
+        const {data,error:e}=await supabase.from("payout_methods").update(payload).eq("id",savedMethod.id).select("*").single();
+        if(e)throw e;
+        setSavedMethod(data);
+      }else{
+        const {data,error:e}=await supabase.from("payout_methods").insert(payload).select("*").single();
+        if(e)throw e;
+        setSavedMethod(data);
+      }
+      setConfirmed(false);setModalOpen(false);
+    }catch(err){setError(err?.message||"We couldn't save your payout method.");}
+    finally{setSaving(false);}
+  };
+
+  const methodLabel=m=>m==="bank"?"Bank transfer":m==="paypal"?"PayPal":"Debit card";
+  const methodSummary=m=>m.method_type==="bank"?`${m.bank_name||"Bank"} · ${m.bank_country||""} · Account ending ${m.account_last4||"••••"}`:m.method_type==="paypal"?`${m.paypal_name||""} · ${m.paypal_email||""}`:`${m.cardholder_name||""} · Card ending ${m.card_last4||"••••"}`;
+
+  if(loading)return <div className="workspace"><div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Loading your payout settings securely…</p></div></div></div>;
 
   return <div className="workspace">
     <div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Choose where you want your earnings sent and keep your payment details up to date.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Secure payout details</Badge></div>
+    {error&&<div className="auth-message auth-error">{error}</div>}
+    {savedMethod?<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><Button variant="outline" onClick={()=>setModalOpen(true)}><PenLine size={15}/> Review details</Button></section>:null}
     <section className="payout-warning"><div className="payout-warning-icon"><CircleHelp size={19}/></div><div><strong>Take your time before you save.</strong><p>Make sure your name, bank or PayPal details are exactly correct. Incorrect payout information can cause a payment to fail or be sent to the wrong destination. Once saved, changes may be restricted and you may need to contact <button onClick={()=>go("home")}>Customer Care</button> to request an update.</p></div></section>
     <section className="payout-method-panel">
-      <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>Where should we send your earnings?</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
+      <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{savedMethod?"Change your payout method":"Where should we send your earnings?"}</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
       <div className="payout-method-grid">
         <button className="payout-method-card" onClick={()=>{setMethod("bank");setModalOpen(true)}}><span className="payout-method-icon"><Landmark size={19}/></span><div><strong>Bank transfer</strong><small>Send earnings directly to your bank account.</small></div><i><ArrowRight size={13}/></i></button>
         <button className="payout-method-card" onClick={()=>{setMethod("paypal");setModalOpen(true)}}><span className="payout-method-icon paypal-mark">P</span><div><strong>PayPal</strong><small>Receive earnings through your PayPal account.</small></div><i><ArrowRight size={13}/></i></button>
         <button className="payout-method-card" onClick={()=>{setMethod("card");setModalOpen(true)}}><span className="payout-method-icon"><CreditCard size={19}/></span><div><strong>Debit card</strong><small>Receive earnings to an eligible debit card.</small></div><i><ArrowRight size={13}/></i></button>
       </div>
       {modalOpen&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><div className="payout-modal" role="dialog" aria-modal="true">
-        <div className="payout-modal-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{method==="bank"?"Bank transfer":method==="paypal"?"PayPal":"Debit card"}</h2><p>Enter the details required for this payout method.</p></div><button className="payout-modal-close" onClick={()=>setModalOpen(false)} aria-label="Close"><X size={18}/></button></div>
+        <div className="payout-modal-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{methodLabel(method)}</h2><p>Enter the details required for this payout method.</p></div><button className="payout-modal-close" onClick={()=>setModalOpen(false)} aria-label="Close"><X size={18}/></button></div>
         {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Where should we send the bank transfer?</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
           <label className="field"><span>Bank country</span><select value={country} onChange={e=>selectCountry(e.target.value)}>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select></label>
           <label className="field"><span>Bank name</span><select value={bank} onChange={e=>setBank(e.target.value)}><option value="">Select your bank</option>{banks.map(b=><option key={b}>{b}</option>)}</select></label>
           <label className="field"><span>Account holder name</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Name on the bank account" autoComplete="name"/></label>
           <label className="field"><span>Account number / IBAN</span><input value={account} onChange={e=>setAccount(e.target.value)} placeholder="Enter your account details" autoComplete="off"/></label>
-        </div><div className="payout-country-note"><Globe2 size={15}/><span>Some countries require additional details such as routing, sort code, transit/institution numbers, IBAN or BIC/SWIFT.</span></div></div>}
+        </div><div className="payout-country-note"><Globe2 size={15}/><span>RemotePath stores only the last 4 digits for this payout method. Additional bank routing details should be collected by the eventual payout provider.</span></div></div>}
         {method==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Which PayPal account should receive your earnings?</h3><p>Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
           <label className="field"><span>PayPal account name</span><input value={paypalName} onChange={e=>setPaypalName(e.target.value)} placeholder="Name on your PayPal account" autoComplete="name"/></label>
           <label className="field"><span>PayPal email</span><input type="email" value={paypalEmail} onChange={e=>setPaypalEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/></label>
         </div><div className="payout-country-note"><Mail size={15}/><span>PayPal receiving features can vary by country.</span></div></div>}
-        {method==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Your card details will be handled by the payout provider during the real integration.</p></div><div className="payout-form-grid">
+        {method==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Only the last 4 digits are retained by RemotePath. Full card details must be handled by the eventual payout provider.</p></div><div className="payout-form-grid">
           <label className="field"><span>Cardholder name</span><input value={cardName} onChange={e=>setCardName(e.target.value)} placeholder="Name on your debit card" autoComplete="cc-name"/></label>
           <label className="field"><span>Card ending</span><input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label>
-        </div><div className="payout-country-note"><CreditCard size={15}/><span>Full card details and verification will be collected through a secure payment-provider interface later. RemotePath will not store CVV/security codes.</span></div></div>}
+        </div><div className="payout-country-note"><CreditCard size={15}/><span>RemotePath will not store a full card number, CVV or PIN.</span></div></div>}
         <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
-        <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed}>Save payout method <ArrowRight size={15}/></Button></div>
+        <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed||saving}>{saving?"Saving…":"Save payout method"} {!saving&&<ArrowRight size={15}/>}</Button></div>
       </div></div>}
     </section>
-    <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section>
+    <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/>{history.length===0?<div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div>:<div className="payout-history-list">{history.map(p=><div className="payout-history-row" key={p.id}><div><strong>{p.currency} {Number(p.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong><small>{new Date(p.created_at).toLocaleDateString()} · {p.status}</small></div><Badge tone={p.status==="paid"?"green":"amber"}>{p.status}</Badge></div>)}</div>}</section>
   </div>
 }
-
 function Saved({go}){const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!user){setLoading(false);return}const {data,error}=await supabase.from("saved_jobs").select("job_id,created_at,jobs(*)").eq("user_id",user.id).order("created_at",{ascending:false});if(mounted){if(error)console.error(error);setItems((data||[]).map(x=>({...x.jobs,company:x.jobs?.company_name,logo:x.jobs?.company_logo,type:x.jobs?.job_type,posted:relativePosted(x.jobs?.created_at)})).filter(Boolean));setLoading(false)}})();return()=>{mounted=false}},[]);return <div><AppShell go={go}><main className="workspace-page"><div className="page-heading"><span className="kicker">YOUR SHORTLIST</span><h1>Saved <em>jobs.</em></h1><p>Keep the roles you want to come back to in one place.</p></div>{loading?<div className="empty-state"><h3>Loading saved jobs…</h3><p>Fetching your shortlist.</p></div>:items.length===0?<EmptyState title="No saved jobs yet" text="Bookmark a role you like and it will appear here." action="Find jobs" onAction={()=>go("jobs")}/>:<div className="job-grid">{items.map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div>}</main></AppShell></div>}
 
 function Applications({go}){const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!user){setLoading(false);return}const {data,error}=await supabase.from("applications").select("id,status,submitted_at,created_at,jobs(id,title,company_name,location,job_type,salary_min,salary_max,salary_currency)").eq("user_id",user.id).order("created_at",{ascending:false});if(mounted){if(error)console.error(error);setItems(data||[]);setLoading(false)}})();return()=>{mounted=false}},[]);return <div><AppShell go={go}><main className="workspace-page"><div className="page-heading"><span className="kicker">YOUR JOB SEARCH</span><h1>Your <em>applications.</em></h1><p>Track every role you’ve applied for and what happens next.</p></div>{loading?<div className="empty-state"><h3>Loading applications…</h3><p>Fetching your application history.</p></div>:items.length===0?<EmptyState title="No applications yet" text="When you apply for a job, you’ll be able to track it here." action="Find jobs" onAction={()=>go("jobs")}/>:<div className="application-list">{items.map(a=><article className="application-row" key={a.id}><div className="company-avatar">{a.jobs?.company_name?.[0]||"R"}</div><div className="application-row-main"><span className="kicker">{a.jobs?.company_name||"Company"}</span><h3>{a.jobs?.title||"Job application"}</h3><div className="job-row-meta"><span>{a.jobs?.job_type||"Remote"}</span><span>{a.jobs?.location||"Worldwide"}</span><span>{a.submitted_at?"Submitted":"Draft"}</span></div></div><Badge tone={a.status==="submitted"?"green":"soft"}>{a.status==="submitted"?"Submitted":a.status}</Badge></article>)}</div>}</main></AppShell></div>}
