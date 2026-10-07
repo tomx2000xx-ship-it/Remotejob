@@ -232,6 +232,11 @@ function Dashboard({go}){
      <div className="verification-banner-copy"><span className="kicker">ACCOUNT VERIFICATION</span><h2>Complete your verification</h2><p>Your profile is almost ready. Confirm your identity so RemotePath can keep the marketplace trusted and secure.</p><div className="verification-status"><span><i/> Verification required</span><small>Usually takes a few minutes once verification is connected.</small></div></div>
      <button className="verification-banner-action" onClick={()=>go("verification")}><span className="verification-help">?</span><strong>Complete verification</strong><ArrowRight size={16}/></button>
    </section>
+   <section className="payout-reminder" aria-label="Payout method reminder">
+     <div className="payout-reminder-icon"><WalletCards size={20}/></div>
+     <div className="payout-reminder-copy"><span className="kicker">WITHDRAWALS</span><h2>Add a payout method before you withdraw</h2><p>You need to select and save a payout method before you can make a withdrawal. Choose bank transfer, PayPal, or debit card and keep your details up to date.</p></div>
+     <button className="payout-reminder-action" onClick={()=>go("payouts")}><span>Add payout method</span><ArrowRight size={16}/></button>
+   </section>
    <div className="summary-grid"><Summary icon={FileText} value="12" label="Applications" change="+2 this week"/><Summary icon={MessageCircle} value="3" label="Interviews" change="+1 this week"/><Summary icon={Star} value="1" label="Offers" change="1 new"/><Summary icon={Bookmark} value="8" label="Saved jobs" change="3 closing soon"/></div>
    <div className="workspace-grid"><section className="panel"><PanelTitle title="Continue where you left off" action="View all" onAction={()=>go("applications")}/><div className="application-highlight"><div className="company-avatar">N</div><div><strong>Senior Product Designer</strong><span>NovaTech · Applied May 28, 2026</span><Badge tone="amber">Interview scheduled</Badge></div><Button variant="soft" onClick={()=>go("interview")}>View details</Button></div></section><section className="panel"><PanelTitle title="Recommended for you" action="View more" onAction={()=>go("jobs")}/><div className="mini-job-grid">{jobs.slice(1,4).map(j=><JobCard key={j.id} job={j} compact onOpen={id=>go("job",id)}/>)}</div></section></div>
  </div>
