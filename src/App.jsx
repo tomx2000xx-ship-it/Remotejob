@@ -988,7 +988,7 @@ function AdminVerification({go}){
         <div className="payout-modal-head"><div><span className="kicker">DEMO DOCUMENTS</span><h2>{selectedCandidate.profiles?.full_name||"RemotePath member"}</h2><p>{selectedCandidate.document_type||"Identity document"} · Private preview</p></div><button className="payout-modal-close" onClick={closeDocuments}><X size={18}/></button></div>
         {documentsLoading?<div className="empty-state"><h3>Loading secure previews…</h3><p>Generating short-lived document links.</p></div>:documents.length===0?<div className="empty-state"><FileText size={24}/><h3>No uploaded documents found</h3><p>This verification case has no demo files available for preview.</p></div>:<div className="admin-verification-doc-grid">
           {documents.map(doc=><button type="button" className="admin-verification-doc-card" key={doc.id} onClick={()=>setSelectedDocument(doc)}>
-            <span className="admin-verification-doc-thumb">{doc.signedUrl&&doc.mime_type?.startsWith("image/")?<img src={doc.signedUrl} alt={doc.side+" of identity document"}/>:<FileText size={26}/>}</span>
+            <span className="admin-verification-doc-thumb">{doc.signedUrl&&/\.(jpe?g|png|webp)$/i.test(doc.storage_path||"")?<img src={doc.signedUrl} alt={doc.side+" of identity document"}/>:<FileText size={26}/>}</span>
             <span><strong>{doc.side==="front"?"Front":"Back"} of document</strong><small>{doc.storage_path?.split("/").pop()||"Uploaded document"}</small></span>
             <ArrowRight size={15}/>
           </button>)}
