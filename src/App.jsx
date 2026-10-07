@@ -706,9 +706,24 @@ function App(){
   const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
   useEffect(()=>{
     let mounted=true;
-    supabase.auth.getSession().then(({data})=>{if(mounted){setSession(data.session);setAuthReady(true);if(data.session){const {data:profile}=await supabase.from("profiles").select("role").eq("id",data.session.user.id).maybeSingle();if(mounted)setRole(profile?.role||"user")}}});
+    const loadSession=async()=>{
+      const {data}=await supabase.auth.getSession();
+      if(!mounted)return;
+      setSession(data.session);
+      if(data.session){
+        const {data:profile}=await supabase.from("profiles").select("role").eq("id",data.session.user.id).maybeSingle();
+        if(mounted)setRole(profile?.role||"user");
+      }else setRole("user");
+      setAuthReady(true);
+    };
+    loadSession();
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,nextSession)=>{
       setSession(nextSession);
+      if(nextSession){
+        supabase.from("profiles").select("role").eq("id",nextSession.user.id).maybeSingle().then(({data:profile})=>{
+          if(mounted)setRole(profile?.role||"user");
+        });
+      }else setRole("user");
       setAuthReady(true);
     });
     return()=>{mounted=false;subscription.unsubscribe()};
