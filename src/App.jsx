@@ -421,6 +421,7 @@ function Payouts({go}){
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [modalOpen,setModalOpen]=useState(false);
+  const [pointsBalance,setPointsBalance]=useState(0),[pointPackages,setPointPackages]=useState([]),[selectedPackage,setSelectedPackage]=useState(null),[pointCardName,setPointCardName]=useState(""),[pointCardLast4,setPointCardLast4]=useState(""),[pointsLoading,setPointsLoading]=useState(true),[pointsSaving,setPointsSaving]=useState(false),[pointsError,setPointsError]=useState("");
   const banks=payoutBanks[country]||[];
   const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
@@ -432,12 +433,15 @@ function Payouts({go}){
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      const [methodsRes,payoutsRes]=await Promise.all([
+      const [methodsRes,payoutsRes,walletRes,packagesRes]=await Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
-        supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20)
+        supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20),
+        supabase.from("point_wallets").select("balance").eq("user_id",user.id).maybeSingle(),
+        supabase.from("point_packages").select("id,name,points,price,currency").eq("status","active").order("points")
       ]);
       if(!mounted)return;
-      if(methodsRes.error||payoutsRes.error)setError((methodsRes.error||payoutsRes.error).message);
+      if(methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error)setError((methodsRes.error||payoutsRes.error||walletRes.error||packagesRes.error).message);
+      setPointsBalance(walletRes.data?.balance||0);setPointPackages(packagesRes.data||[]);setPointsLoading(false);
       const m=methodsRes.data||null;
       setSavedMethod(m);
       setHistory(payoutsRes.data||[]);
@@ -489,6 +493,7 @@ function Payouts({go}){
     finally{setSaving(false);}
   };
 
+  const purchasePoints=async()=>{if(!selectedPackage||pointCardName.trim().length<2||!/^[0-9]{4}$/.test(pointCardLast4)||pointsSaving)return;setPointsSaving(true);setPointsError("");try{const {data,error:e}=await supabase.rpc("purchase_points_demo",{p_package_id:selectedPackage.id,p_card_last4:pointCardLast4});if(e)throw e;setPointsBalance(v=>v+(selectedPackage.points||0));setPointCardLast4("");setPointCardName("");setSelectedPackage(null)}catch(err){setPointsError(err?.message||"We couldn't complete the demo points purchase.")}finally{setPointsSaving(false)}};
   const methodLabel=m=>m==="bank"?"Bank transfer":m==="paypal"?"PayPal":"Debit card";
   const methodSummary=m=>m.method_type==="bank"?`${m.bank_name||"Bank"} · ${m.bank_country||""} · Account ending ${m.account_last4||"••••"}`:m.method_type==="paypal"?`${m.paypal_name||""} · ${m.paypal_email||""}`:`${m.cardholder_name||""} · Card ending ${m.card_last4||"••••"}`;
 
@@ -525,6 +530,13 @@ function Payouts({go}){
         <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
         <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed||saving}>{saving?"Saving…":"Save payout method"} {!saving&&<ArrowRight size={15}/>}</Button></div>
       </div></div>}
+    </section>
+    <section className="points-panel panel">
+      <div className="points-panel-head"><div><span className="kicker">JOB BIDDING CREDITS</span><h2>Points</h2><p>Buy points and use them to bid for eligible jobs. Your points balance is separate from your payout earnings.</p></div><div className="points-balance"><span>Available</span><strong>{pointsBalance.toLocaleString()}</strong><small>points</small></div></div>
+      {pointsError&&<div className="auth-message auth-error">{pointsError}</div>}
+      {pointsLoading?<div className="payout-empty"><span>Loading point packages…</span></div>:<div className="points-package-grid">{pointPackages.map(pkg=><button type="button" key={pkg.id} className={selectedPackage?.id===pkg.id?"points-package selected":"points-package"} onClick={()=>{setSelectedPackage(pkg);setPointsError("")}}><span className="kicker">{pkg.name}</span><strong>{pkg.points} points</strong><span>{pkg.currency} {Number(pkg.price).toFixed(2)}</span><small>Use for job bids</small></button>)}</div>}
+      {selectedPackage&&<div className="points-purchase"><div><span className="kicker">DEMO CARD PAYMENT</span><h3>Buy {selectedPackage.points} points</h3><p>This is demo checkout. No full card number, CVV or PIN is stored by RemotePath.</p></div><div className="payout-form-grid"><label className="field"><span>Cardholder name</span><input value={pointCardName} onChange={e=>setPointCardName(e.target.value)} placeholder="Name on card" autoComplete="cc-name"/></label><label className="field"><span>Card type</span><select defaultValue="credit_debit"><option value="credit_debit">Credit or debit card</option></select></label><label className="field"><span>Card ending</span><input value={pointCardLast4} onChange={e=>setPointCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label></div><div className="payout-confirm-row"><span>Demo card is not charged.</span><Button onClick={purchasePoints} disabled={pointsSaving||pointCardName.trim().length<2||!/^[0-9]{4}$/.test(pointCardLast4)}>{pointsSaving?"Processing…":"Buy points"} <CreditCard size={15}/></Button></div></div>}
+      <div className="points-note"><ShieldCheck size={15}/><span>Demo payment mode is active. When a real payment provider is connected, this checkout will switch to the provider's secure hosted payment flow.</span></div>
     </section>
     <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/>{history.length===0?<div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div>:<div className="payout-history-list">{history.map(p=><div className="payout-history-row" key={p.id}><div><strong>{p.currency} {Number(p.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong><small>{new Date(p.created_at).toLocaleDateString()} · {p.status}</small></div><Badge tone={p.status==="paid"?"green":"amber"}>{p.status}</Badge></div>)}</div>}</section>
   </div>
