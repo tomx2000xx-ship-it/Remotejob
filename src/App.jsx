@@ -744,7 +744,7 @@ function AdminStudio({go,role}){
 }
 
 function Admin({go}){
-  const emptyForm={title:"",companyName:"",location:"Worldwide",salaryMin:"",salaryMax:"",salaryCurrency:"USD",salaryPeriod:"year",jobType:"Full-time",remoteType:"Fully remote",experienceLevel:"",category:"",tags:"",description:"",status:"draft"};
+  const emptyForm={title:"",companyName:"",location:"Worldwide",salaryMin:"",salaryMax:"",salaryCurrency:"USD",salaryPeriod:"year",jobType:"Full-time",remoteType:"Fully remote",experienceLevel:"",category:"",tags:"",description:"",status:"draft",applicationFormId:"",interviewTemplateId:""};
   const [rows,setRows]=useState([]);
   const [form,setForm]=useState(emptyForm);
   const [editingId,setEditingId]=useState(null);
@@ -752,11 +752,12 @@ function Admin({go}){
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
+  const [forms,setForms]=useState([]); const [templates,setTemplates]=useState([]);
   const load=async()=>{
     setLoading(true);setError("");
     const {data,error}=await supabase.from("jobs").select("*").order("created_at",{ascending:false});
     if(error)setError(error.message);
-    setRows(data||[]);
+    setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
     setLoading(false);
   };
   useEffect(()=>{load()},[]);
@@ -767,7 +768,7 @@ function Admin({go}){
     salaryMin:job.salary_min||"",salaryMax:job.salary_max||"",salaryCurrency:job.salary_currency||"USD",
     salaryPeriod:job.salary_period||"year",jobType:job.job_type||"Full-time",remoteType:job.remote_type||"Fully remote",
     experienceLevel:job.experience_level||"",category:job.category||"",tags:(job.tags||[]).join(", "),
-    description:job.description||"",status:job.status||"draft"
+    description:job.description||"",status:job.status||"draft",applicationFormId:job.application_form_id||"",interviewTemplateId:job.interview_template_id||""
   });setError("");setShowForm(true)};
   const save=async()=>{
     if(!form.title.trim()||!form.companyName.trim()||!form.description.trim()){setError("Job title, company name and description are required.");return}
@@ -778,7 +779,7 @@ function Admin({go}){
         salary_min:Number(form.salaryMin)||null,salary_max:Number(form.salaryMax)||null,salary_currency:form.salaryCurrency,
         salary_period:form.salaryPeriod,job_type:form.jobType,remote_type:form.remoteType,
         experience_level:form.experienceLevel.trim(),category:form.category.trim(),
-        tags:form.tags.split(",").map(x=>x.trim()).filter(Boolean),description:form.description.trim(),status:form.status,
+        tags:form.tags.split(",").map(x=>x.trim()).filter(Boolean),description:form.description.trim(),status:form.status,application_form_id:form.applicationFormId||null,interview_template_id:form.interviewTemplateId||null,
         employer_id:null
       };
       const result=editingId
@@ -805,7 +806,7 @@ function Admin({go}){
       <div className="two-fields"><Field label="Minimum salary" placeholder="80000" value={form.salaryMin} onChange={e=>set("salaryMin",e.target.value)}/><Field label="Maximum salary" placeholder="120000" value={form.salaryMax} onChange={e=>set("salaryMax",e.target.value)}/></div>
       <div className="two-fields"><Field label="Experience" placeholder="3+ years" value={form.experienceLevel} onChange={e=>set("experienceLevel",e.target.value)}/><Field label="Skills / tags" placeholder="Figma, UX Research, Product Design" value={form.tags} onChange={e=>set("tags",e.target.value)}/></div>
       <label className="field"><span>Role description</span><textarea value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Responsibilities, requirements, benefits and other role details..."/></label>
-      <div className="two-fields"><label className="field"><span>Salary currency</span><select value={form.salaryCurrency} onChange={e=>set("salaryCurrency",e.target.value)}><option>USD</option><option>CAD</option><option>GBP</option><option>EUR</option><option>CHF</option><option>PLN</option><option>NOK</option><option>SEK</option><option>DKK</option></select></label><label className="field"><span>Publishing status</span><select value={form.status} onChange={e=>set("status",e.target.value)}><option>draft</option><option>pending_review</option><option>published</option><option>paused</option><option>closed</option></select></label></div>
+      <div className="two-fields"><label className="field"><span>Salary currency</span><select value={form.salaryCurrency} onChange={e=>set("salaryCurrency",e.target.value)}><option>USD</option><option>CAD</option><option>GBP</option><option>EUR</option><option>CHF</option><option>PLN</option><option>NOK</option><option>SEK</option><option>DKK</option></select></label><label className="field"><span>Application form</span><select value={form.applicationFormId} onChange={e=>set("applicationFormId",e.target.value)}><option value="">Default application</option>{forms.filter(x=>x.status==="published").map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label className="field"><span>Interview series</span><select value={form.interviewTemplateId} onChange={e=>set("interviewTemplateId",e.target.value)}><option value="">No series</option>{templates.filter(x=>x.status==="published").map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label></div><div className="two-fields"><label className="field"><span>Publishing status</span><select value={form.status} onChange={e=>set("status",e.target.value)}><option>draft</option><option>pending_review</option><option>published</option><option>paused</option><option>closed</option></select></label></div>
       <div className="flow-actions"><Button variant="outline" onClick={()=>setShowForm(false)} disabled={saving}>Cancel</Button><Button onClick={save} disabled={saving}>{saving?"Saving…":editingId?"Save changes":"Add job"} {!saving&&<Check size={15}/>}</Button></div>
     </section>}
     <section className="panel">
