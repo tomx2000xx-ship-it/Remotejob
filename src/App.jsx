@@ -1229,7 +1229,7 @@ function Verification({go}){
   const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
   const [country,setCountry]=useState("United States");
-  const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Government tax / identity number","France":"Government tax / identity number","Netherlands":"Government identity / tax number","Ireland":"Government identity / tax number","Sweden":"Government identity / tax number","Denmark":"Government identity / tax number","Norway":"Government identity / tax number","Finland":"Government identity / tax number","Belgium":"Government identity / tax number","Switzerland":"Government identity / tax number","Austria":"Government identity / tax number","Poland":"Government identity / tax number"};
+  const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Tax Identification Number (Steuer-ID)","France":"Social Security number (NIR)","Netherlands":"Citizen Service Number (BSN)","Ireland":"PPS Number","Sweden":"Personal identity number","Denmark":"CPR number","Norway":"National identity number","Finland":"Personal identity code","Belgium":"National number","Switzerland":"AHV/OASI number","Austria":"Social insurance number","Poland":"PESEL"};
   const docs=["Passport","Driver’s licence","National identity card","Residence permit"];
   const identifierCheck=step===4?validateGovernmentIdentifier(country,identifier):{valid:true,message:""};
   const required=step===1?legalName.trim().length>2:step===2?!!dob:step===3?address.trim().length>5:step===4?identifierCheck.valid:!!documentType&&!!frontFile&&!!backFile;
@@ -1255,6 +1255,8 @@ function Verification({go}){
   },[]);
   const startVerification=async()=>{
     if(saving)return;
+    const finalIdentifierCheck=validateGovernmentIdentifier(country,identifier);
+    if(!finalIdentifierCheck.valid){setIdentifierError(finalIdentifierCheck.message);setStep(4);return;}
     setSaving(true);setError("");
     try{
       const {data:{user}}=await supabase.auth.getUser();
