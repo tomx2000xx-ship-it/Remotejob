@@ -818,3 +818,33 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .field select:focus{border-color:#7da895;box-shadow:0 0 0 3px rgba(78,138,116,.10)}
 .candidate-action{display:inline-flex;align-items:center;justify-content:center;color:#7a8981}
 @media(max-width:560px){.account-type-choice{grid-template-columns:1fr}.account-type-choice button{padding:11px}}
+
+.footer-copy{display:block;font-size:9px;line-height:1.5;color:#aab8b1;margin:0 0 8px;max-width:180px}
+.admin-control-note{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border:1px solid #dce8e0;border-radius:14px;background:#f5faf6;margin-bottom:16px;color:#385047}
+.admin-control-note svg{flex:0 0 auto;margin-top:1px}
+.admin-control-note strong{display:block;font-size:11px;margin-bottom:4px}
+.admin-control-note span{display:block;font-size:9px;line-height:1.55;color:#718079}
+.admin-job-form{margin-bottom:16px;padding:20px}
+.admin-job-form .panel-title{margin-bottom:16px}
+.admin-job-form textarea{min-height:120px}
+.admin-job-list{display:flex;flex-direction:column}
+.admin-job-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #edf1ee}
+.admin-job-row:last-child{border-bottom:0}
+.admin-job-main{min-width:0}
+.admin-job-main>div{display:flex;flex-direction:column;gap:3px}
+.admin-job-main strong{font-size:11px;color:#294039}
+.admin-job-main span,.admin-job-main small{font-size:8px;color:#7a8981}
+.admin-status{display:flex;align-items:center;gap:6px}
+.admin-status span{font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:#89958f}
+.admin-status select{min-height:34px;padding:0 8px;border:1px solid #dfe7e1;border-radius:8px;background:#fff;color:#40524a;font-size:9px}
+@media(max-width:700px){
+  .admin-job-row{grid-template-columns:auto 1fr auto}
+  .admin-status{grid-column:2 / 3}
+  .admin-job-row>.icon-btn{grid-column:3;grid-row:1}
+}
+@media(max-width:560px){
+  .admin-job-form{padding:15px}
+  .admin-job-row{gap:9px}
+  .admin-job-main strong{font-size:10px}
+  .admin-status select{max-width:150px}
+}
