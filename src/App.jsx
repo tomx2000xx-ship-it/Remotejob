@@ -9,14 +9,7 @@ import {
   Users, WalletCards, X, Zap
 } from "lucide-react";
 
-const jobs = [
-  {id:1,company:"NovaTech",logo:"N",title:"Senior Product Designer",location:"Worldwide",salary:"$80k–$120k / year",type:"Full-time",posted:"2h ago",tags:["Product Design","Figma","UX Research"],verified:true},
-  {id:2,company:"Summit Digital",logo:"S",title:"Frontend Developer",location:"Worldwide",salary:"$70k–$95k / year",type:"Full-time",posted:"4h ago",tags:["React","TypeScript","Tailwind"],verified:true},
-  {id:3,company:"BrightPath",logo:"B",title:"Marketing Specialist",location:"Europe · Remote",salary:"$50k–$70k / year",type:"Part-time",posted:"6h ago",tags:["SEO","Content","Social Media"],verified:true},
-  {id:4,company:"CloudWave",logo:"C",title:"Customer Success Manager",location:"Worldwide",salary:"$60k–$85k / year",type:"Full-time",posted:"8h ago",tags:["Communication","CRM","Customer Support"],verified:true},
-  {id:5,company:"VectorCare",logo:"V",title:"Data Entry Specialist",location:"Worldwide",salary:"$40k–$55k / year",type:"Full-time",posted:"10h ago",tags:["Excel","Data Entry","Attention to Detail"],verified:true},
-  {id:6,company:"OrbitAI",logo:"O",title:"AI Content Strategist",location:"North America",salary:"$65k–$90k / year",type:"Full-time",posted:"1d ago",tags:["AI","Strategy","Writing"],verified:true}
-];
+
 
 const registrationCountries = [
   ["🇺🇸","United States"],["🇨🇦","Canada"],["🇬🇧","United Kingdom"],["🇩🇪","Germany"],["🇫🇷","France"],
@@ -325,13 +318,32 @@ function AppShell({go,screen,children}){
 }
 function Dashboard({go}){
  const [profile,setProfile]=useState(null);
+ const [dashboard,setDashboard]=useState({applications:0,interviews:0,offers:0,saved:0,latestApplication:null,recommended:[]});
  useEffect(()=>{
    let mounted=true;
-   supabase.auth.getUser().then(async({data})=>{
-     if(!data.user||!mounted)return;
-     const {data:row}=await supabase.from("profiles").select("full_name,onboarding_completed").eq("id",data.user.id).maybeSingle();
-     if(mounted)setProfile(row);
-   });
+   (async()=>{
+     const {data:{user}}=await supabase.auth.getUser();
+     if(!user||!mounted)return;
+     const [profileRes,applicationsRes,interviewsRes,offersRes,savedRes,latestRes,jobsRes]=await Promise.all([
+       supabase.from("profiles").select("full_name,onboarding_completed").eq("id",user.id).maybeSingle(),
+       supabase.from("applications").select("id",{count:"exact",head:true}).eq("user_id",user.id).neq("status","draft"),
+       supabase.from("interviews").select("id",{count:"exact",head:true}).eq("candidate_id",user.id),
+       supabase.from("applications").select("id",{count:"exact",head:true}).eq("user_id",user.id).eq("status","hired"),
+       supabase.from("saved_jobs").select("job_id",{count:"exact",head:true}).eq("user_id",user.id),
+       supabase.from("applications").select("id,status,submitted_at,created_at,jobs(id,title,company_name,company_logo)").eq("user_id",user.id).neq("status","draft").order("created_at",{ascending:false}).limit(1).maybeSingle(),
+       supabase.from("jobs").select("*").eq("status","published").order("created_at",{ascending:false}).limit(3)
+     ]);
+     if(!mounted)return;
+     if(profileRes.data)setProfile(profileRes.data);
+     setDashboard({
+       applications:applicationsRes.count||0,
+       interviews:interviewsRes.count||0,
+       offers:offersRes.count||0,
+       saved:savedRes.count||0,
+       latestApplication:latestRes.data||null,
+       recommended:(jobsRes.data||[]).map(j=>({...j,company:j.company_name,logo:j.company_logo||j.company_name?.[0]||"R",type:j.job_type,posted:relativePosted(j.created_at),salary:formatSalary(j)}))
+     });
+   })();
    return()=>{mounted=false};
  },[]);
  const firstName=(profile?.full_name||"there").trim().split(/\s+/)[0]||"there";
@@ -352,8 +364,8 @@ function Dashboard({go}){
      <div className="payout-reminder-copy"><span className="kicker">WITHDRAWALS</span><h2>Add a payout method before you withdraw</h2><p>You need to select and save a payout method before you can make a withdrawal. Choose bank transfer, PayPal, or debit card and keep your details up to date.</p></div>
      <button className="payout-reminder-action" onClick={()=>go("payouts")}><span>Add payout method</span><ArrowRight size={16}/></button>
    </section>
-   <div className="summary-grid"><Summary icon={FileText} value="12" label="Applications" change="+2 this week"/><Summary icon={MessageCircle} value="3" label="Interviews" change="+1 this week"/><Summary icon={Star} value="1" label="Offers" change="1 new"/><Summary icon={Bookmark} value="8" label="Saved jobs" change="3 closing soon"/></div>
-   <div className="workspace-grid"><section className="panel"><PanelTitle title="Continue where you left off" action="View all" onAction={()=>go("applications")}/><div className="application-highlight"><div className="company-avatar">N</div><div><strong>Senior Product Designer</strong><span>NovaTech · Applied May 28, 2026</span><Badge tone="amber">Interview scheduled</Badge></div><Button variant="soft" onClick={()=>go("interview")}>View details</Button></div></section><section className="panel"><PanelTitle title="Recommended for you" action="View more" onAction={()=>go("jobs")}/><div className="mini-job-grid">{jobs.slice(1,4).map(j=><JobCard key={j.id} job={j} compact onOpen={id=>go("job",id)}/>)}</div></section></div>
+   <div className="summary-grid"><Summary icon={FileText} value={dashboard.applications} label="Applications" change="Your submitted applications"/><Summary icon={MessageCircle} value={dashboard.interviews} label="Interviews" change="Scheduled interview activity"/><Summary icon={Star} value={dashboard.offers} label="Offers" change="Hired applications"/><Summary icon={Bookmark} value={dashboard.saved} label="Saved jobs" change="Jobs you bookmarked"/></div>
+   <div className="workspace-grid"><section className="panel"><PanelTitle title="Continue where you left off" action="View all" onAction={()=>go("applications")}/>{dashboard.latestApplication?<div className="application-highlight"><div className="company-avatar">{dashboard.latestApplication.jobs?.company_logo||dashboard.latestApplication.jobs?.company_name?.[0]||"R"}</div><div><strong>{dashboard.latestApplication.jobs?.title||"Application"}</strong><span>{dashboard.latestApplication.jobs?.company_name||"Partner company"} · {dashboard.latestApplication.submitted_at?new Date(dashboard.latestApplication.submitted_at).toLocaleDateString():new Date(dashboard.latestApplication.created_at).toLocaleDateString()}</span><Badge tone="amber">{dashboard.latestApplication.status}</Badge></div><Button variant="soft" onClick={()=>go("applications")}>View details</Button></div>:<EmptyState title="No applications yet" text="Find a role you like and your application will appear here." action="Find jobs" onAction={()=>go("jobs")}/>}</section><section className="panel"><PanelTitle title="Recommended for you" action="View more" onAction={()=>go("jobs")}/>{dashboard.recommended.length?<div className="mini-job-grid">{dashboard.recommended.map(j=><JobCard key={j.id} job={j} compact onOpen={id=>go("job",id)}/>)}</div>:<EmptyState title="No published jobs yet" text="Our team is preparing verified roles from partner companies." action="Browse jobs" onAction={()=>go("jobs")}/>}</section></div>
  </div>
 }
 function Summary({icon:Icon,value,label,change}){return <div className="summary-card"><div><Icon size={17}/><span>{label}</span></div><strong>{value}</strong><small>{change}</small></div>}
