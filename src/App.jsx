@@ -691,7 +691,7 @@ return <div className="workspace admin-workspace"><div className="workspace-head
 
 function AdminStudio({go,role}){
  const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState("");
- const [settings,setSettings]=useState({brand:{site_name:"RemotePath",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]}});
+ const [settings,setSettings]=useState({brand:{site_name:"RemotePath",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false}});
  const [sections,setSections]=useState([]),[forms,setForms]=useState([]),[selectedForm,setSelectedForm]=useState(null),[formFields,setFormFields]=useState([]),[templates,setTemplates]=useState([]),[selectedTemplate,setSelectedTemplate]=useState(null),[templateQuestions,setTemplateQuestions]=useState([]),[admins,setAdmins]=useState([]),[invite,setInvite]=useState({email:"",full_name:""}),[saving,setSaving]=useState(false);
  const flash=(msg)=>{setNotice(msg);setTimeout(()=>setNotice(""),2600)};
  const load=async()=>{
@@ -737,6 +737,14 @@ function AdminStudio({go,role}){
        <label className="field"><span>Search button label</span><input value={settings.home_hero.search_button||""} onChange={e=>setSettings(v=>({...v,home_hero:{...v.home_hero,search_button:e.target.value}}))}/></label>
      </div><Button onClick={()=>saveSetting("home_hero",settings.home_hero)} disabled={saving}>Save hero <Check size={14}/></Button></div>
      <div className="panel"><PanelTitle title="Homepage sections"/><p className="studio-muted">Turn approved sections on/off without touching React code. Layout and spacing remain protected.</p><div className="studio-section-list">{sections.map(s=><div key={s.id}><div><strong>{s.title}</strong><small>{s.section_key}</small></div><button className={s.is_visible?"toggle on":"toggle"} onClick={()=>toggleSection(s)}><i/></button></div>)}</div></div>
+   </section>}
+   {tab==="site"&&<section className="studio-grid">
+     <div className="panel">
+       <PanelTitle title="Verification demo mode"/>
+       <p className="studio-muted">For testing only. When enabled, verification ID files upload directly to the private Supabase Storage bucket. Turn this off before production/provider handoff.</p>
+       <div className="studio-toggle-row"><div><strong>Direct Supabase verification uploads</strong><small>{settings.verification_demo_uploads?.enabled?"Enabled for demo testing":"Disabled — production/provider path remains active"}</small></div><button className={settings.verification_demo_uploads?.enabled?"toggle on":"toggle"} onClick={()=>setSettings(v=>({...v,verification_demo_uploads:{enabled:!v.verification_demo_uploads?.enabled}}))}><i/></button></div>
+       <Button onClick={()=>saveSetting("verification_demo_uploads",settings.verification_demo_uploads)} disabled={saving}>Save demo setting <Check size={14}/></Button>
+     </div>
    </section>}
    {tab==="forms"&&<section className="studio-two-col"><div className="panel"><div className="studio-head"><div><PanelTitle title="Forms"/><p className="studio-muted">Create reusable forms for applications, screening and future workflows.</p></div><Button onClick={createForm}><Plus size={14}/> New form</Button></div>{forms.length===0?<EmptyState title="No forms yet" text="Create your first form."/>:<div className="studio-list">{forms.map(f=><button key={f.id} className={selectedForm?.id===f.id?"selected":""} onClick={()=>loadForm(f)}><strong>{f.name}</strong><span>{f.status} · {f.slug}</span></button>)}</div>}</div><div className="panel">{!selectedForm?<EmptyState title="Select a form" text="Choose a form to manage its fields."/>:<><PanelTitle title={selectedForm.name}/><div className="studio-inline"><Badge tone={selectedForm.status==="published"?"green":"soft"}>{selectedForm.status}</Badge><Button variant="outline" onClick={addField}><Plus size={13}/> Add field</Button></div><div className="studio-list">{formFields.map(f=><div className="studio-field-row" key={f.id}><input value={f.label} onChange={e=>updateField(f,{label:e.target.value})}/><select value={f.field_type} onChange={e=>updateField(f,{field_type:e.target.value})}><option>text</option><option>textarea</option><option>email</option><option>number</option><option>select</option><option>radio</option><option>checkbox</option><option>date</option><option>file</option></select><label><input type="checkbox" checked={f.required} onChange={e=>updateField(f,{required:e.target.checked})}/> Required</label></div>)}</div></>}</div></section>}
    {tab==="interviews"&&<section className="studio-two-col"><div className="panel"><div className="studio-head"><div><PanelTitle title="Interview series"/><p className="studio-muted">Build repeatable interview experiences that can later be attached to jobs.</p></div><Button onClick={createTemplate}><Plus size={14}/> New series</Button></div>{templates.length===0?<EmptyState title="No interview series yet" text="Create your first interview series."/>:<div className="studio-list">{templates.map(t=><button key={t.id} className={selectedTemplate?.id===t.id?"selected":""} onClick={()=>loadTemplate(t)}><strong>{t.name}</strong><span>{t.status} · {t.duration_minutes} minutes</span></button>)}</div>}</div><div className="panel">{!selectedTemplate?<EmptyState title="Select an interview series" text="Choose a series to manage its questions."/>:<><PanelTitle title={selectedTemplate.name}/><div className="studio-inline"><Badge>{templateQuestions.length} questions</Badge><Button variant="outline" onClick={addQuestion}><Plus size={13}/> Add question</Button></div><div className="studio-list">{templateQuestions.map(q=><div className="studio-question-row" key={q.id}><span>{q.position}</span><textarea rows="2" value={q.prompt} onChange={async e=>{const {data,error}=await supabase.from("interview_template_questions").update({prompt:e.target.value}).eq("id",q.id).select("*").single();if(error)setError(error.message);else setTemplateQuestions(v=>v.map(x=>x.id===q.id?data:x))}}/><Badge tone="soft">{q.section}</Badge></div>)}</div></>}</div></section>}
@@ -1005,8 +1013,9 @@ function Verification({go}){
   const [address,setAddress]=useState("");
   const [identifier,setIdentifier]=useState("");
   const [documentType,setDocumentType]=useState("");
-  const [frontFile,setFrontFile]=useState("");
-  const [backFile,setBackFile]=useState("");
+  const [frontFile,setFrontFile]=useState(null);
+  const [backFile,setBackFile]=useState(null);
+  const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
   const [country,setCountry]=useState("United States");
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Government tax / identity number","France":"Government tax / identity number","Netherlands":"Government identity / tax number","Ireland":"Government identity / tax number","Sweden":"Government identity / tax number","Denmark":"Government identity / tax number","Norway":"Government identity / tax number","Finland":"Government identity / tax number","Belgium":"Government identity / tax number","Switzerland":"Government identity / tax number","Austria":"Government identity / tax number","Poland":"Government identity / tax number"};
@@ -1017,9 +1026,10 @@ function Verification({go}){
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      const {data,error:e}=await supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle();
+      const [{data,error:e},{data:demoSetting}]=await Promise.all([supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle()]);
       if(!mounted)return;
       if(e)setError(e.message);
+      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);
       if(data){
         setExisting(data);
         setCountry(data.country||"United States");
@@ -1037,15 +1047,31 @@ function Verification({go}){
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)throw new Error("Your session has expired. Please sign in again.");
       const payload={user_id:user.id,status:"in_progress",country,document_type:documentType,started_at:existing?.started_at||new Date().toISOString()};
+      let verification=existing;
       if(existing){
-        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:documentType,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
         if(e)throw e;
-        setExisting(data);
+        verification=data;
       }else{
         const {data,error:e}=await supabase.from("verification_profiles").insert(payload).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
         if(e)throw e;
-        setExisting(data);
+        verification=data;
       }
+      if(demoUploadsEnabled){
+        const files=[["front",frontFile],["back",backFile]].filter(([,file])=>file);
+        for(const [side,file] of files){
+          if(file.size>10*1024*1024)throw new Error("Each identity document must be 10 MB or smaller.");
+          const allowed=["image/jpeg","image/png","image/webp","application/pdf"];
+          if(!allowed.includes(file.type))throw new Error("Please use a JPG, PNG, WebP or PDF identity document.");
+          const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+          const path=user.id+"/"+verification.id+"/"+side+"-"+Date.now()+"-"+safeName;
+          const {error:uploadError}=await supabase.storage.from("verification-demo").upload(path,file,{contentType:file.type,upsert:false});
+          if(uploadError)throw uploadError;
+          const {error:docError}=await supabase.from("verification_documents").insert({verification_id:verification.id,document_type,side,storage_path:path,status:"submitted"});
+          if(docError)throw docError;
+        }
+      }
+      setExisting(verification);
       setSubmitted(true);
     }catch(err){setError(err?.message||"We couldn't start verification.");}
     finally{setSaving(false);}
@@ -1066,7 +1092,7 @@ function Verification({go}){
         {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is used only to prepare the secure verification handoff and is not saved to RemotePath.</p><label className="field"><span>Date of birth</span><input type="date" value={dob} onChange={e=>setDob(e.target.value)} autoComplete="bday"/></label></>}
         {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. It is not saved to the RemotePath database.</p><label className="field"><span>Home address</span><textarea className="verification-textarea" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address, city, region/state and postal code" rows="4" autoComplete="street-address"/></label></>}
         {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier only when a secure verification provider is connected. This field is not saved to RemotePath.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Not stored by RemotePath" inputMode="text"/></label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>Government identifiers must be handled by a dedicated verification provider or protected server-side workflow—not ordinary client-side database fields.</span></div></>}
-        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Select your government-issued ID.</h2><p>Select the document you plan to use. The file itself is not uploaded or stored by RemotePath in this phase.</p><label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setFrontFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile||"Select front file"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setBackFile(e.target.files?.[0]?.name||"")}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile||"Select back file"}</small></label></div><div className="verification-sensitive-note"><ShieldCheck size={15}/><span>The selected files remain local to this browser session. A future provider integration will upload them directly through a protected flow.</span></div></>}
+        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Select your government-issued ID.</h2><p>Select the document you plan to use. {demoUploadsEnabled?"For this demo, the selected files will upload to a private Supabase Storage bucket.":"The files will remain local until a production verification provider is connected."}</p><label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setFrontFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile?.name||"Select front file"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setBackFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile?.name||"Select back file"}</small></label></div><div className="verification-sensitive-note"><ShieldCheck size={15}/><span>{demoUploadsEnabled?"Demo mode is enabled: files upload to private Supabase Storage and are not public.":"The selected files remain local to this browser session. A future provider integration will upload them directly through a protected flow."}</span></div></>}
         <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1}>Back</Button>{step<5?<Button onClick={()=>setStep(v=>v+1)} disabled={!required}>Continue <ArrowRight size={15}/></Button>:<Button onClick={startVerification} disabled={!required||saving}>{saving?"Starting…":"Start secure verification"} <ArrowRight size={15}/></Button>}</div>
       </div>
     </main>
