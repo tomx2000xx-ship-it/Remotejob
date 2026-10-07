@@ -269,13 +269,14 @@ function Payouts({go}){
   const [cardLast4,setCardLast4]=useState("");
   const [confirmed,setConfirmed]=useState(false);
   const [saved,setSaved]=useState(false);
+  const [modalOpen,setModalOpen]=useState(false);
   const banks=payoutBanks[country]||[];
   const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
   const cardReady=cardName.trim().length>2&&/^\d{4}$/.test(cardLast4.trim());
   const canSave=method==="bank"?bankReady:method==="paypal"?paypalReady:cardReady;
   const selectCountry=(value)=>{setCountry(value);setBank("");};
-  const saveMethod=()=>{if(!canSave||!confirmed)return;setSaved(true);};
+  const saveMethod=()=>{if(!canSave||!confirmed)return;setSaved(true);setModalOpen(false);};
 
   if(saved) return <div className="workspace"><div className="workspace-head"><div><span className="kicker">PAYOUT SETTINGS</span><h1>Payment method saved.</h1><p>Your payout details are ready for the payout functionality to be connected later.</p></div><Button variant="outline" onClick={()=>setSaved(false)}><PenLine size={15}/> Review details</Button></div><section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{method==="bank"?"Bank transfer":method==="paypal"?"PayPal":"Debit card"}</h2><p>{method==="bank"?bank+" · "+country+" · Account ending "+(account.slice(-4)||"••••"):method==="paypal"?paypalName+" · "+paypalEmail:cardName+" · Card ending "+cardLast4}</p><Badge tone="green">Ready for payouts</Badge></div></section><section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section></div>;
 
@@ -285,26 +286,29 @@ function Payouts({go}){
     <section className="payout-method-panel">
       <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>Where should we send your earnings?</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
       <div className="payout-method-grid">
-        <button className={method==="bank"?"payout-method-card active":"payout-method-card"} onClick={()=>setMethod("bank")}><span className="payout-method-icon"><Landmark size={19}/></span><div><strong>Bank transfer</strong><small>Send earnings directly to your bank account.</small></div><i>{method==="bank"?<Check size={13}/>:null}</i></button>
-        <button className={method==="paypal"?"payout-method-card active":"payout-method-card"} onClick={()=>setMethod("paypal")}><span className="payout-method-icon paypal-mark">P</span><div><strong>PayPal</strong><small>Receive earnings through your PayPal account.</small></div><i>{method==="paypal"?<Check size={13}/>:null}</i></button>
-        <button className={method==="card"?"payout-method-card active":"payout-method-card"} onClick={()=>setMethod("card")}><span className="payout-method-icon"><CreditCard size={19}/></span><div><strong>Debit card</strong><small>Receive earnings to an eligible debit card.</small></div><i>{method==="card"?<Check size={13}/>:null}</i></button>
+        <button className="payout-method-card" onClick={()=>{setMethod("bank");setModalOpen(true)}}><span className="payout-method-icon"><Landmark size={19}/></span><div><strong>Bank transfer</strong><small>Send earnings directly to your bank account.</small></div><i><ArrowRight size={13}/></i></button>
+        <button className="payout-method-card" onClick={()=>{setMethod("paypal");setModalOpen(true)}}><span className="payout-method-icon paypal-mark">P</span><div><strong>PayPal</strong><small>Receive earnings through your PayPal account.</small></div><i><ArrowRight size={13}/></i></button>
+        <button className="payout-method-card" onClick={()=>{setMethod("card");setModalOpen(true)}}><span className="payout-method-icon"><CreditCard size={19}/></span><div><strong>Debit card</strong><small>Receive earnings to an eligible debit card.</small></div><i><ArrowRight size={13}/></i></button>
       </div>
-      {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Tell us where to send the bank transfer.</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
-        <label className="field"><span>Bank country</span><select value={country} onChange={e=>selectCountry(e.target.value)}>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select></label>
-        <label className="field"><span>Bank name</span><select value={bank} onChange={e=>setBank(e.target.value)}><option value="">Select your bank</option>{banks.map(b=><option key={b}>{b}</option>)}</select></label>
-        <label className="field"><span>Account holder name</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Name on the bank account" autoComplete="name"/></label>
-        <label className="field"><span>Account number / IBAN</span><input value={account} onChange={e=>setAccount(e.target.value)} placeholder="Enter your account details" inputMode="text" autoComplete="off"/></label>
-      </div><div className="payout-country-note"><Globe2 size={15}/><span>Some countries require additional banking details such as routing, sort code, transit/institution numbers, IBAN or BIC/SWIFT. Those country-specific fields will be added during the secure functionality phase.</span></div></div>}
-      {method==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Use the PayPal account that should receive your earnings.</h3><p>PayPal can send funds using the recipient's email address. Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
-        <label className="field"><span>PayPal account name</span><input value={paypalName} onChange={e=>setPaypalName(e.target.value)} placeholder="Name on your PayPal account" autoComplete="name"/></label>
-        <label className="field"><span>PayPal email</span><input type="email" value={paypalEmail} onChange={e=>setPaypalEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/></label>
-      </div><div className="payout-country-note"><Mail size={15}/><span>Use an email address associated with the PayPal account you want to receive the payout. Availability and receiving features can vary by country.</span></div></div>}
-      {method==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Your card details will be handled by the payout provider during the real integration. RemotePath will not store your full card number or security code.</p></div><div className="payout-form-grid">
-        <label className="field"><span>Cardholder name</span><input value={cardName} onChange={e=>setCardName(e.target.value)} placeholder="Name on your debit card" autoComplete="cc-name"/></label>
-        <label className="field"><span>Card ending</span><input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label>
-      </div><div className="payout-country-note"><CreditCard size={15}/><span>In the live payout flow, the full card number, expiry date and any required verification will be collected through a secure payment-provider interface. We will not store CVV/security codes in RemotePath.</span></div></div>}
-      <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully and understand that changes may require Customer Care assistance.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed}>Save payout method <ArrowRight size={15}/></Button></div>
-    </section>
+      {modalOpen&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><div className="payout-modal" role="dialog" aria-modal="true">
+        <div className="payout-modal-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{method==="bank"?"Bank transfer":method==="paypal"?"PayPal":"Debit card"}</h2><p>Enter the details required for this payout method.</p></div><button className="payout-modal-close" onClick={()=>setModalOpen(false)} aria-label="Close"><X size={18}/></button></div>
+        {method==="bank"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">BANK DETAILS</span><h3>Where should we send the bank transfer?</h3><p>Bank options are filtered by the country you select.</p></div><div className="payout-form-grid">
+          <label className="field"><span>Bank country</span><select value={country} onChange={e=>selectCountry(e.target.value)}>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select></label>
+          <label className="field"><span>Bank name</span><select value={bank} onChange={e=>setBank(e.target.value)}><option value="">Select your bank</option>{banks.map(b=><option key={b}>{b}</option>)}</select></label>
+          <label className="field"><span>Account holder name</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Name on the bank account" autoComplete="name"/></label>
+          <label className="field"><span>Account number / IBAN</span><input value={account} onChange={e=>setAccount(e.target.value)} placeholder="Enter your account details" autoComplete="off"/></label>
+        </div><div className="payout-country-note"><Globe2 size={15}/><span>Some countries require additional details such as routing, sort code, transit/institution numbers, IBAN or BIC/SWIFT.</span></div></div>}
+        {method==="paypal"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">PAYPAL DETAILS</span><h3>Which PayPal account should receive your earnings?</h3><p>Make sure the email belongs to the correct PayPal account.</p></div><div className="payout-form-grid">
+          <label className="field"><span>PayPal account name</span><input value={paypalName} onChange={e=>setPaypalName(e.target.value)} placeholder="Name on your PayPal account" autoComplete="name"/></label>
+          <label className="field"><span>PayPal email</span><input type="email" value={paypalEmail} onChange={e=>setPaypalEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/></label>
+        </div><div className="payout-country-note"><Mail size={15}/><span>PayPal receiving features can vary by country.</span></div></div>}
+        {method==="card"&&<div className="payout-form"><div className="payout-form-heading"><span className="kicker">DEBIT CARD DETAILS</span><h3>Connect an eligible debit card securely.</h3><p>Your card details will be handled by the payout provider during the real integration.</p></div><div className="payout-form-grid">
+          <label className="field"><span>Cardholder name</span><input value={cardName} onChange={e=>setCardName(e.target.value)} placeholder="Name on your debit card" autoComplete="cc-name"/></label>
+          <label className="field"><span>Card ending</span><input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits" inputMode="numeric" autoComplete="off"/></label>
+        </div><div className="payout-country-note"><CreditCard size={15}/><span>Full card details and verification will be collected through a secure payment-provider interface later. RemotePath will not store CVV/security codes.</span></div></div>}
+        <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
+        <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed}>Save payout method <ArrowRight size={15}/></Button></div>
+      </div></div>}
     <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section>
   </div>
 }
