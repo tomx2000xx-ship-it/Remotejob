@@ -296,6 +296,12 @@ function AppShell({go,screen,children}){
               >
                 <ShieldCheck size={17}/>Verification
               </button>
+              <button
+                className={screen==="admin-members"?"active":""}
+                onClick={()=>{go("admin-members");setMobile(false)}}
+              >
+                <UsersRound size={17}/>Members
+              </button>
             </>
           )}
         </nav>
@@ -310,7 +316,7 @@ function AppShell({go,screen,children}){
         <header className="app-topbar">
           <button className="mobile-menu" onClick={()=>setMobile(true)}><Menu/></button>
           <div className="crumb">
-            {screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin"?"Job management":"Workspace"}
+            {screen==="dashboard"?"Dashboard":screen==="applications"?"Applications":screen==="interview"?"Interviews":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin-members"?"Member management":screen==="admin"?"Job management":"Workspace"}
           </div>
           <div className="top-actions">
             <button><Bell size={18}/><i/></button>
@@ -868,6 +874,47 @@ function AdminVerification({go}){
   </div>;
 }
 
+function AdminMembers({go}){
+  const [rows,setRows]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  const [saving,setSaving]=useState("");
+  const [query,setQuery]=useState("");
+  const load=async()=>{
+    setLoading(true);setError("");
+    const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,work_type,goal,role,account_type,account_status,onboarding_completed,created_at").order("created_at",{ascending:false});
+    if(e)setError(e.message);
+    setRows(data||[]);setLoading(false);
+  };
+  useEffect(()=>{load()},[]);
+  const changeStatus=async(row,status)=>{
+    if(row.account_status===status)return;
+    setSaving(row.id);setError("");
+    const {data:{user}}=await supabase.auth.getUser();
+    const {data,error:e}=await supabase.from("profiles").update({account_status:status}).eq("id",row.id).select("id,full_name,country,experience,work_type,goal,role,account_type,account_status,onboarding_completed,created_at").single();
+    if(e)setError(e.message);
+    else{
+      setRows(prev=>prev.map(x=>x.id===row.id?data:x));
+      await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"account_status_changed",target_type:"profile",target_id:row.id,details:{from:row.account_status,to:status}});
+    }
+    setSaving("");
+  };
+  const q=query.trim().toLowerCase();
+  const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status].filter(Boolean).join(" ").toLowerCase().includes(q));
+  return <div className="workspace admin-workspace">
+    <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Member management</h1><p>Manage candidate accounts and account access without exposing authentication secrets.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
+    <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Restricted administrative controls</strong><span>Passwords, authentication tokens and private identity data are never exposed here. Access controls apply to the RemotePath profile only.</span></div></section>
+    {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
+    <section className="panel"><div className="application-admin-filters"><label className="field"><span>Search members</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, country or status"/></label></div></section>
+    {loading?<div className="empty-state"><h3>Loading members…</h3><p>Fetching profile records from Supabase.</p></div>:filtered.length===0?<EmptyState title="No members found" text="Try a different search."/>:<section className="panel"><div className="admin-member-list">{filtered.map(row=><div className="admin-member-row" key={row.id}>
+      <Avatar letter={(row.full_name||"M")[0].toUpperCase()}/>
+      <div className="admin-member-main"><strong>{row.full_name||"Unnamed member"}</strong><span>{row.country||"Country not set"} · {row.account_type==="job_seeker"?"Job seeker":"Employer"} · {row.role==="admin"?"Administrator":"Member"}</span><small>{row.onboarding_completed?"Onboarding complete":"Onboarding incomplete"} · Joined {new Date(row.created_at).toLocaleDateString()}</small></div>
+      <Badge tone={row.account_status==="active"?"green":row.account_status==="suspended"?"warning":"soft"}>{row.account_status}</Badge>
+      {row.role==="admin"?<span className="admin-member-protected">Protected admin</span>:<label className="admin-status"><span>Access</span><select value={row.account_status} disabled={saving===row.id} onChange={e=>changeStatus(row,e.target.value)}><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></label>}
+    </div>)}</div></section>}
+  </div>;
+}
+
 function Settings({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">ACCOUNT</span><h1>Settings</h1><p>Manage your account, preferences and privacy.</p></div></div><div className="settings-layout"><aside className="settings-nav">{["Account","Notifications","Privacy","Security","Preferences"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</aside><section className="panel settings-panel"><PanelTitle title="Account details"/><Field label="Email address" placeholder="alex@example.com"/><Field label="Display name" placeholder="Alex Carter"/><PanelTitle title="Job preferences"/><div className="toggle-row"><div><strong>Open to opportunities</strong><span>Let verified employers discover your profile.</span></div><button className="toggle on"><i/></button></div><div className="toggle-row"><div><strong>Weekly job digest</strong><span>Receive a curated email every Monday.</span></div><button className="toggle on"><i/></button></div><Button>Save changes <Check size={15}/></Button></section></div></div>}
 
 function EmptyState({title,text,action,onAction}){return <div className="empty-state"><div><Search size={20}/></div><h3>{title}</h3><p>{text}</p>{action&&<Button variant="outline" onClick={onAction}>{action}</Button>}</div>}
@@ -1121,7 +1168,7 @@ function App(){
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
-  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","onboarding"];
+  const protectedScreens=["dashboard","jobs","saved","applications","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","onboarding"];
   useEffect(()=>{
     if(!authReady)return;
     if(!session&&protectedScreens.includes(screen)){go("login")}
@@ -1131,7 +1178,7 @@ function App(){
   },[authReady,session,screen]);
   if(!authReady)return <div style={{minHeight:"100vh",background:"#f8f6f0"}}/>;
   let page;
-  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  if(screen==="home") page=<Home go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param}/>; else if(screen==="job") page=<JobDetail go={go} id={param}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}<SupportWidget/>{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
