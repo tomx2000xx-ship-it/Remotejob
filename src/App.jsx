@@ -544,6 +544,7 @@ function Payouts({go}){
   const [payoutConfigs,setPayoutConfigs]=useState([]);
   const [withdrawalFields,setWithdrawalFields]=useState([]),[withdrawalValues,setWithdrawalValues]=useState({});
   const [customValues,setCustomValues]=useState({});
+  const setCustomValue=(key,value)=>setCustomValues(prev=>({...prev,[key]:value}));
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [modalOpen,setModalOpen]=useState(false);
@@ -552,8 +553,10 @@ function Payouts({go}){
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
   const cardReady=cardName.trim().length>2&&/^\d{4}$/.test(cardLast4.trim());
   const methodConfig=payoutConfigs.find(x=>x.method_key===method);
-  const customReady=!!methodConfig&&(methodConfig.fields||[]).filter(f=>f.required).every(f=>String(customValues[f.key]||"").trim().length>0);
-  const canSave=method==="bank"?bankReady:method==="paypal"?paypalReady:method==="card"?cardReady:customReady;
+  const universalFields=methodConfig?.fields||[];
+  const customReady=universalFields.filter(f=>f.required).every(f=>{const value=customValues[f.key];return f.type==="checkbox"?value===true||value==="true":String(value??"").trim().length>0;});
+  const coreReady=method==="bank"?bankReady:method==="paypal"?paypalReady:method==="card"?cardReady:true;
+  const canSave=coreReady&&customReady;
 
   useEffect(()=>{
     let mounted=true;
@@ -606,7 +609,7 @@ function Payouts({go}){
         paypal_email:method==="paypal"?paypalEmail.trim():null,
         cardholder_name:method==="card"?cardName.trim():null,
         card_last4:method==="card"?cardLast4.trim():null,
-        details:method==="custom"?customValues:{}
+        details:customValues
       };
       if(savedMethod){
         const {data,error:e}=await supabase.from("payout_methods").update(payload).eq("id",savedMethod.id).select("*").single();
