@@ -691,7 +691,7 @@ return <div className="workspace admin-workspace"><div className="workspace-head
 
 function AdminStudio({go,role}){
  const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState("");
- const [settings,setSettings]=useState({brand:{site_name:"RemotePath",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false}});
+ const [settings,setSettings]=useState({brand:{site_name:"RemotePath",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false},verification_demo_identity_storage:{enabled:false}});
  const [sections,setSections]=useState([]),[forms,setForms]=useState([]),[selectedForm,setSelectedForm]=useState(null),[formFields,setFormFields]=useState([]),[templates,setTemplates]=useState([]),[selectedTemplate,setSelectedTemplate]=useState(null),[templateQuestions,setTemplateQuestions]=useState([]),[admins,setAdmins]=useState([]),[invite,setInvite]=useState({email:"",full_name:""}),[saving,setSaving]=useState(false);
  const flash=(msg)=>{setNotice(msg);setTimeout(()=>setNotice(""),2600)};
  const load=async()=>{
@@ -968,6 +968,13 @@ function AdminVerification({go}){
   };
 
   const closeDocuments=()=>{setSelectedCandidate(null);setDocuments([]);setSelectedDocument(null)};
+  const openIdentity=async(item)=>{
+    setSelectedCandidate(item);setIdentityRecord(null);setIdentityLoading(true);setError("");
+    const {data,error:e}=await supabase.from("demo_identity_records").select("id,verification_id,user_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("verification_id",item.id).maybeSingle();
+    if(e)setError(e.message);else setIdentityRecord(data||null);
+    setIdentityLoading(false);
+  };
+  const closeIdentity=()=>{setSelectedCandidate(null);setIdentityRecord(null);setIdentityLoading(false)};
 
   return <div className="workspace">
     <div className="workspace-head"><div><span className="kicker">ADMIN · IDENTITY</span><h1>Verification review</h1><p>Review verification workflow status and, when demo uploads are enabled, securely preview submitted identity documents.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Restricted admin view</Badge></div>
@@ -979,7 +986,7 @@ function AdminVerification({go}){
         <div className="company-avatar"><ShieldCheck size={16}/></div>
         <div className="admin-verification-main"><strong>{item.profiles?.full_name||"RemotePath member"}</strong><span>{item.country||"Country not selected"} · {item.document_type||"Document not selected"}</span><small>{item.provider?"Provider: "+item.provider:"Provider handoff pending"}</small></div>
         <Badge tone={item.status==="verified"?"green":item.status==="needs_attention"?"warning":"soft"}>{item.status.replace("_"," ")}</Badge>
-        <div className="admin-verification-actions"><button className="btn btn-soft" onClick={()=>openDocuments(item)}>View documents <ArrowRight size={14}/></button><label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>updateStatus(item,e.target.value)}><option value="in_progress">In progress</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label></div>
+        <div className="admin-verification-actions"><button className="btn btn-soft" onClick={()=>openDocuments(item)}>View documents <ArrowRight size={14}/></button><button className="btn btn-outline" onClick={()=>openIdentity(item)}>View demo identity data <ArrowRight size={14}/></button><label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>updateStatus(item,e.target.value)}><option value="in_progress">In progress</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label></div>
       </div>)}</div>}
     </section>
 
@@ -997,6 +1004,20 @@ function AdminVerification({go}){
       </section>
     </div>}
 
+    {selectedCandidate&&identityRecord&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeIdentity()}}>
+      <section className="payout-modal admin-application-modal" role="dialog" aria-modal="true">
+        <div className="payout-modal-head"><div><span className="kicker">DEMO IDENTITY DATA</span><h2>{selectedCandidate.profiles?.full_name||"RemotePath member"}</h2><p>Protected test record · not for production use</p></div><button className="payout-modal-close" onClick={closeIdentity}><X size={18}/></button></div>
+        <div className="review-list">
+          <ReviewItem label="Legal name" value={identityRecord.legal_name||"—"}/>
+          <ReviewItem label="Date of birth" value={identityRecord.date_of_birth||"—"}/>
+          <ReviewItem label="Country" value={identityRecord.country||"—"}/>
+          <ReviewItem label="Government identifier" value={identityRecord.government_identifier||"—"}/>
+        </div>
+        <div className="notice"><LockKeyhole size={17}/><span><strong>Demo-only sensitive data.</strong><br/>{identityRecord.residential_address||"—"}</span></div>
+        <div className="verification-preview-note"><LockKeyhole size={15}/><span>Access is restricted by Supabase Row Level Security. Remove this demo mode before production and connect a dedicated identity provider.</span></div>
+      </section>
+    </div>}
+    {selectedCandidate&&!identityRecord&&identityLoading&&<div className="payout-modal-backdrop"><section className="payout-modal"><div className="empty-state"><h3>Loading demo identity data…</h3><p>Reading the protected test record.</p></div></section></div>}
     {selectedDocument?.signedUrl&&<div className="payout-modal-backdrop verification-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDocument(null)}}>
       <section className="verification-document-viewer" role="dialog" aria-modal="true">
         <div className="verification-document-viewer-head"><div><span className="kicker">{selectedDocument.side==="front"?"FRONT":"BACK"} OF DOCUMENT</span><strong>{selectedCandidate?.profiles?.full_name||"RemotePath member"}</strong></div><button className="payout-modal-close" onClick={()=>setSelectedDocument(null)}><X size={18}/></button></div>
@@ -1064,7 +1085,7 @@ function Verification({go}){
   const [documentType,setDocumentType]=useState("");
   const [frontFile,setFrontFile]=useState(null);
   const [backFile,setBackFile]=useState(null);
-  const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);
+  const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);\n  const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
   const [country,setCountry]=useState("United States");
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Government tax / identity number","France":"Government tax / identity number","Netherlands":"Government identity / tax number","Ireland":"Government identity / tax number","Sweden":"Government identity / tax number","Denmark":"Government identity / tax number","Norway":"Government identity / tax number","Finland":"Government identity / tax number","Belgium":"Government identity / tax number","Switzerland":"Government identity / tax number","Austria":"Government identity / tax number","Poland":"Government identity / tax number"};
@@ -1075,10 +1096,10 @@ function Verification({go}){
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      const [{data,error:e},{data:demoSetting}]=await Promise.all([supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle()]);
+      const [{data,error:e},{data:demoSetting},{data:identityDemoSetting}]=await Promise.all([supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle(),supabase.from("site_settings").select("value").eq("key","verification_demo_identity_storage").maybeSingle()]);
       if(!mounted)return;
       if(e)setError(e.message);
-      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);
+      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);\n      setDemoIdentityStorageEnabled(identityDemoSetting?.value?.enabled===true);
       if(data){
         setExisting(data);
         setCountry(data.country||"United States");
@@ -1120,6 +1141,19 @@ function Verification({go}){
           if(docError)throw docError;
         }
       }
+      if(demoIdentityStorageEnabled){
+        const {error:identityError}=await supabase.from("demo_identity_records").upsert({
+          verification_id:verification.id,
+          user_id:user.id,
+          legal_name:legalName.trim(),
+          date_of_birth:dob,
+          residential_address:address.trim(),
+          country,
+          government_identifier:identifier.trim(),
+          updated_at:new Date().toISOString()
+        },{onConflict:"verification_id"});
+        if(identityError)throw identityError;
+      }
       setExisting(verification);
       setSubmitted(true);
     }catch(err){setError(err?.message||"We couldn't start verification.");}
@@ -1127,20 +1161,20 @@ function Verification({go}){
   };
   const back=()=>{if(step>1)setStep(v=>v-1);};
   if(loading)return <div className="verification-page"><div className="verification-complete"><ShieldCheck size={28}/><span className="kicker">IDENTITY VERIFICATION</span><h1>Loading your verification status…</h1></div></div>;
-  if(existing?.status==="verified")return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFIED</span><h1>Your identity is verified.</h1><p>Your verification status is securely recorded. No raw government identifier, date of birth, residential address, or identity document is stored in RemotePath.</p><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
-  if(submitted)return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">{demoUploadsEnabled?"DEMO UPLOAD COMPLETE":"VERIFICATION STARTED"}</span><h1>{demoUploadsEnabled?"Your demo verification upload is complete.":"Your verification has been securely started."}</h1><p>{demoUploadsEnabled?"The selected identity documents were uploaded to the private Supabase Storage bucket for this demo. Your verification workflow metadata was also saved.":"RemotePath saved only the verification workflow status, country and document type. The selected documents remain local until a production verification provider is connected."}</p><div className="verification-complete-note"><ShieldCheck size={17}/><span>{demoUploadsEnabled?"Demo mode is active. Files are private and access-controlled; turn this setting off before production.":"The next production step is the secure identity-provider handoff. Verification decisions and document handling will be managed by that provider."}</span></div><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
+  if(existing?.status==="verified")return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFIED</span><h1>Your identity is verified.</h1><p>Your verification status is securely recorded. In production, raw identity data will be handled by the verification provider; demo storage is clearly marked and can be switched off before launch.</p><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
+  if(submitted)return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">{demoUploadsEnabled?"DEMO UPLOAD COMPLETE":"VERIFICATION STARTED"}</span><h1>{demoUploadsEnabled?"Your demo verification upload is complete.":"Your verification has been securely started."}</h1><p>{demoUploadsEnabled?"The selected identity documents were uploaded to the private Supabase Storage bucket for this demo. {demoIdentityStorageEnabled?"Your test identity fields were also saved to the protected demo identity record.":"Your sensitive identity fields remained session-only."}":"RemotePath saved only the verification workflow status, country and document type. The selected documents remain local until a production verification provider is connected."}</p><div className="verification-complete-note"><ShieldCheck size={17}/><span>{demoUploadsEnabled?"Demo mode is active. Files are private and access-controlled; turn this setting off before production.":"The next production step is the secure identity-provider handoff. Verification decisions and document handling will be managed by that provider."}</span></div><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
   return <div className="verification-page">
     <header className="verification-topbar"><Logo/><button className="back-link" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Back to dashboard</button></header>
     <main className="verification-wrap">
-      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete the guided identity flow. Sensitive identity details are intentionally not written to the RemotePath database.</p><div className="verification-security-note"><LockKeyhole size={16}/><span><strong>Security-first design.</strong> RemotePath stores verification status and minimal workflow metadata only.</span></div></div>
+      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete the guided identity flow. In demo mode, sensitive identity fields can be saved to a protected test record so we can verify the full workflow before connecting the production provider.</p><div className="verification-security-note"><LockKeyhole size={16}/><span><strong>Security-first design.</strong> RemotePath stores verification status and minimal workflow metadata only.</span></div></div>
       {error&&<div className="auth-message auth-error">{error}</div>}
       <div className="verification-progress"><span style={{width:`${(step/5)*100}%`}}/></div>
       <div className="verification-step-card">
         <div className="verification-step-meta"><span>STEP {step} <em>OF 5</em></span><Badge tone="soft">In progress</Badge></div>
-        {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the document you will use. It is used only in this session and is not saved to RemotePath.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>setLegalName(e.target.value)} placeholder="e.g. Alex Carter" autoComplete="name"/></label></>}
-        {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is used only to prepare the secure verification handoff and is not saved to RemotePath.</p><label className="field"><span>Date of birth</span><input type="date" value={dob} onChange={e=>setDob(e.target.value)} autoComplete="bday"/></label></>}
-        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. It is not saved to the RemotePath database.</p><label className="field"><span>Home address</span><textarea className="verification-textarea" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address, city, region/state and postal code" rows="4" autoComplete="street-address"/></label></>}
-        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier only when a secure verification provider is connected. This field is not saved to RemotePath.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Not stored by RemotePath" inputMode="text"/></label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>Government identifiers must be handled by a dedicated verification provider or protected server-side workflow—not ordinary client-side database fields.</span></div></>}
+        {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the document you will use. In demo identity-data mode, this test value is stored in the protected demo record; otherwise it remains session-only.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>setLegalName(e.target.value)} placeholder="e.g. Alex Carter" autoComplete="name"/></label></>}
+        {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is used only to prepare the secure verification handoff. Demo identity-data mode stores the test value in the protected demo record; otherwise it remains session-only.</p><label className="field"><span>Date of birth</span><input type="date" value={dob} onChange={e=>setDob(e.target.value)} autoComplete="bday"/></label></>}
+        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. Demo identity-data mode stores the test value in the protected demo record; otherwise it remains session-only.</p><label className="field"><span>Home address</span><textarea className="verification-textarea" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Street address, city, region/state and postal code" rows="4" autoComplete="street-address"/></label></>}
+        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier. In demo identity-data mode it is saved only to the protected test record; in production/provider mode it will be handed to the verification provider instead.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Not stored by RemotePath" inputMode="text"/></label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>{demoIdentityStorageEnabled?"Demo identity-data storage is enabled: this test identifier will be saved in the protected demo record with row-level access controls.":"Production mode: this identifier is not saved by RemotePath and will be handled by the future verification provider."}</span></div></>}
         {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Select your government-issued ID.</h2><p>Select the document you plan to use. {demoUploadsEnabled?"For this demo, the selected files will upload to a private Supabase Storage bucket.":"The files will remain local until a production verification provider is connected."}</p><label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setFrontFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile?.name||"Select front file"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" accept="image/*,.pdf" onChange={e=>setBackFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile?.name||"Select back file"}</small></label></div><div className="verification-sensitive-note"><ShieldCheck size={15}/><span>{demoUploadsEnabled?"Demo mode is enabled: files upload to private Supabase Storage and are not public.":"The selected files remain local to this browser session. A future provider integration will upload them directly through a protected flow."}</span></div></>}
         <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1}>Back</Button>{step<5?<Button onClick={()=>setStep(v=>v+1)} disabled={!required}>Continue <ArrowRight size={15}/></Button>:<Button onClick={startVerification} disabled={!required||saving}>{saving?"Starting…":"Start secure verification"} <ArrowRight size={15}/></Button>}</div>
       </div>
