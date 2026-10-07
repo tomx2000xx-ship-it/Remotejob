@@ -309,6 +309,7 @@ function Payouts({go}){
         <div className="payout-modal-warning"><CircleHelp size={16}/><span>Double-check your details. Changes may require Customer Care assistance after saving.</span></div>
         <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed}>Save payout method <ArrowRight size={15}/></Button></div>
       </div></div>}
+    </section>
     <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/><div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div></section>
   </div>
 }
