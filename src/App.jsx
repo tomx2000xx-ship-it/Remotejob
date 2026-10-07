@@ -921,6 +921,11 @@ function AdminVerification({go}){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [saving,setSaving]=useState("");
+  const [documents,setDocuments]=useState([]);
+  const [documentsLoading,setDocumentsLoading]=useState(false);
+  const [selectedDocument,setSelectedDocument]=useState(null);
+  const [selectedCandidate,setSelectedCandidate]=useState(null);
+
   const load=async()=>{
     setLoading(true);setError("");
     const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
@@ -928,7 +933,9 @@ function AdminVerification({go}){
     setItems(data||[]);
     setLoading(false);
   };
+
   useEffect(()=>{load()},[]);
+
   const updateStatus=async(item,status)=>{
     setSaving(String(item.id));setError("");
     const payload={status};
@@ -940,9 +947,31 @@ function AdminVerification({go}){
     if(e)setError(e.message); else setItems(prev=>prev.map(x=>x.id===item.id?data:x));
     setSaving("");
   };
+
+  const openDocuments=async(item)=>{
+    setSelectedCandidate(item);
+    setDocuments([]);
+    setSelectedDocument(null);
+    setDocumentsLoading(true);
+    setError("");
+    const {data,error:e}=await supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,created_at").eq("verification_id",item.id).order("side");
+    if(e){setError(e.message);setDocumentsLoading(false);return;}
+    const resolved=[];
+    for(const doc of data||[]){
+      if(!doc.storage_path)continue;
+      const {data:signed,error:signedError}=await supabase.storage.from("verification-demo").createSignedUrl(doc.storage_path,300);
+      if(signedError){setError(signedError.message);continue;}
+      resolved.push({...doc,signedUrl:signed?.signedUrl||""});
+    }
+    setDocuments(resolved);
+    setDocumentsLoading(false);
+  };
+
+  const closeDocuments=()=>{setSelectedCandidate(null);setDocuments([]);setSelectedDocument(null)};
+
   return <div className="workspace">
-    <div className="workspace-head"><div><span className="kicker">ADMIN · IDENTITY</span><h1>Verification review</h1><p>Review verification workflow status without exposing raw identity documents or government identifiers.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Restricted admin view</Badge></div>
-    <div className="admin-control-note"><ShieldCheck size={18}/><div><strong>Privacy-first review</strong><span>This panel exposes only workflow metadata. Raw DOB, residential addresses, government identifiers and identity documents are intentionally excluded from this database view.</span></div></div>
+    <div className="workspace-head"><div><span className="kicker">ADMIN · IDENTITY</span><h1>Verification review</h1><p>Review verification workflow status and, when demo uploads are enabled, securely preview submitted identity documents.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Restricted admin view</Badge></div>
+    <div className="admin-control-note"><ShieldCheck size={18}/><div><strong>Privacy-first review</strong><span>Raw documents remain in the private demo bucket. Preview links are short-lived and available only to authorized administrators.</span></div></div>
     {error&&<div className="auth-message auth-error">{error}</div>}
     <section className="panel admin-verification-panel">
       {loading?<div className="empty-state"><h3>Loading verification cases…</h3><p>Fetching the latest secure status records.</p></div>:items.length===0?<EmptyState title="No verification cases yet" text="Candidates will appear here after they start the identity verification flow."/>:
@@ -950,12 +979,32 @@ function AdminVerification({go}){
         <div className="company-avatar"><ShieldCheck size={16}/></div>
         <div className="admin-verification-main"><strong>{item.profiles?.full_name||"RemotePath member"}</strong><span>{item.country||"Country not selected"} · {item.document_type||"Document not selected"}</span><small>{item.provider?"Provider: "+item.provider:"Provider handoff pending"}</small></div>
         <Badge tone={item.status==="verified"?"green":item.status==="needs_attention"?"warning":"soft"}>{item.status.replace("_"," ")}</Badge>
-        <label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>updateStatus(item,e.target.value)}><option value="in_progress">In progress</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label>
+        <div className="admin-verification-actions"><button className="btn btn-soft" onClick={()=>openDocuments(item)}>View documents <ArrowRight size={14}/></button><label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>updateStatus(item,e.target.value)}><option value="in_progress">In progress</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label></div>
       </div>)}</div>}
     </section>
+
+    {selectedCandidate&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeDocuments()}}>
+      <section className="payout-modal admin-verification-doc-modal" role="dialog" aria-modal="true">
+        <div className="payout-modal-head"><div><span className="kicker">DEMO DOCUMENTS</span><h2>{selectedCandidate.profiles?.full_name||"RemotePath member"}</h2><p>{selectedCandidate.document_type||"Identity document"} · Private preview</p></div><button className="payout-modal-close" onClick={closeDocuments}><X size={18}/></button></div>
+        {documentsLoading?<div className="empty-state"><h3>Loading secure previews…</h3><p>Generating short-lived document links.</p></div>:documents.length===0?<div className="empty-state"><FileText size={24}/><h3>No uploaded documents found</h3><p>This verification case has no demo files available for preview.</p></div>:<div className="admin-verification-doc-grid">
+          {documents.map(doc=><button type="button" className="admin-verification-doc-card" key={doc.id} onClick={()=>setSelectedDocument(doc)}>
+            <span className="admin-verification-doc-thumb">{doc.signedUrl&&doc.mime_type?.startsWith("image/")?<img src={doc.signedUrl} alt={doc.side+" of identity document"}/>:<FileText size={26}/>}</span>
+            <span><strong>{doc.side==="front"?"Front":"Back"} of document</strong><small>{doc.storage_path?.split("/").pop()||"Uploaded document"}</small></span>
+            <ArrowRight size={15}/>
+          </button>)}
+        </div>}
+        <div className="verification-preview-note"><LockKeyhole size={15}/><span>Preview links expire automatically. The storage bucket remains private and documents are never made public.</span></div>
+      </section>
+    </div>}
+
+    {selectedDocument?.signedUrl&&<div className="payout-modal-backdrop verification-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDocument(null)}}>
+      <section className="verification-document-viewer" role="dialog" aria-modal="true">
+        <div className="verification-document-viewer-head"><div><span className="kicker">{selectedDocument.side==="front"?"FRONT":"BACK"} OF DOCUMENT</span><strong>{selectedCandidate?.profiles?.full_name||"RemotePath member"}</strong></div><button className="payout-modal-close" onClick={()=>setSelectedDocument(null)}><X size={18}/></button></div>
+        <div className="verification-document-viewer-body">{selectedDocument.mime_type?.startsWith("image/")?<img src={selectedDocument.signedUrl} alt={selectedDocument.side+" of identity document"}/>:<iframe title="Secure identity document preview" src={selectedDocument.signedUrl}/>}</div>
+      </section>
+    </div>}
   </div>;
 }
-
 function AdminMembers({go}){
   const [rows,setRows]=useState([]);
   const [loading,setLoading]=useState(true);
