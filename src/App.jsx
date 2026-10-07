@@ -54,42 +54,29 @@ function PublicNav({go}){
 }
 
 function Home({go}){
-  const [query,setQuery]=useState("");
-  const [where,setWhere]=useState("Anywhere");
-  return <div>
+  const [query,setQuery]=useState(""),[where,setWhere]=useState("Anywhere"),[cfg,setCfg]=useState(null);
+  useEffect(()=>{let mounted=true;(async()=>{const {data}=await supabase.from("site_settings").select("key,value").in("key",["brand","home_hero","home_metrics"]);if(mounted){const m={};(data||[]).forEach(x=>m[x.key]=x.value);setCfg(m)}})();return()=>{mounted=false}},[]);
+  const hero=cfg?.home_hero||{badge:"Trusted by 2,500+ companies worldwide",title:"Work that fits your life.",description:"Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.",search_button:"Search Jobs",popular:["Remote","Design","Development","Marketing","Customer Support","Data Entry"]};
+  const metrics=cfg?.home_metrics?.items||[["50,000+","Active job seekers"],["3,200+","Trusted companies"],["120+","Countries"],["98%","Satisfaction rate"]];
+  const section=(key)=>cfg?true:true;
+  return <div style={{"--site-accent":cfg?.brand?.accent||"#2f6b52","--site-bg":cfg?.brand?.background||"#f7f4ec"}}>
     <PublicNav go={go}/>
     <main>
       <section className="hero">
-        <div className="hero-copy">
-          <Badge tone="green"><span className="dot"/> Trusted by 2,500+ companies worldwide</Badge>
-          <h1>Work that fits <em>your life.</em></h1>
-          <p>Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.</p>
-          <form className="hero-search" onSubmit={e=>{e.preventDefault();go("jobs",query)}}>
-            <div><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Job title, skill or company"/></div>
-            <div><MapPin size={18}/><select value={where} onChange={e=>setWhere(e.target.value)}><option>Anywhere</option><option>North America</option><option>Europe</option><option>Africa</option><option>Asia-Pacific</option></select><ChevronDown size={15}/></div>
-            <Button type="submit">Search Jobs <ArrowRight size={16}/></Button>
-          </form>
-          <div className="popular"><span>Popular:</span>{["Remote","Design","Development","Marketing","Customer Support","Data Entry"].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div>
+        <div className="hero-copy"><Badge tone="green"><span className="dot"/> {hero.badge}</Badge><h1>{hero.title.includes("your life.")?<>{hero.title.replace("your life.","")}<em>your life.</em></>:hero.title}</h1><p>{hero.description}</p>
+          <form className="hero-search" onSubmit={e=>{e.preventDefault();go("jobs",query)}}><div><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Job title, skill or company"/></div><div><MapPin size={18}/><select value={where} onChange={e=>setWhere(e.target.value)}><option>Anywhere</option><option>North America</option><option>Europe</option><option>Africa</option><option>Asia-Pacific</option></select><ChevronDown size={15}/></div><Button type="submit">{hero.search_button||"Search Jobs"} <ArrowRight size={16}/></Button></form>
+          <div className="popular"><span>Popular:</span>{(hero.popular||[]).map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div>
         </div>
-        <div className="hero-media">
-          <div className="hero-photo"><div className="hero-photo-copy"><span className="kicker">REMOTE WORK, REIMAGINED</span><strong>Find work that moves with you.</strong><small>Verified opportunities, built for the way you want to work.</small></div></div>
-          <div className="floating-card rating"><div className="avatar-stack"><Avatar letter="S" size="xs"/><Avatar letter="M" size="xs"/><Avatar letter="J" size="xs"/></div><div><strong>50,000+</strong><small>professionals finding work</small></div></div>
-          <div className="floating-card quote"><Sparkles size={16}/><span><strong>Better opportunities.</strong><small>Built around your life.</small></span></div>
-        </div>
+        <div className="hero-media"><div className="hero-photo"><div className="hero-photo-copy"><span className="kicker">REMOTE WORK, REIMAGINED</span><strong>Find work that moves with you.</strong><small>Verified opportunities, built for the way you want to work.</small></div></div><div className="floating-card rating"><div className="avatar-stack"><Avatar letter="S" size="xs"/><Avatar letter="M" size="xs"/><Avatar letter="J" size="xs"/></div><div><strong>50,000+</strong><small>professionals finding work</small></div></div><div className="floating-card quote"><Sparkles size={16}/><span><strong>Better opportunities.</strong><small>Built around your life.</small></span></div></div>
       </section>
-      <section className="metric-strip"><Metric icon={Users} value="50,000+" label="Active job seekers"/><Metric icon={BriefcaseBusiness} value="3,200+" label="Trusted companies"/><Metric icon={Globe2} value="120+" label="Countries"/><Metric icon={ShieldCheck} value="98%" label="Satisfaction rate"/></section>
-      <section className="content-section">
-        <SectionTitle kicker="FEATURED JOBS" title="Top remote opportunities" text="Explore popular remote jobs, handpicked for you." action="View all jobs" onAction={()=>go("jobs")}/>
-        <FeaturedJobs go={go}/>
-      </section>
+      <section className="metric-strip">{metrics.map((m,i)=>{const icons=[Users,BriefcaseBusiness,Globe2,ShieldCheck],Icon=icons[i]||Sparkles;return <Metric key={i} icon={Icon} value={m.value||m[0]} label={m.label||m[1]}/>})}</section>
+      <section className="content-section"><SectionTitle kicker="FEATURED JOBS" title="Top remote opportunities" text="Explore popular remote jobs, handpicked for you." action="View all jobs" onAction={()=>go("jobs")}/><FeaturedJobs go={go}/></section>
       <section className="category-row"><div><span className="kicker">BROWSE BY CATEGORY</span><h2>Find your next direction.</h2></div><div className="category-list">{["Design","Development","Marketing","Customer Support","Sales","Data Entry","Administration","Healthcare"].map((x,i)=><button key={x} onClick={()=>go("jobs",x)}><span>{["◈","</>","↗","◉","↗","▤","▥","+"][i]}</span>{x}<small>{1248-i*137} jobs</small></button>)}</div></section>
       <section className="how-section"><div className="mountain-art" aria-label="Professional remote worker"></div><div className="how-copy"><span className="kicker">HOW IT WORKS</span><h2>Get hired in <em>4 simple steps.</em></h2><p>Finding your next opportunity is easier than you think.</p><div className="how-steps">{[["01","Create your profile"],["02","Find the right jobs"],["03","Apply with ease"],["04","Get hired"]].map(([n,t])=><div key={n}><b>{n}</b><strong>{t}</strong><small>Simple, secure and built for you.</small></div>)}</div></div></section>
       <section className="trust-banner"><div><ShieldCheck size={25}/><div><strong>Trusted. Verified. Secure.</strong><span>We verify companies and job listings so you can focus on your next move.</span></div></div><Button variant="outline" onClick={()=>go("jobs")}>Explore opportunities <ArrowRight size={15}/></Button></section>
-    </main>
-    <Footer go={go}/>
+    </main><Footer go={go}/>
   </div>
 }
-
 function FeaturedJobs({go}){const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);useEffect(()=>{let mounted=true;(async()=>{const {data,error}=await supabase.from("jobs").select("*").eq("status","published").order("created_at",{ascending:false}).limit(4);if(!mounted)return;if(!error)setItems((data||[]).map(j=>({...j,company:j.company_name,logo:j.company_logo||j.company_name?.[0]||"R",type:j.job_type,posted:relativePosted(j.created_at),salary:formatSalary(j)})));setLoading(false)})();return()=>{mounted=false}},[]);if(loading)return <div className="empty-state"><h3>Loading featured jobs…</h3><p>Fetching the latest verified opportunities.</p></div>;if(items.length===0)return <EmptyState title="New opportunities are coming soon" text="Our team is preparing verified roles from partner companies. Check back shortly." action="Browse all jobs" onAction={()=>go("jobs")}/>;return <div className="job-grid">{items.map(j=><JobCard key={j.id} job={j} onOpen={id=>go("job",id)}/>)}</div>}
 function formatSalary(job){if(job.salary_min==null&&job.salary_max==null)return "Salary not disclosed";const currency=job.salary_currency||"USD";const fmt=n=>new Intl.NumberFormat("en-US",{maximumFractionDigits:0}).format(n);const period=job.salary_period==="hour"?"/ hour":job.salary_period==="month"?"/ month":"/ year";if(job.salary_min!=null&&job.salary_max!=null)return currency+" "+fmt(job.salary_min)+"–"+fmt(job.salary_max)+" "+period;if(job.salary_min!=null)return currency+" "+fmt(job.salary_min)+"+ "+period;return "Up to "+currency+" "+fmt(job.salary_max)+" "+period}
 
