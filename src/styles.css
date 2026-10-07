@@ -532,3 +532,55 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .verification-complete{padding:55px 18px}
   .verification-complete h1{font-size:36px}
 }
+
+
+/* ===== PAYOUTS UI — 07 OCT 2026 ===== */
+.payout-warning{display:flex;align-items:flex-start;gap:13px;margin:0 0 20px;padding:16px 18px;border:1px solid #ead8cf;border-radius:14px;background:#fffaf7}
+.payout-warning-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;background:#fff0ea;color:#a45142;border:1px solid #f0d5cc}
+.payout-warning strong{display:block;font-size:10px;color:#5a4842;margin-bottom:4px}
+.payout-warning p{margin:0;max-width:760px;font-size:8px;line-height:1.65;color:#7d716c}
+.payout-warning button{border:0;background:none;padding:0;color:var(--green);font:inherit;font-weight:750;text-decoration:underline;cursor:pointer}
+.payout-method-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:25px;box-shadow:0 18px 50px rgba(23,33,31,.05)}
+.payout-section-head h2{font-family:'DM Serif Display',Georgia,serif;font-size:29px;font-weight:400;line-height:1.05;letter-spacing:-.025em;margin:6px 0 7px}
+.payout-section-head p{font-size:8px;color:#7d8882;margin:0 0 19px}
+.payout-method-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.payout-method-card{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;text-align:left;padding:15px;border:1px solid #dfe6e1;border-radius:12px;background:#fbfcfa;cursor:pointer;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease,transform .15s ease}
+.payout-method-card:hover{transform:translateY(-1px);border-color:#b7cdbf}
+.payout-method-card.active{border-color:#8fb9a4;background:#f3faf6;box-shadow:0 0 0 3px rgba(13,90,73,.06)}
+.payout-method-icon{width:37px;height:37px;border-radius:10px;display:grid;place-items:center;background:#e8f3ed;color:var(--green)}
+.paypal-mark{font-weight:850;font-size:18px;font-style:italic;color:#1468a5;background:#edf5fb}
+.payout-method-card strong{display:block;font-size:9px;color:#405149}
+.payout-method-card small{display:block;font-size:7px;line-height:1.45;color:#8a9590;margin-top:3px}
+.payout-method-card>i{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-style:normal}
+.payout-form{border-top:1px solid var(--line);margin-top:20px;padding-top:20px}
+.payout-form-heading h3{font-family:'DM Serif Display',Georgia,serif;font-size:22px;font-weight:400;line-height:1.08;margin:5px 0 5px}
+.payout-form-heading p{font-size:8px;color:#818c86;margin:0 0 17px}
+.payout-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;max-width:780px}
+.payout-form-grid .field{margin:0}
+.payout-form-grid .field input,.payout-form-grid .field select{background:#fbfcfa}
+.payout-country-note{display:flex;align-items:flex-start;gap:8px;max-width:780px;margin-top:13px;padding:10px 11px;border:1px solid #dfe7e1;border-radius:10px;background:#f8faf8;color:#68756e;font-size:7.5px;line-height:1.55}
+.payout-country-note svg{flex:none;color:var(--green);margin-top:1px}
+.payout-confirm-row{display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--line);margin-top:21px;padding-top:17px}
+.payout-confirm-row>label{display:flex;align-items:flex-start;gap:8px;max-width:520px;cursor:pointer;font-size:8px;line-height:1.5;color:#69766f}
+.payout-confirm-row input{accent-color:var(--green);margin-top:2px}
+.payout-confirm-row .btn-primary:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}
+.payout-history{margin-top:18px}
+.payout-empty{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#9aa49f;gap:7px}
+.payout-empty svg{color:#9bb4a8}
+.payout-empty strong{font-size:10px;color:#59665f}
+.payout-empty span{font-size:8px;color:#929c97}
+.payout-success{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #dce8e0;border-radius:16px;padding:22px;box-shadow:0 15px 45px rgba(23,33,31,.045)}
+.payout-success-icon{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--green-soft);color:var(--green)}
+.payout-success h2{font-family:'DM Serif Display',Georgia,serif;font-size:26px;font-weight:400;margin:4px 0 4px}
+.payout-success p{font-size:8px;color:#7d8882;margin:0 0 8px}
+@media(max-width:760px){
+  .payout-method-grid,.payout-form-grid{grid-template-columns:1fr}
+  .payout-confirm-row{align-items:stretch;flex-direction:column}
+  .payout-confirm-row .btn-primary{width:100%}
+}
+@media(max-width:560px){
+  .payout-method-panel{padding:18px}
+  .payout-section-head h2{font-size:25px}
+  .payout-warning{padding:14px}
+  .payout-success{align-items:flex-start}
+}
