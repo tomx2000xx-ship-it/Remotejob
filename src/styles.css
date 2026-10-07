@@ -909,3 +909,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .admin-verification-row>.badge{grid-column:2}
   .admin-verification-row .admin-status{grid-column:1 / -1}
 }
+
+.admin-member-list{display:flex;flex-direction:column;padding:0 20px}.admin-member-row{display:grid;grid-template-columns:auto minmax(220px,1.8fr) auto minmax(170px,.7fr);gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid #edf1ee}.admin-member-row:last-child{border-bottom:0}.admin-member-main{min-width:0}.admin-member-main strong{display:block;font-size:11px;color:#294039}.admin-member-main span,.admin-member-main small{display:block;font-size:8px;color:#7a8981;margin-top:3px}.admin-member-protected{font-size:8px;color:#7a8981;white-space:nowrap}@media(max-width:700px){.admin-member-row{grid-template-columns:auto 1fr;gap:9px}.admin-member-row>.badge{grid-column:2}.admin-member-row .admin-status,.admin-member-protected{grid-column:1 / -1}}
