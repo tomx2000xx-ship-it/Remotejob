@@ -964,3 +964,37 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .admin-support-reply{padding:16px 20px;border-top:1px solid #e3e9e4}.admin-support-reply .field{margin:0}.admin-support-reply textarea{min-height:92px}.admin-support-reply>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}.admin-support-reply small{font-size:7px;color:#849089}.admin-support-reply .btn{min-height:36px;font-size:8px}
 @media(max-width:900px){.admin-support-layout{grid-template-columns:1fr}.admin-support-detail{min-height:500px}.admin-support-filters{grid-template-columns:1fr 1fr}.admin-support-filters .field:first-child{grid-column:1 / -1}}
 @media(max-width:600px){.admin-support-filters{grid-template-columns:1fr}.admin-support-filters .field:first-child{grid-column:auto}.admin-support-row{grid-template-columns:auto minmax(0,1fr) auto}.admin-support-row>svg{display:none}.admin-support-row>.badge{grid-column:2}.admin-support-detail-head{padding:16px}.admin-support-statusbar{padding:10px 16px;flex-wrap:wrap}.admin-support-statusbar small{width:100%;margin-left:0}.admin-support-messages{padding:14px 16px;max-height:350px}.admin-support-message{max-width:94%}.admin-support-reply{padding:14px 16px}.admin-support-reply>div{align-items:stretch;flex-direction:column}.admin-support-reply .btn{width:100%}}
+
+/* ===== ADMIN STUDIO ===== */
+.studio-tabs{display:flex;gap:7px;overflow:auto;padding:5px;margin-bottom:16px;border:1px solid #e2e8e3;border-radius:12px;background:#fff}
+.studio-tabs button{border:0;background:transparent;padding:9px 13px;border-radius:8px;font-size:8px;color:#718078;white-space:nowrap;cursor:pointer}
+.studio-tabs button.active{background:#edf5ef;color:#2f6b52;font-weight:700}
+.studio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.studio-grid>.panel:last-child{grid-column:1/-1}
+.studio-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.studio-fields .field:nth-child(3),.studio-fields .field:nth-child(4){grid-column:auto}
+.studio-muted{font-size:8px;color:#7d8983;line-height:1.55;margin:0 0 14px}
+.studio-section-list{display:flex;flex-direction:column}
+.studio-section-list>div{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #edf1ee}
+.studio-section-list>div:first-child{border-top:0}
+.studio-section-list strong,.studio-team-row strong{display:block;font-size:9px;color:#31453d}
+.studio-section-list small,.studio-team-row span{display:block;font-size:7px;color:#8a948f;margin-top:3px}
+.studio-two-col{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.3fr);gap:16px}
+.studio-head,.studio-inline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.studio-head{margin-bottom:14px}
+.studio-list{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.studio-list>button,.studio-list>div{width:100%;border:1px solid #e4ebe6;background:#fff;border-radius:10px;padding:11px;text-align:left}
+.studio-list>button{cursor:pointer}
+.studio-list>button.selected{border-color:#a9cdb5;background:#f5faf6}
+.studio-list strong{display:block;font-size:9px;color:#31453d}
+.studio-list span{display:block;font-size:7px;color:#8b9690;margin-top:3px}
+.studio-field-row{display:grid!important;grid-template-columns:minmax(0,1.4fr) 110px auto;gap:8px;align-items:center}
+.studio-field-row input,.studio-field-row select{min-height:34px;padding:7px 9px;border:1px solid #e0e7e2;border-radius:7px;font-size:8px;background:#fff}
+.studio-field-row label{font-size:7px;color:#77837d;white-space:nowrap}
+.studio-question-row{display:grid!important;grid-template-columns:25px minmax(0,1fr) auto;gap:8px;align-items:start}
+.studio-question-row>span{font-size:8px;color:#8a958f;padding-top:10px}
+.studio-question-row textarea{width:100%;border:1px solid #e0e7e2;border-radius:7px;padding:8px;font:inherit;font-size:8px;resize:vertical}
+.studio-team-row{display:flex!important;align-items:center;gap:10px}
+.studio-team-row>div:nth-child(2){flex:1}
+@media(max-width:900px){.studio-grid,.studio-two-col{grid-template-columns:1fr}.studio-grid>.panel:last-child{grid-column:auto}}
+@media(max-width:600px){.studio-fields{grid-template-columns:1fr}.studio-field-row{grid-template-columns:1fr!important}.studio-question-row{grid-template-columns:22px minmax(0,1fr)!important}.studio-question-row .badge{grid-column:2}.studio-tabs{margin-left:-2px;margin-right:-2px}}
