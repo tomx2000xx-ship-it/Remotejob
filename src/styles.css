@@ -808,3 +808,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .interview-empty h2{font-size:27px}
   .interview-empty p{font-size:10px}
 }
+
+.account-type-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 14px}
+.account-type-choice button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px;border:1px solid #dfe7e1;border-radius:12px;background:#fff;cursor:pointer}
+.account-type-choice button strong{font-size:10px;color:#2c4038}
+.account-type-choice button span{font-size:8px;line-height:1.45;color:#7a8780}
+.account-type-choice button.active{border-color:#4e8a74;background:#f2f8f4;box-shadow:0 0 0 2px rgba(78,138,116,.08)}
+.field select{width:100%;min-height:42px;padding:0 12px;border:1px solid #dfe7e1;border-radius:10px;background:#fff;color:#30443b;font:inherit;font-size:11px;outline:none}
+.field select:focus{border-color:#7da895;box-shadow:0 0 0 3px rgba(78,138,116,.10)}
+.candidate-action{display:inline-flex;align-items:center;justify-content:center;color:#7a8981}
+@media(max-width:560px){.account-type-choice{grid-template-columns:1fr}.account-type-choice button{padding:11px}}
