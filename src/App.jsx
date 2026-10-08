@@ -81,36 +81,36 @@ function defaultFieldPlaceholder(type,label="",key=""){
 }
 
 function isValidLegalName(value){
-  const name=String(value||"").trim().replace(/\\s+/g," ");
+  const name=String(value||"").trim().replace(/\s+/g," ");
   if(name.length<3)return {valid:false,message:"Enter your full legal name."};
   if(name.length>100)return {valid:false,message:"Your name is too long."};
-  if(!/^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)+$/.test(name))return {valid:false,message:"Enter a real-looking first and last name using letters only."};
-  if(/(.)\\1{4,}/i.test(name)||/^[A-Za-z]+$/.test(name)&&/^(test|testing|asdf|qwerty|admin|unknown|none|name)$/i.test(name.replace(/\\s/g,"")))return {valid:false,message:"That does not look like a valid personal name."};
+  if(!/^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)+$/.test(name))return {valid:false,message:"Enter a real-looking first and last name using letters only."};
+  if(/(.)\1{4,}/i.test(name)||(/^[A-Za-z]+$/.test(name)&&/^(test|testing|asdf|qwerty|admin|unknown|none|name)$/i.test(name.replace(/\s/g,""))))return {valid:false,message:"That does not look like a valid personal name."};
   return {valid:true,message:"Name format looks good."};
 }
 
 function validateResidentialAddress(country,address,region){
-  const text=String(address||"").trim().replace(/\\s+/g," ");
-  const area=String(region||"").trim().replace(/\\s+/g," ");
-  if(area.length<2||!/^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)*$/.test(area))return {valid:false,message:"Enter a valid state, region or province."};
+  const text=String(address||"").trim().replace(/\s+/g," ");
+  const area=String(region||"").trim().replace(/\s+/g," ");
+  if(area.length<2||!/^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)*$/.test(area))return {valid:false,message:"Enter a valid state, region or province."};
   if(text.length<12)return {valid:false,message:"Enter your complete residential address."};
-  if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(text)||!/\\d/.test(text))return {valid:false,message:"Include a street number and a street name in your address."};
+  if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(text)||!/\d/.test(text))return {valid:false,message:"Include a street number and a street name in your address."};
   const postalRules={
-    "United States":/\\b\\d{5}(?:-\\d{4})?\\b/,
-    "Canada":/\\b[A-Za-z]\\d[A-Za-z][ -]?\\d[A-Za-z]\\d\\b/,
-    "United Kingdom":/\\b[A-Z]{1,2}\\d[A-Z\\d]? ?\\d[A-Z]{2}\\b/i,
-    "Germany":/\\b\\d{5}\\b/,
-    "France":/\\b\\d{5}\\b/,
-    "Netherlands":/\\b\\d{4} ?[A-Z]{2}\\b/i,
-    "Ireland":/\\b[A-Z]\\d{2} ?[A-Z0-9]{4}\\b/i,
-    "Sweden":/\\b\\d{3}[ -]?\\d{2}\\b/,
-    "Denmark":/\\b\\d{4}\\b/,
-    "Norway":/\\b\\d{4}\\b/,
-    "Finland":/\\b\\d{5}\\b/,
-    "Belgium":/\\b\\d{4}\\b/,
-    "Switzerland":/\\b\\d{4}\\b/,
-    "Austria":/\\b\\d{4}\\b/,
-    "Poland":/\\b\\d{2}-?\\d{3}\\b/
+    "United States":/\b\d{5}(?:-\d{4})?\b/,
+    "Canada":/\b[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d\b/,
+    "United Kingdom":/\b[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}\b/i,
+    "Germany":/\b\d{5}\b/,
+    "France":/\b\d{5}\b/,
+    "Netherlands":/\b\d{4} ?[A-Z]{2}\b/i,
+    "Ireland":/\b[A-Z]\d{2} ?[A-Z0-9]{4}\b/i,
+    "Sweden":/\b\d{3}[ -]?\d{2}\b/,
+    "Denmark":/\b\d{4}\b/,
+    "Norway":/\b\d{4}\b/,
+    "Finland":/\b\d{5}\b/,
+    "Belgium":/\b\d{4}\b/,
+    "Switzerland":/\b\d{4}\b/,
+    "Austria":/\b\d{4}\b/,
+    "Poland":/\b\d{2}-?\d{3}\b/
   };
   const rule=postalRules[country];
   if(rule&&!rule.test(text))return {valid:false,message:"Include a valid postal or ZIP code for the selected country."};
