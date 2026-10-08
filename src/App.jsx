@@ -360,7 +360,7 @@ function PartnerLogoStrip({location="footer"}){
     {name:"Clerk",logo:"https://cdn.simpleicons.org/clerk",url:"https://clerk.com/"}
   ];
   return <div className={`partner-logo-strip partner-logo-strip-${location}`} aria-label="Identity and account security services">
-    {location==="footer"&&<span className="partner-strip-label">Site protected by</span>}
+    <span className="partner-strip-label">Site protected by</span>
     <div className="partner-logo-list">{partners.map(p=><a className="partner-logo-item" href={p.url} key={p.name} target="_blank" rel="noreferrer" aria-label={p.name} title={p.name}>
       <img src={p.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none"}}/><span>{p.name}</span>
     </a>)}</div>
