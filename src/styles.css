@@ -1084,7 +1084,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* Compact security and identity brand marks */
 .partner-logo-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.partner-strip-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.62);white-space:nowrap}
+.partner-strip-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:inherit;white-space:nowrap}.footer-security-partner .partner-strip-label{color:rgba(255,255,255,.72)}
 .partner-logo-list{display:flex;align-items:center;gap:clamp(14px,2.2vw,28px);flex-wrap:wrap}
 .partner-logo-item{display:inline-flex;align-items:center;gap:7px;text-decoration:none!important;color:inherit;opacity:.88;transition:opacity .16s ease;white-space:nowrap}
 .partner-logo-item:hover{opacity:1}
