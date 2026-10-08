@@ -356,7 +356,7 @@ function SectionTitle({kicker,title,text,action,onAction}){return <div className
 function PartnerLogoStrip({location="footer"}){
   const partners=[
     {name:"Persona",logo:"https://withpersona.com/favicon.ico",url:"https://withpersona.com/"},
-    {name:"Plaid",logo:"https://cdn.simpleicons.org/plaid",url:"https://plaid.com/"},
+    {name:"Plaid",logo:"https://plaid.com/favicon.ico",url:"https://plaid.com/"},
     {name:"Okta",logo:"https://cdn.simpleicons.org/okta",url:"https://www.okta.com/"},
     {name:"Clerk",logo:"https://cdn.simpleicons.org/clerk",url:"https://clerk.com/"}
   ];
