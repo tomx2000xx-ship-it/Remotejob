@@ -1429,7 +1429,55 @@ function AdminMembers({go}){
   </div>;
 }
 
-function Settings({go}){return <div className="workspace"><div className="workspace-head"><div><span className="kicker">ACCOUNT</span><h1>Settings</h1><p>Manage your account, preferences and privacy.</p></div></div><div className="settings-layout"><aside className="settings-nav">{["Account","Notifications","Privacy","Security","Preferences"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</aside><section className="panel settings-panel"><PanelTitle title="Account details"/><Field label="Email address" placeholder="alex@example.com"/><Field label="Display name" placeholder="Alex Carter"/><PanelTitle title="Job preferences"/><div className="toggle-row"><div><strong>Open to opportunities</strong><span>Let verified employers discover your profile.</span></div><button className="toggle on"><i/></button></div><div className="toggle-row"><div><strong>Weekly job digest</strong><span>Receive a curated email every Monday.</span></div><button className="toggle on"><i/></button></div><Button>Save changes <Check size={15}/></Button></section></div></div>}
+function Settings({go}){
+  const [tab,setTab]=useState("Account");
+  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[saved,setSaved]=useState(false),[error,setError]=useState("");
+  const [userId,setUserId]=useState(""),[email,setEmail]=useState(""),[fullName,setFullName]=useState(""),[country,setCountry]=useState(""),[experience,setExperience]=useState("");
+  const [prefs,setPrefs]=useState({email_notifications:true,application_updates:true,interview_reminders:true,weekly_digest:true,product_updates:false,open_to_opportunities:true,profile_discoverable:true});
+  const [newPassword,setNewPassword]=useState(""),[confirmPassword,setConfirmPassword]=useState(""),[passwordBusy,setPasswordBusy]=useState(false),[passwordMessage,setPasswordMessage]=useState("");
+  useEffect(()=>{let mounted=true;(async()=>{
+    try{
+      const {data:{user},error:userError}=await supabase.auth.getUser();
+      if(userError)throw userError;
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {data,error:profileError}=await supabase.from("profiles").select("id,full_name,country,experience,settings").eq("id",user.id).maybeSingle();
+      if(profileError)throw profileError;
+      if(!mounted)return;
+      setUserId(user.id);setEmail(user.email||"");setFullName(profile?.full_name||user.user_metadata?.full_name||user.user_metadata?.name||"");setCountry(profile?.country||"");setExperience(profile?.experience||"");
+      const stored=profile?.settings&&typeof profile.settings==="object"?profile.settings:{};
+      setPrefs(current=>({...current,...stored}));
+    }catch(e){if(mounted)setError(e?.message||"We couldn't load your account settings.")}finally{if(mounted)setLoading(false)}
+  })();return()=>{mounted=false}},[]);
+  const setPref=(key,value)=>setPrefs(p=>({...p,[key]:value}));
+  const save=async()=>{
+    setSaving(true);setSaved(false);setError("");
+    try{
+      const {data:{user},error:userError}=await supabase.auth.getUser();if(userError)throw userError;if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const {data,error:e}=await supabase.from("profiles").update({full_name:fullName.trim(),country:country||null,experience:experience||null,settings:prefs}).eq("id",user.id).select("id").maybeSingle();
+      if(e)throw e;if(!data)throw new Error("Your settings weren't saved. Please refresh and sign in again.");
+      setSaved(true);
+    }catch(e){setError(e?.message||"We couldn't save your settings. Please try again.")}finally{setSaving(false)}
+  };
+  const changePassword=async()=>{
+    setPasswordMessage("");setError("");
+    if(newPassword.length<8){setPasswordMessage("Use at least 8 characters for your new password.");return}
+    if(newPassword!==confirmPassword){setPasswordMessage("The passwords do not match.");return}
+    setPasswordBusy(true);
+    try{const {error:e}=await supabase.auth.updateUser({password:newPassword});if(e)throw e;setNewPassword("");setConfirmPassword("");setPasswordMessage("Your password has been updated.")}catch(e){setPasswordMessage(e?.message||"We couldn't update your password. Please try again.")}finally{setPasswordBusy(false)}
+  };
+  const toggle=(key,title,description)=><div className="toggle-row" key={key}><div><strong>{title}</strong><span>{description}</span></div><button type="button" role="switch" aria-checked={!!prefs[key]} className={"toggle "+(prefs[key]?"on":"")} onClick={()=>setPref(key,!prefs[key])}><i/></button></div>;
+  if(loading)return <div className="workspace"><div className="workspace-head"><div><span className="kicker">ACCOUNT</span><h1>Settings</h1><p>Loading your account settings…</p></div></div></div>;
+  return <div className="workspace"><div className="workspace-head"><div><span className="kicker">ACCOUNT</span><h1>Settings</h1><p>Manage your account, preferences and privacy.</p></div></div>
+    {error&&<div className="auth-message auth-error">{error}</div>}{saved&&<div className="auth-message auth-success"><Check size={15}/> Your settings have been saved.</div>}
+    <div className="settings-layout"><aside className="settings-nav" aria-label="Settings sections">{["Account","Notifications","Privacy","Security","Preferences"].map(x=><button type="button" className={tab===x?"active":""} key={x} onClick={()=>{setTab(x);setError("");setSaved(false);setPasswordMessage("")}}>{x}</button>)}</aside>
+    <section className="panel settings-panel">
+      {tab==="Account"&&<><PanelTitle title="Account details"/><label className="field"><span>Email address</span><input value={email} readOnly aria-readonly="true"/><small>Your sign-in email, provided by your authenticated account.</small></label><Field label="Display name" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Your name"/><PanelTitle title="Account status"/><div className="settings-info-row"><span>Account ID</span><code>{userId||"Unavailable"}</code></div><p className="settings-help">Your email is shown from your signed-in account. Your display name is saved to your profile.</p><Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"} {!saving&&<Check size={15}/>}</Button></>}
+      {tab==="Notifications"&&<><PanelTitle title="Notification settings"/><p className="settings-help">Choose which account updates and job alerts you want to receive. Your choices are saved to your account.</p>{toggle("email_notifications","Email notifications","Receive important account updates by email.")}{toggle("application_updates","Application updates","Get notified when an application status changes.")}{toggle("interview_reminders","Interview reminders","Receive reminders about scheduled interviews.")}{toggle("weekly_digest","Weekly job digest","Receive a weekly roundup of relevant opportunities.")}{toggle("product_updates","Product news","Occasional RemotePath tips and product announcements.")}<Button onClick={save} disabled={saving}>{saving?"Saving…":"Save notification settings"} {!saving&&<Check size={15}/>}</Button><Button variant="outline" onClick={()=>go("notifications")}>View notifications <ArrowRight size={14}/></Button></>}
+      {tab==="Privacy"&&<><PanelTitle title="Privacy and visibility"/><p className="settings-help">Control how your candidate profile is used. These preferences are stored with your account.</p>{toggle("open_to_opportunities","Open to opportunities","Let the RemotePath team know you are looking for remote work.")}{toggle("profile_discoverable","Profile discoverability","Allow your profile to be considered for suitable opportunities.")}<div className="notice"><LockKeyhole size={17}/><span>Your account details remain subject to RemotePath’s access controls. These switches record your preferences; they do not replace database security rules.</span></div><Button onClick={save} disabled={saving}>{saving?"Saving…":"Save privacy settings"} {!saving&&<Check size={15}/>}</Button></>}
+      {tab==="Security"&&<><PanelTitle title="Password and sign-in"/><p className="settings-help">Change the password for your current account. Use at least 8 characters.</p><Field label="New password" type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} placeholder="Enter a new password"/><Field label="Confirm new password" type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Re-enter the new password"/>{passwordMessage&&<div className={"auth-message "+(passwordMessage.includes("updated")?"auth-success":"auth-error")}>{passwordMessage}</div>}<Button onClick={changePassword} disabled={passwordBusy}>{passwordBusy?"Updating…":"Update password"} {!passwordBusy&&<LockKeyhole size={15}/>}</Button><div className="settings-info-row"><span>Signed-in email</span><strong>{email||"Unavailable"}</strong></div><p className="settings-help">For account safety, email changes are managed through the authentication provider and may require email confirmation.</p></>}
+      {tab==="Preferences"&&<><PanelTitle title="Job preferences"/><p className="settings-help">These preferences help personalize the jobs and recommendations you see.</p><label className="field"><span>Country</span><select value={country} onChange={e=>setCountry(e.target.value)}><option value="">Select country</option>{registrationCountries.map(([flag,name])=><option key={name} value={name}>{flag} {name}</option>)}</select></label><label className="field"><span>Experience level</span><select value={experience} onChange={e=>setExperience(e.target.value)}><option value="">Select experience</option>{["No professional experience","Entry level","1–2 years","3–5 years","6–10 years","10+ years"].map(x=><option key={x} value={x}>{x}</option>)}</select></label><Button onClick={save} disabled={saving}>{saving?"Saving…":"Save preferences"} {!saving&&<Check size={15}/>}</Button></>}
+    </section></div></div>;
+}
 
 function EmptyState({title,text,action,onAction}){return <div className="empty-state"><div><Search size={20}/></div><h3>{title}</h3><p>{text}</p>{action&&<Button variant="outline" onClick={onAction}>{action}</Button>}</div>}
 
