@@ -1082,16 +1082,27 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 
 
-/* Clerk account-security partner placement */
-.footer-security-partner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0 0;padding:16px 0;border-top:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.72)}
-.footer-security-label{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
-.clerk-wordmark{display:inline-flex;align-items:baseline;color:inherit;font-size:22px;font-weight:750;letter-spacing:-1.3px;line-height:1}
-.clerk-period{color:#835eff}
-.footer-security-copy{font-size:13px;color:rgba(255,255,255,.65)}
-.clerk-security-banner{display:flex;align-items:center;gap:14px;margin:0 0 22px;padding:16px 18px;border:1px solid #e7e3f2;border-radius:14px;background:#faf9ff;color:#17151f}
-.clerk-brand-mark{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:11px;background:#835eff;color:#fff;font-size:27px;font-weight:750;line-height:1;text-transform:lowercase}
-.clerk-security-copy{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
-.clerk-security-copy strong{font-size:14px;font-weight:700}
-.clerk-security-copy>span{font-size:12px;line-height:1.5;color:#686477}
-.clerk-security-banner .clerk-wordmark{font-size:25px;color:#17151f;margin-left:auto}
-@media(max-width:560px){.clerk-security-banner{gap:10px;padding:13px}.clerk-brand-mark{flex-basis:32px;width:32px;height:32px;font-size:23px}.clerk-security-banner .clerk-wordmark{font-size:21px}.footer-security-partner{gap:9px}.footer-security-copy{flex-basis:100%;padding-left:1px}}
+/* Compact security and identity brand marks */
+.partner-logo-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.partner-strip-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.62);white-space:nowrap}
+.partner-logo-list{display:flex;align-items:center;gap:clamp(14px,2.2vw,28px);flex-wrap:wrap}
+.partner-logo-item{display:inline-flex;align-items:center;gap:7px;text-decoration:none!important;color:inherit;opacity:.88;transition:opacity .16s ease;white-space:nowrap}
+.partner-logo-item:hover{opacity:1}
+.partner-logo-item img{display:block;width:19px;height:19px;object-fit:contain;flex:0 0 19px}
+.partner-logo-item span{font-size:13px;font-weight:650;letter-spacing:-.025em}
+.footer-security-partner{margin:24px 0 0;padding:18px 0;border-top:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82)}
+.partner-logo-strip-payout-modal{padding:15px 0 4px;border-top:1px solid #edf0ed;margin-top:8px;color:#44544c}
+.partner-logo-strip-payout-modal .partner-logo-list{gap:clamp(12px,2vw,22px)}
+.partner-logo-strip-payout-modal .partner-logo-item{opacity:.82}
+.partner-logo-strip-payout-modal .partner-logo-item img{width:17px;height:17px;flex-basis:17px}
+.partner-logo-strip-payout-modal .partner-logo-item span{font-size:12px}
+@media(max-width:560px){
+ .partner-logo-strip{gap:10px}
+ .partner-logo-list{gap:12px 16px}
+ .partner-logo-item{gap:5px}
+ .partner-logo-item span{font-size:12px}
+ .partner-strip-label{width:100%}
+ .footer-security-partner{padding:16px 0}
+ .partner-logo-strip-payout-modal .partner-logo-list{gap:12px 14px}
+ .partner-logo-strip-payout-modal .partner-logo-item span{font-size:11px}
+}
