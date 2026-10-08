@@ -536,7 +536,7 @@ function AppShell({go,screen,children}){
   const letter=(displayName.trim()[0]||"R").toUpperCase();
 
   const isAdmin=profile?.role==="admin"||profile?.role==="super_admin";
-  const adminNav=[["admin","Job management",BriefcaseBusiness],["admin-applications","Applications",FileText],["admin-verification","Verification",ShieldCheck],["admin-members","Members",Users],["admin-support","Support",MessageCircle],["admin-studio","Studio",SlidersHorizontal]];
+  const adminNav=[["admin","Admin",BriefcaseBusiness],["admin-applications","Applications",FileText],["admin-verification","Verification",ShieldCheck],["admin-members","Members",Users],["admin-support","Support",MessageCircle],["admin-studio","Studio",SlidersHorizontal]];
   const nav=isAdmin?adminNav:navItems;
   return (
     <div className="app-shell">
@@ -578,7 +578,7 @@ function AppShell({go,screen,children}){
         <header className="app-topbar">
           <button className="mobile-menu" onClick={()=>setMobile(true)} aria-label="Open navigation"><Menu/><span>Menu</span></button>
           <div className="crumb">
-            {screen==="dashboard"?"Dashboard":screen==="jobs"?"Find Jobs":screen==="job"?"Job details":screen==="saved"?"Saved Jobs":screen==="applications"?"Applications":screen==="application"?"Application":screen==="interview"?"Interviews":screen==="profile"?"Profile":screen==="payouts"?"Payouts":screen==="verification"?"Verification":screen==="settings"?"Settings":screen==="notifications"?"Notifications":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin-members"?"Member management":screen==="admin-support"?"Support management":screen==="admin-studio"?"Admin Studio":screen==="admin"?"Job management":"Workspace"}
+            {screen==="dashboard"?"Dashboard":screen==="jobs"?"Find Jobs":screen==="job"?"Job details":screen==="saved"?"Saved Jobs":screen==="applications"?"Applications":screen==="application"?"Application":screen==="interview"?"Interviews":screen==="profile"?"Profile":screen==="payouts"?"Payouts":screen==="verification"?"Verification":screen==="settings"?"Settings":screen==="notifications"?"Notifications":screen==="admin-applications"?"Application management":screen==="admin-verification"?"Verification review":screen==="admin-members"?"Member management":screen==="admin-support"?"Support management":screen==="admin-studio"?"Admin Studio":screen==="admin"?"Admin":"Workspace"}
           </div>
           <div className="top-actions">
             {!isAdmin&&<button className="notification-bell" onClick={()=>go("notifications")} aria-label="Notifications"><Bell size={18}/>{unreadNotifications>0&&<i>{unreadNotifications>99?"99+":unreadNotifications}</i>}</button>}
