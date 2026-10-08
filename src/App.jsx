@@ -1440,10 +1440,12 @@ function Settings({go}){
       const {data:{user},error:userError}=await supabase.auth.getUser();
       if(userError)throw userError;
       if(!user)throw new Error("Your session has expired. Please sign in again.");
-      const {data,error:profileError}=await supabase.from("profiles").select("id,full_name,country,experience,settings").eq("id",user.id).maybeSingle();
+      const {data:profile,error:profileError}=await supabase.from("profiles").select("id,full_name,country,experience,settings").eq("id",user.id).maybeSingle();
       if(profileError)throw profileError;
       if(!mounted)return;
-      setUserId(user.id);setEmail(user.email||"");setFullName(profile?.full_name||user.user_metadata?.full_name||user.user_metadata?.name||"");setCountry(profile?.country||"");setExperience(profile?.experience||"");
+      const metadataName=user.user_metadata?.full_name||user.user_metadata?.name||[user.user_metadata?.first_name,user.user_metadata?.last_name].filter(Boolean).join(" ");
+      const accountName=profile?.full_name?.trim()||metadataName.trim()||"";
+      setUserId(user.id);setEmail(user.email||"");setFullName(accountName);setCountry(profile?.country||"");setExperience(profile?.experience||"");
       const stored=profile?.settings&&typeof profile.settings==="object"?profile.settings:{};
       setPrefs(current=>({...current,...stored}));
     }catch(e){if(mounted)setError(e?.message||"We couldn't load your account settings.")}finally{if(mounted)setLoading(false)}
