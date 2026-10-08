@@ -356,12 +356,11 @@ function SectionTitle({kicker,title,text,action,onAction}){return <div className
 function PartnerLogoStrip({location="footer"}){
   const partners=[
     {name:"Persona",logo:"https://withpersona.com/favicon.ico",url:"https://withpersona.com/"},
-    {name:"Plaid",logo:"https://plaid.com/favicon.ico",url:"https://plaid.com/"},
     {name:"Okta",logo:"https://cdn.simpleicons.org/okta",url:"https://www.okta.com/"},
     {name:"Clerk",logo:"https://cdn.simpleicons.org/clerk",url:"https://clerk.com/"}
   ];
   return <div className={`partner-logo-strip partner-logo-strip-${location}`} aria-label="Identity and account security services">
-    {location==="footer"&&<span className="partner-strip-label">Security & identity</span>}
+    {location==="footer"&&<span className="partner-strip-label">Site protected by</span>}
     <div className="partner-logo-list">{partners.map(p=><a className="partner-logo-item" href={p.url} key={p.name} target="_blank" rel="noreferrer" aria-label={p.name} title={p.name}>
       <img src={p.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none"}}/><span>{p.name}</span>
     </a>)}</div>
