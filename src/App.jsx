@@ -1306,7 +1306,7 @@ function AdminApplications({go}){
       <label className="field"><span>Email message</span><textarea rows={4} value={bulkBody} onChange={e=>setBulkBody(e.target.value)} placeholder="Write the message for selected candidates"/></label>
       {bulkMessage&&<div className={bulkMessage.startsWith("Queued")?"notice":"auth-message auth-error"} role="status">{bulkMessage}</div>}
       <Button onClick={queueBulkEmail} disabled={queueing||selectedIds.length===0}>{queueing?"Queuing emails…":"Queue email to selected candidates"} <Send size={15}/></Button>
-      <p className="admin-email-disclaimer">Emails are added to the secure delivery queue. They will not be delivered until a sending provider and scheduled delivery process are connected.</p>
+      <p className="admin-email-disclaimer">Automatic delivery runs every minute, but messages will remain queued until the Resend API key, verified sender address, and live site URL are configured in Supabase.</p>
     </section>
     <div className="pipeline-tabs">
       {["All","submitted","reviewing","interview","hired"].map(x=><button key={x} className={status===x?"active":""} onClick={()=>setStatus(x)}>{x==="All"?"All":x[0].toUpperCase()+x.slice(1)} <span>{x==="All"?rows.length:rows.filter(r=>r.status===x).length}</span></button>)}
