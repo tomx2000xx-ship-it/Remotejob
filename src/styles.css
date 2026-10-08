@@ -555,7 +555,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .payout-form{border-top:1px solid var(--line);margin-top:20px;padding-top:20px}
 .payout-form-heading h3{font-family:'DM Serif Display',Georgia,serif;font-size:22px;font-weight:400;line-height:1.08;margin:5px 0 5px}
 .payout-form-heading p{font-size:8px;color:#818c86;margin:0 0 17px}
-.payout-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;max-width:780px}
+.payout-form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:13px;max-width:780px}.payout-form-grid .payout-card-field-wide{grid-column:1 / -1}.payout-form-grid .payout-card-field-number{grid-column:1 / -1}.payout-form-grid .payout-card-field-compact{grid-column:span 1}.payout-form-grid .payout-card-field-compact input{max-width:220px}.payout-form-grid .payout-card-field-number input{letter-spacing:.08em}.payout-form-grid .payout-card-field-wide input{max-width:100%}
 .payout-form-grid .field{margin:0}
 .payout-form-grid .field input,.payout-form-grid .field select{background:#fbfcfa}
 .payout-country-note{display:flex;align-items:flex-start;gap:8px;max-width:780px;margin-top:13px;padding:10px 11px;border:1px solid #dfe7e1;border-radius:10px;background:#f8faf8;color:#68756e;font-size:7.5px;line-height:1.55}
