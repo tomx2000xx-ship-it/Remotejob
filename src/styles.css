@@ -1061,3 +1061,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .remote-datetime-input .remote-date-input,.remote-datetime-input .remote-time-input{min-width:0}
 .verification-date-input{font-size:14px}
 @media(max-width:600px){.remote-datetime-input{grid-template-columns:1fr}.remote-date-input,.remote-time-input,.remote-month-year-input{min-height:44px}}
+
+/* Navigation refinement: keep member wayfinding visible and contextual without changing page logic. */
+.workspace-page{padding:0 5.5% 70px;max-width:1440px;margin:0 auto}
+.page-heading{display:flex;justify-content:space-between;align-items:flex-end;padding:44px 0 28px}
+.page-heading h1{font-size:45px;line-height:1;margin:9px 0 7px}
+.page-heading p{font-size:11px;color:#7b8580;margin:0}
+.context-back{margin-bottom:18px}
+.flow-back{display:inline-flex;align-items:center;gap:7px;border:0;background:none;color:inherit;font-size:10px;font-weight:600;padding:7px 0;cursor:pointer}
+.flow-context{font-size:10px;color:#8a948f}
+.mobile-menu{align-items:center;gap:6px;color:#53615b;font-size:10px;font-weight:650;padding:7px 0}
+.mobile-menu span{display:inline-block}
+@media(max-width:800px){
+  .workspace-page{padding:0 5% 55px}
+  .page-heading{display:block;padding:32px 0 24px}
+  .page-heading h1{font-size:39px}
+  .mobile-menu{display:inline-flex}
+  .flow-header .flow-back{font-size:9px}
+  .flow-context{font-size:9px}
+}
