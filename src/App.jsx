@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
 import {
   ArrowLeft, ArrowRight, Bell, Bookmark, BriefcaseBusiness, Check,
@@ -298,7 +298,7 @@ function Badge({children,tone="soft"}){return <span className={`badge badge-${to
 function Avatar({letter="A",size="md"}){return <span className={`avatar avatar-${size}`}>{letter}</span>}
 function Toast({message,onClose}){return <div className="toast"><Check size={16}/>{message}<button onClick={onClose}><X size={14}/></button></div>}
 
-function CompanyLogo({job,large=false}){const [failed,setFailed]=useState(false);const src=job?.company_logo||"";return <div className={`company-avatar ${large?"large":""}`} aria-label={`${job?.company||job?.company_name||"Company"} logo`}>{src&&!failed?<img src={src} alt={`${job?.company||job?.company_name||"Company"} logo`} loading="lazy" style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:"inherit",display:"block",background:"#fff"}} onError={()=>setFailed(true)}/>:<span>{(job?.company||job?.company_name||"R").trim().charAt(0).toUpperCase()}</span>}</div>}
+function CompanyLogo({job,large=false}){const [failed,setFailed]=useState(false);const src=job?.company_logo||"";return <div className={`company-avatar ${large?"large":""}`} aria-label={`${job?.company||job?.company_name||"Company"} logo`}>{src&&!failed?<img src={src} alt={`${job?.company||job?.company_name||"Company"} logo`} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"left center",borderRadius:"inherit",display:"block",background:"#fff"}} onError={()=>setFailed(true)}/>:<span>{(job?.company||job?.company_name||"R").trim().charAt(0).toUpperCase()}</span>}</div>}
 
 function JobCard({job,onOpen,compact=false}){
   const [saved,setSaved]=useState(false);
@@ -1801,10 +1801,10 @@ function RemotePathLoader(){
 function App(){
   const routeFromLocation=()=>{const hash=window.location.hash.replace("#/","");if(hash)return hash;const path=window.location.pathname.replace(/^\/+|\/+$/g,"");return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
   const initial=routeFromLocation;
-  const [screen,setScreen]=useState(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
+  const [screen,setScreen]=useState(initial); const screenRef=useRef(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
   const [authReady,setAuthReady]=useState(false); const [loaderVisible,setLoaderVisible]=useState(true);
-  const go=(next,value="")=>{setParam(String(value||""));window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
+  const go=(next,value="")=>{setParam(String(value||""));screenRef.current=next;window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
   useEffect(()=>{
     let mounted=true;
     const loaderTimer=setTimeout(()=>{if(mounted)setLoaderVisible(false)},700);
@@ -1831,7 +1831,7 @@ function App(){
     return()=>{mounted=false;clearTimeout(loaderTimer);subscription.unsubscribe()};
   },[]);
   useEffect(()=>{
-    const h=()=>{setScreen(routeFromLocation())};
+    const h=()=>{const next=routeFromLocation();if(next==="jobs"&&screenRef.current==="job")setParam("");setScreen(next);screenRef.current=next};
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
