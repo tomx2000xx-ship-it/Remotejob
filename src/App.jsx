@@ -1274,7 +1274,7 @@ function AdminApplications({go}){
     const payload=targets.map(r=>{
       const delivery=emailRecipients.find(e=>e.application_id===r.id);
       if(!delivery)return null;
-      return {application_id:r.id,candidate_id:r.user_id,recipient_email:delivery.recipient_email,subject:bulkSubject.trim(),body:bulkBody.trim(),route_path:"/dashboard",send_after:new Date().toISOString(),status:"queued",created_by:user.id};
+      return {application_id:r.id,candidate_id:r.user_id,recipient_email:delivery.recipient_email,subject:bulkSubject.trim(),body:bulkBody.trim(),route_path:"/#/dashboard",send_after:new Date().toISOString(),status:"queued",created_by:user.id};
     }).filter(Boolean);
     if(!payload.length){setBulkMessage("No selected application has an email address available in the invitation queue.");return}
     setQueueing(true);setBulkMessage("");
@@ -1892,7 +1892,7 @@ function App(){
     const adminScreens=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"];
     const memberScreens=["dashboard","jobs","saved","applications","application","application-confirmation","interview","profile","payouts","verification","settings","notifications","onboarding"];
 
-    if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){go("login");return;}
+    if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){try{sessionStorage.setItem("remotePathAfterLogin",screen)}catch{}go("login");return;}
     if(session&&accountStatus!=="active"&&role!=="admin"&&role!=="super_admin"&&screen!=="restricted"&&screen!=="support"){go("restricted");return;}
     if(session&&["employer","postjob","candidates"].includes(screen)){go("dashboard");return;}
 
@@ -1903,9 +1903,9 @@ function App(){
       (async()=>{
         const {data:profile}=await supabase.from("profiles").select("onboarding_completed").eq("id",session.user.id).maybeSingle();
         if(!profile)return;
-        if(!profile.onboarding_completed&&screen!=="onboarding"&&memberScreens.includes(screen)){go("onboarding");return;}
-        if(profile.onboarding_completed&&screen==="onboarding"){go("dashboard");return;}
-        if(screen==="login"||screen==="verify"){go(profile.onboarding_completed?"dashboard":"onboarding");}
+        if(!profile.onboarding_completed&&screen!=="onboarding"&&memberScreens.includes(screen)){try{sessionStorage.setItem("remotePathAfterLogin",screen)}catch{}go("onboarding");return;}
+        if(profile.onboarding_completed&&screen==="onboarding"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";sessionStorage.removeItem("remotePathAfterLogin")}catch{}go(target&&memberScreens.includes(target)?target:"dashboard");return;}
+        if(screen==="login"||screen==="verify"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target&&memberScreens.includes(target)){go(target);return;}go(profile.onboarding_completed?"dashboard":"onboarding");}
       })();
     }
   },[authReady,session,screen,role,accountStatus]);
