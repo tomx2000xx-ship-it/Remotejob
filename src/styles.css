@@ -1173,3 +1173,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .admin-application-row-wrap .admin-application-row>span:nth-of-type(1){display:none}
  .admin-application-row-wrap .admin-application-row>span:nth-of-type(2){display:none}
 }
+
+
+/* Accessible contrast for interview workspace navigation on the deep-green header. */
+.interview-page .flow-header>button.flow-back{color:#f5f4eb;background:rgba(255,255,255,.12);border:1px solid rgba(245,244,235,.48);border-radius:8px;padding:9px 12px;min-height:38px;text-decoration:none}
+.interview-page .flow-header>button.flow-back:hover{background:rgba(255,255,255,.22);border-color:#f5f4eb;color:#fff}
+.interview-page .flow-header>button.flow-back:focus-visible{outline:3px solid #f5f4eb;outline-offset:3px}
+@media(max-width:560px){.interview-page .flow-header>button.flow-back{padding:8px 10px;min-height:36px}}
