@@ -650,7 +650,7 @@ function AppShell({go,screen,children,activeNav}){
   );
 }
 function Dashboard({go}){
- const [greeting]=useState(()=>{const hour=new Date().getHours();return hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"});
+ const [greeting]=useState(()=>{try{const saved=sessionStorage.getItem("remotePathLoginGreeting");if(saved)return saved}catch{}const hour=new Date().getHours();return hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"});
  const [profile,setProfile]=useState(null);
  const [dashboard,setDashboard]=useState({applications:0,interviews:0,offers:0,saved:0,latestApplication:null,recommended:[]});
  useEffect(()=>{
@@ -1925,7 +1925,9 @@ function App(){
       setAuthReady(true);
     };
     loadSession();
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,nextSession)=>{
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,nextSession)=>{
+      if(event==="SIGNED_IN"&&nextSession){const hour=new Date().getHours();const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";try{sessionStorage.setItem("remotePathLoginGreeting",greeting)}catch{}}
+      if(event==="SIGNED_OUT"){try{sessionStorage.removeItem("remotePathLoginGreeting")}catch{}}
       setSession(nextSession);
       if(nextSession){
         supabase.from("profiles").select("role").eq("id",nextSession.user.id).maybeSingle().then(({data:profile})=>{
