@@ -1445,8 +1445,14 @@ function Settings({go}){
       if(!mounted)return;
       const metadataName=user.user_metadata?.full_name||user.user_metadata?.name||[user.user_metadata?.first_name,user.user_metadata?.last_name].filter(Boolean).join(" ");
       const accountName=profile?.full_name?.trim()||metadataName.trim()||"";
-      setUserId(user.id);setEmail(user.email||"");setFullName(accountName);setCountry(profile?.country||"");setExperience(profile?.experience||"");
-      const stored=profile?.settings&&typeof profile.settings==="object"?profile.settings:{};
+      let accountProfile=profile;
+      if(accountName&&(!profile||profile.full_name?.trim()!==accountName)){
+        const {data:upsertedProfile,error:upsertError}=await supabase.from("profiles").upsert({id:user.id,full_name:accountName,account_type:profile?.account_type||user.user_metadata?.account_type||"job_seeker"},{onConflict:"id"}).select("id,full_name,country,experience,settings").single();
+        if(upsertError)throw upsertError;
+        accountProfile=upsertedProfile;
+      }
+      setUserId(user.id);setEmail(user.email||"");setFullName(accountProfile?.full_name?.trim()||accountName);setCountry(accountProfile?.country||"");setExperience(accountProfile?.experience||"");
+      const stored=accountProfile?.settings&&typeof accountProfile.settings==="object"?accountProfile.settings:{};
       setPrefs(current=>({...current,...stored}));
     }catch(e){if(mounted)setError(e?.message||"We couldn't load your account settings.")}finally{if(mounted)setLoading(false)}
   })();return()=>{mounted=false}},[]);
