@@ -1266,7 +1266,8 @@ function AdminApplications({go}){
   };
 
   const queueBulkEmail=async()=>{
-    const targets=filtered.filter(r=>selectedIds.includes(r.id));
+    const selectedTargets=filtered.filter(r=>selectedIds.includes(r.id));
+    const targets=[...new Map(selectedTargets.map(r=>[r.user_id,r])).values()];
     if(!targets.length){setBulkMessage("Select at least one candidate first.");return}
     if(!bulkSubject.trim()||!bulkBody.trim()){setBulkMessage("Enter an email subject and message.");return}
     const {data:{user}}=await supabase.auth.getUser();
