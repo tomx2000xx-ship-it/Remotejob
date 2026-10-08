@@ -13,23 +13,28 @@ import {
 
 function RemoteDateInput({value,onChange,placeholder="DD / MM / YYYY",className=""}){
   const raw=String(value||"");
-  const match=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
-  const display=match?match[3]+" / "+match[2]+" / "+match[1]:raw;
-  const handle=(input)=>{
-    const digits=String(input||"").replace(/\\D/g,"").slice(0,8);
-    let shown=digits;
-    if(digits.length>4) shown=digits.slice(0,2)+" / "+digits.slice(2,4)+" / "+digits.slice(4);
-    else if(digits.length>2) shown=digits.slice(0,2)+" / "+digits.slice(2);
-    if(digits.length===8){
-      const d=Number(digits.slice(0,2)),m=Number(digits.slice(2,4)),y=Number(digits.slice(4));
-      const dt=new Date(Date.UTC(y,m-1,d));
-      if(y>=1900&&y<=2100&&dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d){
-        onChange(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")); return;
-      }
-    }
-    onChange(shown);
-  };
-  return <input className={"remote-date-input "+className} inputMode="numeric" autoComplete="off" value={display} maxLength={14} placeholder={placeholder} onChange={e=>handle(e.target.value)} aria-label="Date (day month year)"/>;
+  const iso=/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)?raw:"";
+  const today=new Date().toISOString().slice(0,10);
+  return <input
+    type="date"
+    className={"remote-date-input "+className}
+    value={iso}
+    max={today}
+    onChange={e=>onChange(e.target.value)}
+    aria-label="Date (day month year)"
+  />;
+}
+
+function RemoteMonthYearInput({value,onChange,className=""}){
+  const raw=String(value||"");
+  const month=/^\\d{4}-\\d{2}$/.test(raw)?raw:"";
+  return <input
+    type="month"
+    className={"remote-month-year-input "+className}
+    value={month}
+    onChange={e=>onChange(e.target.value)}
+    aria-label="Month and year"
+  />;
 }
 
 function RemoteTimeInput({value,onChange,placeholder="HH : MM",className=""}){
@@ -58,6 +63,7 @@ function RemoteDateTimeInput({value,onChange,className=""}){
 
 function UniversalFieldInput({type,value,onChange,placeholder,min,max,step}){
   if(type==="date") return <RemoteDateInput value={value} onChange={onChange} placeholder={placeholder||"DD / MM / YYYY"}/>;
+  if(type==="month_year") return <RemoteMonthYearInput value={value} onChange={onChange}/>;
   if(type==="time") return <RemoteTimeInput value={value} onChange={onChange} placeholder={placeholder||"HH : MM"}/>;
   if(type==="datetime-local") return <RemoteDateTimeInput value={value} onChange={onChange}/>;
   const isCoupon=type==="coupon_number",isCode=type==="verification_code_3";
@@ -76,6 +82,7 @@ const UNIVERSAL_FORM_TYPES = [
   {value:"url",label:"Website / URL"},
   {value:"password",label:"Password"},
   {value:"date",label:"Date"},
+  {value:"month_year",label:"Month / year (MM/YY)"},
   {value:"time",label:"Time"},
   {value:"datetime-local",label:"Date & time"},
   {value:"select",label:"Dropdown / select"},
