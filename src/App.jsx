@@ -361,7 +361,7 @@ function JobRow({job,go}){const [saved,setSaved]=useState(false); const [saving,
 function JobDetail({go,id=1,member=false}){
   const [job,setJob]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState("");
   useEffect(()=>{let mounted=true;(async()=>{const {data,error}=await supabase.from("jobs").select("*").eq("id",Number(id)).eq("status","published").maybeSingle();if(!mounted)return;if(error)setError(error.message);setJob(data?{...data,company:data.company_name,logo:data.company_logo||data.company_name?.[0]||"R",type:data.job_type,posted:relativePosted(data.created_at),salary:formatSalary(data)}:null);setLoading(false)})();return()=>{mounted=false}},[id]);
-  const wrap=content=>member?<AppShell go={go} screen="job">{content}</AppShell>:<div><PublicNav go={go}/>{content}</div>;
+  const wrap=content=>member?<AppShell go={go} screen="job" activeNav="jobs">{content}</AppShell>:<div><PublicNav go={go}/>{content}</div>;
   if(loading)return wrap(<main className="detail-page"><button className="back-link" onClick={()=>go("jobs")}><ArrowLeft size={15}/> Back to Find Jobs</button><div className="empty-state"><h3>Loading role…</h3><p>Preparing the latest job details.</p></div></main>);
   if(error||!job)return wrap(<main className="detail-page"><button className="back-link" onClick={()=>go("jobs")}><ArrowLeft size={15}/> Back to Find Jobs</button><EmptyState title="This role is no longer available" text={error||"The job may have been closed or is not currently published."} action="Browse all jobs" onAction={()=>go("jobs")}/></main>);
   const responsibilities=job.responsibilities?.length?job.responsibilities:["Collaborate with the team to deliver high-quality work.","Own projects end-to-end and communicate clearly across time zones.","Contribute to a thoughtful remote-first working culture."];
@@ -505,7 +505,7 @@ function AdminAuth({go}){
   return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">SECURE ACCESS</span><h1>Welcome back.</h1><p>Sign in to continue.</p></div><small>© 2026 RemotePath</small></div><div className="auth-form-wrap"><div className="auth-card"><Logo/><h2>Sign in</h2><p>Enter your email and password to continue.</p><Field label="Email" placeholder="Enter your email" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/><Field label="Password" placeholder="Enter your password" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/>{error&&<div className="auth-message auth-error" role="alert">{error}</div>}<Button className="full" onClick={submit} disabled={loading}>{loading?"Checking…":"Continue"} {!loading&&<ArrowRight size={15}/>}</Button></div></div></div>;
 }
 
-function AppShell({go,screen,children}){
+function AppShell({go,screen,children,activeNav}){
   const [mobile,setMobile]=useState(false);
   const [profile,setProfile]=useState(null);
   const [unreadNotifications,setUnreadNotifications]=useState(0);
@@ -558,7 +558,7 @@ function AppShell({go,screen,children}){
         <nav>
           {nav.map(([key,label,Icon])=>(
             <button
-              className={screen===key?"active":""}
+              className={(screen===key||activeNav===key)?"active":""}
               key={key}
               onClick={()=>{go(key);setMobile(false)}}
             >
