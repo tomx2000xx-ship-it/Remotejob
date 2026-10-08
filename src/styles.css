@@ -1106,3 +1106,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .partner-logo-strip-payout-modal .partner-logo-list{gap:12px 14px}
  .partner-logo-strip-payout-modal .partner-logo-item span{font-size:11px}
 }
+
+.partner-logo-strip-verification{margin-top:16px;padding-top:14px;border-top:1px solid #e8ece8;color:#44544c;gap:12px}
+.partner-logo-strip-verification .partner-logo-list{gap:clamp(12px,2vw,20px)}
+.partner-logo-strip-verification .partner-logo-item{opacity:.82}
+.partner-logo-strip-verification .partner-logo-item img{width:17px;height:17px;flex-basis:17px}
+.partner-logo-strip-verification .partner-logo-item span{font-size:12px}
