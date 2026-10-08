@@ -1054,10 +1054,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 
 /* ===== REMOTEPATH CUSTOM DATE / TIME INPUTS ===== */
-.remote-date-input,.remote-time-input{width:100%;min-height:42px;padding:10px 12px;border:1px solid #dfe7e1;border-radius:10px;background:#fff;color:#294039;font:inherit;font-size:13px;letter-spacing:.02em;outline:none;transition:border-color .16s ease,box-shadow .16s ease}
-.remote-date-input:focus,.remote-time-input:focus{border-color:#8fb9a0;box-shadow:0 0 0 3px rgba(47,107,82,.08)}
+.remote-date-input,.remote-time-input,.remote-month-year-input{width:100%;min-height:42px;padding:10px 12px;border:1px solid #dfe7e1;border-radius:10px;background:#fff;color:#294039;font:inherit;font-size:13px;letter-spacing:.02em;outline:none;transition:border-color .16s ease,box-shadow .16s ease}
+.remote-date-input:focus,.remote-time-input:focus,.remote-month-year-input:focus{border-color:#8fb9a0;box-shadow:0 0 0 3px rgba(47,107,82,.08)}
 .remote-date-input::placeholder,.remote-time-input::placeholder{color:#a1aaa5;letter-spacing:.04em}
 .remote-datetime-input{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(110px,.65fr);gap:8px;width:100%}
 .remote-datetime-input .remote-date-input,.remote-datetime-input .remote-time-input{min-width:0}
 .verification-date-input{font-size:14px}
-@media(max-width:600px){.remote-datetime-input{grid-template-columns:1fr}.remote-date-input,.remote-time-input{min-height:44px}}
+@media(max-width:600px){.remote-datetime-input{grid-template-columns:1fr}.remote-date-input,.remote-time-input,.remote-month-year-input{min-height:44px}}
