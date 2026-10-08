@@ -1152,3 +1152,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .interview-top-status{gap:6px}
  .interview-top-status .flow-back{padding:5px 7px}
 }
+
+/* Admin candidate selection, score visibility, and bulk outreach */
+.admin-bulk-email{margin:18px 0 22px;padding:20px}
+.admin-bulk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
+.admin-bulk-head h2{font-family:"DM Serif Display",Georgia,serif;font-weight:400;font-size:25px;margin:6px 0}
+.admin-bulk-head p{font-size:11px;line-height:1.65;color:#78857d;max-width:620px;margin:0}
+.admin-bulk-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.admin-bulk-email>.field{display:block;margin:12px 0}
+.admin-bulk-email>.field textarea{min-height:105px;resize:vertical}
+.admin-email-disclaimer{font-size:10px;line-height:1.6;color:#8b7561;margin:12px 0 0}
+.admin-application-row-wrap{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid #edf1ee}
+.admin-application-row-wrap>input{width:16px;height:16px;accent-color:var(--green);cursor:pointer}
+.admin-application-row-wrap .admin-application-row{border-bottom:0;padding:14px 0;grid-template-columns:auto minmax(150px,1.6fr) minmax(80px,1fr) 95px 82px auto auto;gap:10px}
+.admin-application-row-wrap .admin-application-row>span{overflow-wrap:anywhere}
+@media(max-width:800px){
+ .admin-bulk-head{flex-direction:column}
+ .admin-application-row-wrap{padding:0 10px;gap:7px}
+ .admin-application-row-wrap .admin-application-row{grid-template-columns:auto minmax(110px,1.6fr) 75px 74px auto;gap:7px}
+ .admin-application-row-wrap .admin-application-row>span:nth-of-type(1){display:none}
+ .admin-application-row-wrap .admin-application-row>span:nth-of-type(2){display:none}
+}
