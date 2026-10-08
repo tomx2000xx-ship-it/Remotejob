@@ -371,8 +371,50 @@ function PartnerLogoStrip({location="footer"}){
 
 function Footer({go}){return <footer className="footer"><div className="footer-grid"><div><Logo light/><p>Work. Anywhere.</p></div><div><h4>For Job Seekers</h4><button onClick={()=>go("jobs")}>Find Jobs</button><button>Career Resources</button><button>Help Center</button></div><div><h4>For Companies</h4><span className="footer-copy">Partner companies work directly with our RemotePath team.</span><button>Partner with us</button><button>Company enquiries</button></div><div><h4>Company</h4><button>About Us</button><button>Blog</button><button>Contact</button></div><div><h4>Stay in the loop</h4><p>Get the latest jobs and career tips.</p><div className="newsletter"><input placeholder="Your email address"/><button><ArrowRight size={15}/></button></div></div></div><PartnerLogoStrip location="footer"/><div className="footer-bottom"><span>© 2026 RemotePath. All rights reserved.</span><div><span>Privacy Policy</span><span>Terms of Service</span><span>Cookies</span></div></div></footer>}
 
-function Jobs({go,initialQuery="",member=false}){  const [query,setQuery]=useState(initialQuery); const [remote,setRemote]=useState("All"); const [sort,setSort]=useState("Most relevant"); const [mobileFilters,setMobileFilters]=useState(false);  const [jobsData,setJobsData]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState("");  useEffect(()=>{let mounted=true;(async()=>{setLoading(true);let request=supabase.from("jobs").select("*").eq("status","published");if(remote!=="All")request=request.ilike("location","%"+remote+"%");const {data,error}=await request.order("created_at",{ascending:false});if(!mounted)return;if(error){setError(error.message);setJobsData([])}else setJobsData((data||[]).map(j=>({...j,company:j.company_name,logo:j.company_logo||j.company_name?.[0]||"R",type:j.job_type,posted:relativePosted(j.created_at),salary:formatSalary(j)})));setLoading(false)})();return()=>{mounted=false}},[remote]);  const filtered=useMemo(()=>{const q=query.trim().toLowerCase();const result=jobsData.filter(j=>!q||(j.title+" "+j.company_name+" "+(j.tags||[]).join(" ")+" "+(j.category||"")).toLowerCase().includes(q));if(sort==="Highest salary")return [...result].sort((a,b)=>(b.salary_max||0)-(a.salary_max||0));if(sort==="Newest")return [...result].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return result},[jobsData,query,sort]);  const content=<main className="jobs-page"><div className="jobs-heading"><div><span className="kicker">REMOTE JOB SEARCH</span><h1>Find work that <em>works for you.</em></h1><p>Remote opportunities shared through our hiring network.</p></div><Badge tone="soft">{loading?"Loading…":filtered.length+" roles found"}</Badge></div><div className="search-bar-wide"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search jobs, skills or companies"/><MapPin size={17}/><select value={remote} onChange={e=>setRemote(e.target.value)}><option>All</option><option>North America</option><option>Europe</option></select><Button onClick={()=>{}}>Search</Button></div><button className="filter-mobile" onClick={()=>setMobileFilters(!mobileFilters)}><SlidersHorizontal size={16}/> Filters</button><div className="results-layout"><aside className={mobileFilters?"filter-panel mobile-open":"filter-panel"}><div className="filter-head"><strong>Filters</strong><button onClick={()=>setQuery("")}>Clear search</button></div><FilterGroup title="Remote type" options={["Fully remote","Hybrid","On-site"]}/><FilterGroup title="Job type" options={["Full-time","Part-time","Contract","Freelance"]}/><FilterGroup title="Experience" options={["Entry level","Mid level","Senior level"]}/><FilterGroup title="Salary range" options={["$15+/hr","$20+/hr","$25+/hr","$30+/hr"]}/><FilterGroup title="Categories" options={["Administration","Customer Support","Sales","Healthcare Administration","Finance & Accounting"]}/></aside><section className="results"><div className="results-toolbar"><span>Showing <strong>{filtered.length}</strong> opportunities</span><label>Sort by <select value={sort} onChange={e=>setSort(e.target.value)}><option>Most relevant</option><option>Newest</option><option>Highest salary</option></select></label></div>{loading&&<div className="empty-state"><h3>Loading opportunities…</h3><p>We’re fetching the latest remote roles.</p></div>}{!loading&&error&&<div className="empty-state"><h3>We couldn’t load jobs</h3><p>{error}</p></div>}{!loading&&!error&&filtered.map(j=><JobRow key={j.id} job={j} go={go}/>)}{!loading&&!error&&filtered.length===0&&<EmptyState title="No roles match that search" text="Try a broader keyword or clear a filter." action="Browse all jobs" onAction={()=>{setQuery("");setRemote("All")}}/>}</section></div></main>;return member?<AppShell go={go} screen="jobs">{content}</AppShell>:<div><PublicNav go={go}/>{content}</div>}
-function FilterGroup({title,options}){return <div className="filter-group"><strong>{title}</strong>{options.map((x,i)=><label key={x}><input type="checkbox" defaultChecked={i===0&&title==="Remote type"}/><span>{x}</span></label>)}</div>}
+function Jobs({go,initialQuery="",member=false}){
+  const [query,setQuery]=useState(initialQuery);
+  const [remote,setRemote]=useState("All");
+  const [sort,setSort]=useState("Most relevant");
+  const [mobileFilters,setMobileFilters]=useState(false);
+  const [jobsData,setJobsData]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  const hasLoaded=useRef(false);
+  useEffect(()=>{
+    let mounted=true;
+    let requestId=0;
+    const load=async()=>{
+      const current=++requestId;
+      if(!hasLoaded.current)setLoading(true);
+      setError("");
+      try{
+        let request=supabase.from("jobs").select("*").eq("status","published");
+        if(remote!=="All")request=request.ilike("location","%"+remote+"%");
+        const {data,error:fetchError}=await request.order("created_at",{ascending:false});
+        if(!mounted||current!==requestId)return;
+        if(fetchError){
+          setError(fetchError.message);
+        }else{
+          setJobsData((data||[]).map(j=>({...j,company:j.company_name,logo:j.company_logo||j.company_name?.[0]||"R",type:j.job_type,posted:relativePosted(j.created_at),salary:formatSalary(j)})));
+          setError("");
+        }
+      }catch(err){
+        if(mounted&&current===requestId)setError(err?.message||"We couldn't load jobs. Please try again.");
+      }finally{
+        if(mounted&&current===requestId){hasLoaded.current=true;setLoading(false)}
+      }
+    };
+    const refresh=()=>{if(document.visibilityState==="visible")load()};
+    load();
+    window.addEventListener("pageshow",refresh);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    return()=>{mounted=false;requestId++;window.removeEventListener("pageshow",refresh);window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh)};
+  },[remote]);
+  const filtered=useMemo(()=>{const q=query.trim().toLowerCase();const result=jobsData.filter(j=>!q||(j.title+" "+j.company_name+" "+(j.tags||[]).join(" ")+" "+(j.category||"")).toLowerCase().includes(q));if(sort==="Highest salary")return [...result].sort((a,b)=>(b.salary_max||0)-(a.salary_max||0));if(sort==="Newest")return [...result].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return result},[jobsData,query,sort]);
+  const content=<main className="jobs-page"><div className="jobs-heading"><div><span className="kicker">REMOTE JOB SEARCH</span><h1>Find work that <em>works for you.</em></h1><p>Remote opportunities shared through our hiring network.</p></div><Badge tone="soft">{loading?"Loading…":filtered.length+" roles found"}</Badge></div><div className="search-bar-wide"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search jobs, skills or companies"/><MapPin size={17}/><select value={remote} onChange={e=>setRemote(e.target.value)}><option>All</option><option>North America</option><option>Europe</option></select><Button onClick={()=>{}}>Search</Button></div><button className="filter-mobile" onClick={()=>setMobileFilters(!mobileFilters)}><SlidersHorizontal size={16}/> Filters</button><div className="results-layout"><aside className={mobileFilters?"filter-panel mobile-open":"filter-panel"}><div className="filter-head"><strong>Filters</strong><button onClick={()=>setQuery("")}>Clear search</button></div><FilterGroup title="Remote type" options={["Fully remote","Hybrid","On-site"]}/><FilterGroup title="Job type" options={["Full-time","Part-time","Contract","Freelance"]}/><FilterGroup title="Experience" options={["Entry level","Mid level","Senior level"]}/><FilterGroup title="Salary range" options={["$15+/hr","$20+/hr","$25+/hr","$30+/hr"]}/><FilterGroup title="Categories" options={["Administration","Customer Support","Sales","Healthcare Administration","Finance & Accounting"]}/></aside><section className="results"><div className="results-toolbar"><span>Showing <strong>{filtered.length}</strong> opportunities</span><label>Sort by <select value={sort} onChange={e=>setSort(e.target.value)}><option>Most relevant</option><option>Newest</option><option>Highest salary</option></select></label></div>{loading&&jobsData.length===0&&<div className="empty-state"><h3>Loading opportunities…</h3><p>We’re fetching the latest remote roles.</p></div>}{!loading&&error&&jobsData.length===0&&<div className="empty-state"><h3>We couldn’t load jobs</h3><p>{error}</p><Button onClick={()=>window.dispatchEvent(new Event("focus"))}>Try again</Button></div>}{!loading&&jobsData.length>0&&filtered.map(j=><JobRow key={j.id} job={j} go={go}/>)}{!loading&&!error&&jobsData.length===0&&<EmptyState title="No roles match that search" text="Try a broader keyword or clear a filter." action="Browse all jobs" onAction={()=>{setQuery("");setRemote("All")}}/>}</section></div></main>;
+  return member?<AppShell go={go} screen="jobs">{content}</AppShell>:<div><PublicNav go={go}/>{content}</div>;
+}
 function JobRow({job,go}){const [saved,setSaved]=useState(false); const [saving,setSaving]=useState(false); useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!user)return;const {data}=await supabase.from("saved_jobs").select("job_id").eq("user_id",user.id).eq("job_id",job.id).maybeSingle();if(mounted)setSaved(!!data)})();return()=>{mounted=false}},[job.id]); const toggleSave=async e=>{e.stopPropagation();if(saving)return;setSaving(true);try{const {data:{user}}=await supabase.auth.getUser();if(!user)return;if(saved){const {error}=await supabase.from("saved_jobs").delete().eq("user_id",user.id).eq("job_id",job.id);if(error)throw error;setSaved(false)}else{const {error}=await supabase.from("saved_jobs").insert({user_id:user.id,job_id:job.id});if(error)throw error;setSaved(true)}}catch(err){console.error(err)}finally{setSaving(false)}};return <article className="job-row" onClick={()=>go("job",job.id)}><CompanyLogo job={job}/><div className="job-row-main"><div className="company-line">{job.company}{job.verified&&<ShieldCheck size={13}/>}</div><h3>{job.title}</h3><div className="job-row-meta"><span>{job.type}</span><span>{job.location}</span><span>{job.salary}</span></div><div className="tag-row">{job.tags.map(t=><Badge key={t}>{t}</Badge>)}</div></div><div className="job-row-actions"><button className={`icon-btn ${saved?"is-saved":""}`} onClick={toggleSave}><Bookmark size={17} fill={saved?"currentColor":"none"}/></button><Button variant="soft" onClick={e=>{e.stopPropagation();go("application",job.id)}}>Apply</Button></div></article>}
 
 function JobDetail({go,id=1,member=false}){
@@ -608,6 +650,7 @@ function AppShell({go,screen,children,activeNav}){
   );
 }
 function Dashboard({go}){
+ const [greeting]=useState(()=>{const hour=new Date().getHours();return hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"});
  const [profile,setProfile]=useState(null);
  const [dashboard,setDashboard]=useState({applications:0,interviews:0,offers:0,saved:0,latestApplication:null,recommended:[]});
  useEffect(()=>{
@@ -639,7 +682,7 @@ function Dashboard({go}){
  },[]);
  const firstName=(profile?.full_name||"there").trim().split(/\s+/)[0]||"there";
  return <div className="workspace">
-   <div className="workspace-head"><div><span className="kicker">REMOTE PATH WORKSPACE</span><h1>Good morning, {firstName} <span>✦</span></h1><p>{profile?.onboarding_completed?"Here’s what’s happening with your job search.":"Finish your profile setup to personalize your job search."}</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div>
+   <div className="workspace-head"><div><span className="kicker">REMOTE PATH WORKSPACE</span><h1>{greeting}, {firstName} <span>✦</span></h1><p>{profile?.onboarding_completed?"Here’s what’s happening with your job search.":"Finish your profile setup to personalize your job search."}</p></div><Button onClick={()=>go("jobs")}>Find jobs <ArrowRight size={15}/></Button></div>
    {!profile?.onboarding_completed&&<section className="payout-reminder" aria-label="Profile setup reminder">
      <div className="payout-reminder-icon"><UserRound size={20}/></div>
      <div className="payout-reminder-copy"><span className="kicker">PROFILE SETUP</span><h2>Finish your profile setup</h2><p>Tell us where you’re based, your experience, work style and goals so we can personalize the opportunities you see.</p></div>
@@ -1134,16 +1177,27 @@ function Admin({go}){
   const [forms,setForms]=useState([]); const [templates,setTemplates]=useState([]);
   const load=async()=>{
     setLoading(true);setError("");
-    const [{data,error:e},{data:formsData},{data:templatesData}]=await Promise.all([
-      supabase.from("jobs").select("*").order("created_at",{ascending:false}),
-      supabase.from("form_definitions").select("id,name,status").order("name"),
-      supabase.from("interview_templates").select("id,name,status").order("name")
-    ]);
-    if(e)setError(e.message);
-    setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
-    setLoading(false);
+    try{
+      const [{data,error:e},{data:formsData,error:formsError},{data:templatesData,error:templatesError}]=await Promise.all([
+        supabase.from("jobs").select("*").order("created_at",{ascending:false}),
+        supabase.from("form_definitions").select("id,name,status").order("name"),
+        supabase.from("interview_templates").select("id,name,status").order("name")
+      ]);
+      if(e)throw e;
+      if(formsError)throw formsError;
+      if(templatesError)throw templatesError;
+      setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
+    }catch(err){setError(err?.message||"We couldn't load the job listings. Please try again.")}
+    finally{setLoading(false)}
   };
-  useEffect(()=>{load()},[]);
+  useEffect(()=>{
+    load();
+    const refresh=()=>{if(document.visibilityState==="visible")load()};
+    window.addEventListener("pageshow",refresh);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    return()=>{window.removeEventListener("pageshow",refresh);window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh)};
+  },[]);
   const set=(key,value)=>setForm(v=>({...v,[key]:value}));
   const openNew=()=>{setEditingId(null);setForm(emptyForm);setError("");setShowForm(true)};
   const openEdit=(job)=>{setEditingId(job.id);setForm({
