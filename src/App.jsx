@@ -1210,6 +1210,13 @@ function AdminApplications({go}){
   const [selected,setSelected]=useState(null);
   const [resumeUrl,setResumeUrl]=useState("");
   const [updating,setUpdating]=useState(false);
+  const [results,setResults]=useState([]);
+  const [emailRecipients,setEmailRecipients]=useState([]);
+  const [selectedIds,setSelectedIds]=useState([]);
+  const [bulkSubject,setBulkSubject]=useState("An update about your RemotePath application");
+  const [bulkBody,setBulkBody]=useState("Thank you for applying through RemotePath. The team has an update about your application. Please sign in to your account to review your next steps.");
+  const [queueing,setQueueing]=useState(false);
+  const [bulkMessage,setBulkMessage]=useState("");
 
   const load=async()=>{
     setLoading(true);setError("");
@@ -1219,6 +1226,12 @@ function AdminApplications({go}){
     ]);
     if(appError||jobError){setError((appError||jobError).message);setRows([]);setJobs([])}
     else{setRows(apps||[]);setJobs(jobRows||[])}
+    const [{data:scoreRows},{data:emailRows}] = await Promise.all([
+      supabase.from("interview_results").select("application_id,score,total_questions,passed,reviewed_at"),
+      supabase.from("interview_email_queue").select("application_id,interview_id,candidate_id,recipient_email,status")
+    ]);
+    setResults(scoreRows||[]);
+    setEmailRecipients(emailRows||[]);
     setLoading(false);
   };
 
@@ -1252,6 +1265,27 @@ function AdminApplications({go}){
     setUpdating(false);
   };
 
+  const queueBulkEmail=async()=>{
+    const targets=filtered.filter(r=>selectedIds.includes(r.id));
+    if(!targets.length){setBulkMessage("Select at least one candidate first.");return}
+    if(!bulkSubject.trim()||!bulkBody.trim()){setBulkMessage("Enter an email subject and message.");return}
+    const {data:{user}}=await supabase.auth.getUser();
+    if(!user){setBulkMessage("Your admin session has expired. Please sign in again.");return}
+    const payload=targets.map(r=>{
+      const delivery=emailRecipients.find(e=>e.application_id===r.id);
+      if(!delivery)return null;
+      return {application_id:r.id,candidate_id:r.user_id,recipient_email:delivery.recipient_email,subject:bulkSubject.trim(),body:bulkBody.trim(),route_path:"/dashboard",send_after:new Date().toISOString(),status:"queued",created_by:user.id};
+    }).filter(Boolean);
+    if(!payload.length){setBulkMessage("No selected application has an email address available in the invitation queue.");return}
+    setQueueing(true);setBulkMessage("");
+    const {error:queueError}=await supabase.from("admin_email_queue").insert(payload);
+    if(queueError)setBulkMessage("Could not queue the emails: "+queueError.message);
+    else{setBulkMessage("Queued "+payload.length+" email(s). Delivery is pending until the email-sending service is configured.");setSelectedIds([])}
+    setQueueing(false);
+  };
+  const selectAllFiltered=()=>setSelectedIds(filtered.map(r=>r.id));
+  const selectPassedFiltered=()=>setSelectedIds(filtered.filter(r=>results.some(x=>x.application_id===r.id&&x.passed)).map(r=>r.id));
+  const toggleCandidate=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const statusTone=s=>s==="submitted"?"green":s==="reviewing"||s==="interview"?"amber":s==="hired"?"green":"soft";
 
   return <div className="workspace admin-workspace">
@@ -1265,13 +1299,24 @@ function AdminApplications({go}){
         <label className="field"><span>Status</span><select value={status} onChange={e=>setStatus(e.target.value)}><option>All</option><option value="submitted">Submitted</option><option value="reviewing">Reviewing</option><option value="interview">Interview</option><option value="rejected">Rejected</option><option value="hired">Hired</option><option value="withdrawn">Withdrawn</option></select></label>
       </div>
     </section>
+    <section className="panel admin-bulk-email">
+      <div className="admin-bulk-head"><div><span className="kicker">CANDIDATE OUTREACH</span><h2>Bulk email</h2><p>Select candidates below, including candidates who passed the interview assessment, then prepare one message for the selected group.</p></div><Badge tone="soft">{selectedIds.length} selected</Badge></div>
+      <div className="admin-bulk-actions"><Button variant="outline" onClick={selectAllFiltered}>Select all filtered</Button><Button variant="outline" onClick={selectPassedFiltered}>Select candidates who passed</Button><Button variant="ghost" onClick={()=>setSelectedIds([])}>Clear selection</Button></div>
+      <label className="field"><span>Email subject</span><input value={bulkSubject} onChange={e=>setBulkSubject(e.target.value)} placeholder="Email subject"/></label>
+      <label className="field"><span>Email message</span><textarea rows={4} value={bulkBody} onChange={e=>setBulkBody(e.target.value)} placeholder="Write the message for selected candidates"/></label>
+      {bulkMessage&&<div className={bulkMessage.startsWith("Queued")?"notice":"auth-message auth-error"} role="status">{bulkMessage}</div>}
+      <Button onClick={queueBulkEmail} disabled={queueing||selectedIds.length===0}>{queueing?"Queuing emails…":"Queue email to selected candidates"} <Send size={15}/></Button>
+      <p className="admin-email-disclaimer">Emails are added to the secure delivery queue. They will not be delivered until a sending provider and scheduled delivery process are connected.</p>
+    </section>
     <div className="pipeline-tabs">
       {["All","submitted","reviewing","interview","hired"].map(x=><button key={x} className={status===x?"active":""} onClick={()=>setStatus(x)}>{x==="All"?"All":x[0].toUpperCase()+x.slice(1)} <span>{x==="All"?rows.length:rows.filter(r=>r.status===x).length}</span></button>)}
     </div>
-    {loading?<div className="empty-state"><h3>Loading applications…</h3><p>Fetching the latest candidate submissions.</p></div>:filtered.length===0?<EmptyState title="No applications match these filters" text="New candidate applications will appear here when job seekers submit their applications." action="Clear filters" onAction={()=>{setQuery("");setJobId("All");setStatus("All")}}/>:<section className="panel"><div className="candidate-table">{filtered.map(r=><button type="button" className="candidate-row large admin-application-row" key={r.id} onClick={()=>openApplication(r)}><Avatar letter={(r.profiles?.full_name||"C")[0].toUpperCase()}/><div><strong>{r.profiles?.full_name||"Candidate"}</strong><span>{r.jobs?.title||"Job application"} · {r.jobs?.company_name||"Partner company"}</span></div><span>{r.profiles?.country||"Country not set"}</span><span>{r.submitted_at?new Date(r.submitted_at).toLocaleDateString():new Date(r.created_at).toLocaleDateString()}</span><Badge tone={statusTone(r.status)}>{r.status}</Badge><span className="candidate-action"><ArrowRight size={15}/></span></button>)}</div></section>}
+    {loading?<div className="empty-state"><h3>Loading applications…</h3><p>Fetching the latest candidate submissions.</p></div>:filtered.length===0?<EmptyState title="No applications match these filters" text="New candidate applications will appear here when job seekers submit their applications." action="Clear filters" onAction={()=>{setQuery("");setJobId("All");setStatus("All")}}/>:<section className="panel"><div className="candidate-table">{filtered.map(r=>{const result=results.find(x=>x.application_id===r.id);return <div className="admin-application-row-wrap" key={r.id}><input type="checkbox" aria-label={"Select "+(r.profiles?.full_name||"candidate")} checked={selectedIds.includes(r.id)} onChange={()=>toggleCandidate(r.id)}/><button type="button" className="candidate-row large admin-application-row" onClick={()=>openApplication(r)}><Avatar letter={(r.profiles?.full_name||"C")[0].toUpperCase()}/><div><strong>{r.profiles?.full_name||"Candidate"}</strong><span>{r.jobs?.title||"Job application"} · {r.jobs?.company_name||"Partner company"}</span></div><span>{r.profiles?.country||"Country not set"}</span><span>{r.submitted_at?new Date(r.submitted_at).toLocaleDateString():new Date(r.created_at).toLocaleDateString()}</span><span>{result?result.score+"/"+result.total_questions+" correct":"Not taken"}</span><Badge tone={statusTone(r.status)}>{r.status}</Badge><span className="candidate-action"><ArrowRight size={15}/></span></button></div>})}</div></section>}
     {selected&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="payout-modal admin-application-modal" role="dialog" aria-modal="true">
       <div className="payout-modal-head"><div><span className="kicker">APPLICATION #{selected.id}</span><h2>{selected.profiles?.full_name||"Candidate"}</h2><p>{selected.jobs?.title||"Job application"} · {selected.jobs?.company_name||"Partner company"}</p></div><button className="payout-modal-close" onClick={()=>setSelected(null)}><X size={18}/></button></div>
       <div className="review-list">
+        <ReviewItem label="Interview score" value={(results.find(x=>x.application_id===selected.id))?results.find(x=>x.application_id===selected.id).score+"/"+results.find(x=>x.application_id===selected.id).total_questions+" correct": "Not completed yet"}/>
+        <ReviewItem label="Assessment outcome" value={(results.find(x=>x.application_id===selected.id))?(results.find(x=>x.application_id===selected.id).passed?"Met preliminary threshold":"Below preliminary threshold"):"Pending review"}/>
         <ReviewItem label="Country" value={selected.profiles?.country||"Not provided"}/>
         <ReviewItem label="Experience" value={selected.profiles?.experience||"Not provided"}/>
         <ReviewItem label="Work preference" value={selected.profiles?.work_type||"Not provided"}/>
