@@ -1453,7 +1453,7 @@ function Verification({go}){
         setExisting(data);
         setCountry(data.country||"United States");
         setDocumentType(data.document_type||"");
-        if(data.status==="in_progress")setStep(5);
+        if(data.status==="in_progress")setStep(1);
       }
       setLoading(false);
     })();
