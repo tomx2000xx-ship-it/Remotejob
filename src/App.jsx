@@ -1976,12 +1976,12 @@ function SupportWidget(){
     </button>
     {open&&<section className="support-panel" aria-label="RemotePath Support">
       <header className="support-header">
-        <div className="support-brand"><span className="support-avatar"><MessageCircle size={16}/></span><div><strong>RemotePath Support</strong><small>Here when you need us</small></div></div>
+        <div className="support-brand"><img className="support-avatar" src="/support-maya.jpg" alt="Maya K., RemotePath support agent" /><div><strong>Maya K.</strong><small>RemotePath Support · Here when you need us</small></div></div>
         <button className="support-close" onClick={()=>setOpen(false)} aria-label="Close support"><X size={17}/></button>
       </header>
 
       {view==="empty"&&<div className="support-body support-empty">
-        <div className="support-welcome"><span className="support-welcome-icon"><CircleHelp size={22}/></span><span className="kicker">HOW CAN WE HELP?</span><h3>What can we help you with?</h3><p>Start a conversation or open a ticket and we’ll guide you from there.</p></div>
+        <div className="support-welcome"><img className="support-agent-portrait" src="/support-maya.jpg" alt="Maya K., your RemotePath support agent" /><span className="support-agent-name">Maya K.</span><span className="support-agent-role"><i/> RemotePath Support · Here to help</span><span className="kicker">HOW CAN WE HELP?</span><h3>What can we help you with?</h3><p>Choose a support option below. Maya and the RemotePath team are here to help.</p></div>
         {error&&<div className="auth-message auth-error">{error}</div>}
         <div className="support-actions">
           <button onClick={startChat} disabled={loading}><span><MessageCircle size={17}/></span><div><strong>{loading?"Loading…":"I need help"}</strong><small>Chat with support</small></div><ArrowRight size={15}/></button>
