@@ -1563,38 +1563,102 @@ function AdminMembers({go}){
   const [error,setError]=useState("");
   const [saving,setSaving]=useState("");
   const [query,setQuery]=useState("");
+  const [selected,setSelected]=useState(null);
+  const [details,setDetails]=useState(null);
+  const [detailLoading,setDetailLoading]=useState(false);
+  const [detailError,setDetailError]=useState("");
+  const [fileBusy,setFileBusy]=useState("");
   const load=async()=>{
     setLoading(true);setError("");
-    const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,work_type,goal,role,account_type,account_status,onboarding_completed,created_at").order("created_at",{ascending:false});
+    const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
     if(e)setError(e.message);
     setRows(data||[]);setLoading(false);
   };
   useEffect(()=>{load()},[]);
+  const openDetails=async(row)=>{
+    setSelected(row);setDetails(null);setDetailError("");setDetailLoading(true);
+    const userId=row.id;
+    const requests=[
+      ["applications",supabase.from("applications").select("id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["resumes",supabase.from("resumes").select("id,file_name,storage_path,file_size,mime_type,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["savedJobs",supabase.from("saved_jobs").select("job_id,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["interviews",supabase.from("interviews").select("id,application_id,title,company_name,status,scheduled_at,duration_minutes,started_at,completed_at,score,total_questions,passed,created_at").eq("candidate_id",userId).order("created_at",{ascending:false})],
+      ["tickets",supabase.from("support_tickets").select("id,issue_type,subject,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["verification",supabase.from("verification_profiles").select("id,status,country,document_type,provider,started_at,submitted_at,verified_at,needs_attention_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["payouts",supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["payoutMethods",supabase.from("payout_methods").select("id,method_type,is_default,bank_country,bank_name,account_holder_name,account_last4,paypal_name,paypal_email,cardholder_name,card_last4,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["notifications",supabase.from("notifications").select("id,type,title,body,read_at,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(30)],
+      ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+      ["supportMessages",supabase.from("support_messages").select("id,ticket_id,sender_type,body,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(50)]
+    ];
+    const results=await Promise.all(requests.map(async([key,request])=>({key,...(await request)})));
+    const loaded={};
+    const failed=[];
+    for(const result of results){loaded[result.key]=result.data||[];if(result.error)failed.push(result.key);}
+    setDetails(loaded);
+    if(failed.length)setDetailError("Some sections could not be loaded due to database access rules: "+failed.join(", ")+". Other available details are shown below.");
+    setDetailLoading(false);
+  };
   const changeStatus=async(row,status)=>{
     if(row.account_status===status)return;
     setSaving(row.id);setError("");
     const {data:{user}}=await supabase.auth.getUser();
-    const {data,error:e}=await supabase.from("profiles").update({account_status:status}).eq("id",row.id).select("id,full_name,country,experience,work_type,goal,role,account_type,account_status,onboarding_completed,created_at").single();
+    const {data,error:e}=await supabase.from("profiles").update({account_status:status}).eq("id",row.id).select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
     if(e)setError(e.message);
     else{
       setRows(prev=>prev.map(x=>x.id===row.id?data:x));
+      if(selected?.id===row.id)setSelected(data);
       await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"account_status_changed",target_type:"profile",target_id:row.id,details:{from:row.account_status,to:status}});
     }
     setSaving("");
   };
+  const openResume=async(file)=>{
+    setFileBusy(file.id);setDetailError("");
+    try{
+      const {data,error:e}=await supabase.storage.from("resumes").createSignedUrl(file.storage_path,300);
+      if(e)throw e;
+      if(!data?.signedUrl)throw new Error("A secure file link could not be created.");
+      window.open(data.signedUrl,"_blank","noopener,noreferrer");
+    }catch(e){setDetailError(e?.message||"Could not open this private file.");}
+    finally{setFileBusy("");}
+  };
+  const fmtDate=value=>value?new Date(value).toLocaleString():"—";
+  const showValue=value=>value===null||value===undefined||value===""?"Not provided":Array.isArray(value)?(value.length?value.join(", "):"None selected"):typeof value==="object"?JSON.stringify(value):String(value);
+  const section=(title,items,fields,empty="No records found")=><section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>{title} <span style={{fontWeight:400,color:"var(--muted,#777)"}}>({items?.length||0})</span></h3>{!items?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>{empty}</p>:<div style={{display:"grid",gap:10}}>{items.map((item,index)=><div key={item.id||item.job_id||index} style={{padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",overflowWrap:"anywhere"}}>{fields.map(([label,key])=><div key={key} style={{display:"grid",gridTemplateColumns:"minmax(100px, 160px) minmax(0,1fr)",gap:10,padding:"3px 0"}}><span style={{color:"var(--muted,#777)",fontSize:13}}>{label}</span><span style={{fontSize:13}}>{showValue(item[key])}</span></div>)}</div>)}</div>}</section>;
   const q=query.trim().toLowerCase();
-  const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status].filter(Boolean).join(" ").toLowerCase().includes(q));
+  const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status,r.id].filter(Boolean).join(" ").toLowerCase().includes(q));
   return <div className="workspace admin-workspace">
-    <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Member management</h1><p>Manage candidate accounts and account access without exposing authentication secrets.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
-    <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Restricted administrative controls</strong><span>Passwords, authentication tokens and private identity data are never exposed here. Access controls apply to the RemotePath profile only.</span></div></section>
+    <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Member management</h1><p>Open any member to review their available account, work, document and activity records in one place.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
+    <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Restricted administrative controls</strong><span>Private files use short-lived signed links. Passwords, authentication tokens and full payment card credentials are not displayed.</span></div></section>
     {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
-    <section className="panel"><div className="application-admin-filters"><label className="field"><span>Search members</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, country or status"/></label></div></section>
+    <section className="panel"><div className="application-admin-filters"><label className="field"><span>Search members</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, country, ID, role or status"/></label></div></section>
     {loading?<div className="empty-state"><h3>Loading members…</h3><p>Fetching profile records from Supabase.</p></div>:filtered.length===0?<EmptyState title="No members found" text="Try a different search."/>:<section className="panel"><div className="admin-member-list">{filtered.map(row=><div className="admin-member-row" key={row.id}>
       <Avatar letter={(row.full_name||"M")[0].toUpperCase()}/>
       <div className="admin-member-main"><strong>{row.full_name||"Unnamed member"}</strong><span>{row.country||"Country not set"} · {row.account_type==="job_seeker"?"Job seeker":"Employer"} · {(row.role==="admin"||row.role==="super_admin")?"Administrator":"Member"}</span><small>{row.onboarding_completed?"Onboarding complete":"Onboarding incomplete"} · Joined {new Date(row.created_at).toLocaleDateString()}</small></div>
+      <Button variant="outline" onClick={()=>openDetails(row)}><UserRound size={15}/> View profile</Button>
       <Badge tone={row.account_status==="active"?"green":row.account_status==="suspended"?"warning":"soft"}>{row.account_status}</Badge>
       {(row.role==="admin"||row.role==="super_admin")?<span className="admin-member-protected">Protected admin</span>:<label className="admin-status"><span>Access</span><select value={row.account_status} disabled={saving===row.id} onChange={e=>changeStatus(row,e.target.value)}><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></label>}
     </div>)}</div></section>}
+    {selected&&<div role="dialog" aria-modal="true" aria-label={"Member profile: "+(selected.full_name||"Unnamed member")} style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,25,22,.62)",display:"flex",justifyContent:"center",alignItems:"stretch",padding:"clamp(8px,2vw,24px)"}}>
+      <div style={{background:"var(--surface,#fff)",color:"var(--text,#222)",borderRadius:18,width:"min(1100px,100%)",overflowY:"auto",padding:"clamp(16px,3vw,28px)",boxShadow:"0 24px 80px rgba(0,0,0,.24)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,marginBottom:20}}><div><span className="kicker">COMPLETE MEMBER RECORD</span><h2 style={{margin:"6px 0"}}>{selected.full_name||"Unnamed member"}</h2><p style={{margin:0,color:"var(--muted,#777)",overflowWrap:"anywhere"}}>{selected.id}</p></div><Button variant="outline" onClick={()=>{setSelected(null);setDetails(null)}}><X size={16}/> Close</Button></div>
+        {detailLoading?<div className="empty-state"><h3>Loading member record…</h3><p>Collecting this member’s linked records.</p></div>:<React.Fragment>
+          {detailError&&<div className="auth-message auth-error" role="alert">{detailError}</div>}
+          <section className="panel" style={{padding:18}}><h3 style={{margin:"0 0 12px"}}>Account and work profile</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>{[["Full name",selected.full_name],["User ID",selected.id],["Country",selected.country],["Experience",selected.experience],["Account type",selected.account_type],["Role",selected.role],["Account status",selected.account_status],["Registered",fmtDate(selected.created_at)],["Last profile update",fmtDate(selected.updated_at)],["Onboarding",selected.onboarding_completed?"Complete":"Incomplete"],["Adaptive question",selected.adaptive_answer],["Work preference",selected.work_type],["Goal",selected.goal],["Interests",selected.interest_areas],["Settings",selected.settings]].map(([label,value])=><div key={label} style={{minWidth:0,overflowWrap:"anywhere"}}><small style={{display:"block",color:"var(--muted,#777)",marginBottom:4}}>{label}</small><strong style={{fontSize:14,fontWeight:500}}>{showValue(value)}</strong></div>)}</div></section>
+          {section("Applications",details?.applications,[["Application ID","id"],["Job ID","job_id"],["Status","status"],["Submitted","submitted_at"],["Created","created_at"],["Resume ID","resume_id"],["Cover note","cover_note"],["Answers","answers"]])}
+          <section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>Uploaded resumes ({details?.resumes?.length||0})</h3>{!details?.resumes?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>No resumes found.</p>:details.resumes.map(file=><div key={file.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",flexWrap:"wrap"}}><div style={{minWidth:0,overflowWrap:"anywhere"}}><strong>{file.file_name||"Resume file"}</strong><p style={{margin:"4px 0",fontSize:13,color:"var(--muted,#777)"}}>{file.mime_type||"Unknown type"} · {file.file_size?Math.round(file.file_size/1024)+" KB":"Size unavailable"} · {fmtDate(file.created_at)}</p></div><Button variant="outline" disabled={fileBusy===file.id} onClick={()=>openResume(file)}>{fileBusy===file.id?"Preparing…":"Open securely"}</Button></div>)}</section>
+          {section("Interviews",details?.interviews,[["Interview","title"],["Company","company_name"],["Status","status"],["Scheduled","scheduled_at"],["Duration (minutes)","duration_minutes"],["Score","score"],["Total questions","total_questions"],["Passed","passed"],["Started","started_at"],["Completed","completed_at"]])}
+          {section("Saved jobs",details?.savedJobs,[["Job ID","job_id"],["Saved","created_at"]])}
+          {section("Verification status",details?.verification,[["Status","status"],["Country","country"],["Document type","document_type"],["Provider","provider"],["Started","started_at"],["Submitted","submitted_at"],["Verified","verified_at"],["Needs attention","needs_attention_reason"]])}
+          {section("Identity details",details?.identity,[["Legal name","legal_name"],["Date of birth","date_of_birth"],["Country","country"],["Residential address","residential_address"],["Submitted","created_at"]])}
+          {section("Payout methods (sensitive values masked)",details?.payoutMethods,[["Method","method_type"],["Status","status"],["Default method","is_default"],["Bank country","bank_country"],["Bank name","bank_name"],["Account holder","account_holder_name"],["Account ending","account_last4"],["PayPal name","paypal_name"],["PayPal email","paypal_email"],["Cardholder","cardholder_name"],["Card ending","card_last4"],["Added","created_at"]])}
+          {section("Payout history",details?.payouts,[["Amount","amount"],["Currency","currency"],["Status","status"],["Reference","provider_reference"],["Failure reason","failure_reason"],["Created","created_at"],["Updated","updated_at"]])}
+          {section("Support tickets",details?.tickets,[["Subject","subject"],["Issue type","issue_type"],["Status","status"],["Created","created_at"],["Updated","updated_at"]])}
+          {section("Support messages",details?.supportMessages,[["Ticket ID","ticket_id"],["Sender type","sender_type"],["Message","body"],["Sent","created_at"]])}
+          {section("Recent notifications",details?.notifications,[["Title","title"],["Type","type"],["Message","body"],["Read at","read_at"],["Created","created_at"]])}
+        </React.Fragment>}
+      </div>
+    </div>}
   </div>;
 }
 
