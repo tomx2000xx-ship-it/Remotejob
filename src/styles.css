@@ -1214,3 +1214,57 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .inline-legal-link{border:0;background:transparent;color:#2f6b52;text-decoration:underline;text-underline-offset:2px;padding:0;font:inherit;font-weight:650;cursor:pointer}
 .footer-bottom button{font:inherit;font-size:inherit;padding:0}
 @media(max-width:760px){.legal-header{gap:12px;flex-wrap:wrap}.legal-header>.kicker{display:none}.legal-layout{grid-template-columns:1fr}.legal-toc{position:static;display:flex;overflow-x:auto;gap:4px;padding:6px}.legal-toc button{flex:0 0 auto;white-space:nowrap}.legal-toc button svg{display:none}.legal-main{padding-top:32px}.legal-document{padding:20px}.legal-footer{align-items:flex-start;flex-direction:column}.legal-intro{margin-bottom:24px}}
+
+
+/* Maya K. support profile and responsive customer support panel */
+.support-avatar{width:44px;height:44px;flex:0 0 44px;object-fit:cover;object-position:center 28%;border-radius:50%;border:2px solid rgba(255,255,255,.75);display:block}
+.support-brand strong{font-size:13px;letter-spacing:.01em}
+.support-brand small{font-size:10px;line-height:1.35;white-space:normal}
+.support-agent-portrait{display:block;width:88px;height:88px;object-fit:cover;object-position:center 28%;border-radius:50%;margin:0 auto 12px;border:3px solid #fff;box-shadow:0 4px 18px rgba(20,38,31,.16)}
+.support-agent-name{display:block;font-size:16px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.support-agent-role{display:flex;justify-content:center;align-items:center;gap:6px;font-size:10px;color:#77837d;margin-bottom:18px}
+.support-agent-role i{width:7px;height:7px;border-radius:50%;background:#70b88e;display:inline-block}
+.support-panel{box-sizing:border-box;right:max(16px,env(safe-area-inset-right));bottom:max(84px,calc(env(safe-area-inset-bottom) + 76px));width:min(410px,calc(100vw - 32px));height:min(690px,calc(100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));min-height:0;max-height:calc(100dvh - 120px);border-radius:20px}
+.support-panel *{box-sizing:border-box;min-width:0}
+.support-header{padding:14px 16px;gap:10px;flex-shrink:0}
+.support-body{min-width:0;width:100%;overflow:hidden}
+.support-empty,.support-ticket,.support-success{padding:clamp(18px,4vw,26px) clamp(16px,4vw,24px) clamp(20px,4vw,28px);overflow-y:auto;overscroll-behavior:contain}
+.support-welcome{padding:4px 0 20px}
+.support-welcome .kicker{font-size:10px;letter-spacing:.12em}
+.support-welcome h3{font-size:clamp(23px,6vw,29px);line-height:1.12}
+.support-welcome p,.support-page-head p,.support-success p{font-size:13px;line-height:1.6}
+.support-actions{gap:10px}
+.support-actions button{min-height:68px;padding:12px;gap:12px}
+.support-actions button strong{font-size:13px}
+.support-actions button small{font-size:11px}
+.support-faq{margin-top:14px;font-size:12px}
+.support-chat{min-height:0}
+.support-chat-meta{padding:0 16px;min-height:46px;flex-shrink:0}
+.support-chat-meta button,.support-chat-meta>span{font-size:11px}
+.support-messages{padding:16px 16px 18px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.support-message>div{font-size:13px;padding:11px 13px;overflow-wrap:anywhere;word-break:break-word}
+.support-message small{font-size:10px}
+.support-composer{position:relative;bottom:auto;left:auto;right:auto;flex-shrink:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));gap:8px}
+.support-composer input{min-width:0;width:100%;font-size:14px}
+.support-composer button{flex-shrink:0}
+.support-field{font-size:12px;gap:7px}
+.support-field input,.support-field select,.support-field textarea{width:100%;max-width:100%;font-size:14px;padding:12px}
+.support-submit{width:100%;justify-content:center}
+@media(max-width:480px){
+ .support-panel{position:fixed;right:12px;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));width:auto;max-width:none;height:min(690px,calc(100dvh - 104px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));max-height:calc(100dvh - 104px);border-radius:18px}
+ .support-header{padding:13px 14px}
+ .support-avatar{width:42px;height:42px;flex-basis:42px}
+ .support-brand strong{font-size:13px}
+ .support-brand small{font-size:10px}
+ .support-empty,.support-ticket,.support-success{padding:20px 16px calc(22px + env(safe-area-inset-bottom))}
+ .support-agent-portrait{width:82px;height:82px}
+ .support-chat-meta{padding:0 13px}
+ .support-messages{padding:14px 12px}
+ .support-composer{padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+}
+@media(max-height:620px){
+ .support-panel{height:calc(100dvh - 96px);max-height:calc(100dvh - 96px);bottom:calc(76px + env(safe-area-inset-bottom))}
+ .support-agent-portrait{width:64px;height:64px;margin-bottom:8px}
+ .support-agent-role{margin-bottom:10px}
+ .support-welcome{padding-bottom:12px}
+}
