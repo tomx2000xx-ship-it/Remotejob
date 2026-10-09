@@ -1,0 +1,19 @@
+{
+  "name": "RemotePath Support Desk",
+  "short_name": "Support Desk",
+  "description": "Private RemotePath admin support inbox.",
+  "start_url": "/support-desk",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f7f4",
+  "theme_color": "#0d3b32",
+  "icons": [
+    {
+      "src": "/support-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
