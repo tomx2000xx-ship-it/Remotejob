@@ -2089,8 +2089,9 @@ function App(){
     if(!authReady)return;
     const adminScreens=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","support-desk"];
     const memberScreens=["dashboard","jobs","saved","applications","application","application-confirmation","interview","profile","payouts","verification","settings","notifications","onboarding"];
+    if(session&&["admin","super_admin"].includes(role)&&screen==="admin"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";if(target==="support-desk")sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target==="support-desk"){go("support-desk");return;}}
 
-    if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){try{sessionStorage.setItem("remotePathAfterLogin",screen)}catch{}go("login");return;}
+    if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){try{sessionStorage.setItem("remotePathAfterLogin",screen)}catch{}go(screen==="support-desk"?"admin":"login");return;}
     if(session&&accountStatus!=="active"&&role!=="admin"&&role!=="super_admin"&&screen!=="restricted"&&screen!=="support"){go("restricted");return;}
     if(session&&["employer","postjob","candidates"].includes(screen)){go("dashboard");return;}
 
