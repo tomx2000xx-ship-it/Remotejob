@@ -1180,3 +1180,37 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .interview-page .flow-header>button.flow-back:hover{background:rgba(255,255,255,.22);border-color:#f5f4eb;color:#fff}
 .interview-page .flow-header>button.flow-back:focus-visible{outline:3px solid #f5f4eb;outline-offset:3px}
 @media(max-width:560px){.interview-page .flow-header>button.flow-back{padding:8px 10px;min-height:36px}}
+
+
+/* RemotePath legal pages — consistent with the approved green and warm-neutral brand. */
+.legal-page{min-height:100vh;background:#f7f5ef;color:#24392f}
+.legal-header{display:flex;align-items:center;gap:22px;padding:18px clamp(18px,5vw,76px);border-bottom:1px solid #e4e7df;background:#fbfaf6}
+.legal-header .brand{margin-right:auto}
+.legal-header>.kicker{font-size:9px;letter-spacing:.12em;color:#718078}
+.legal-back{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:#486255;font-size:12px;font-weight:650;padding:8px 0;cursor:pointer}
+.legal-main{max-width:1120px;margin:0 auto;padding:clamp(28px,5vw,64px) clamp(18px,4vw,42px) 56px}
+.legal-intro{max-width:780px;margin:0 auto 34px;text-align:center}
+.legal-intro h1{font-family:"DM Serif Display",Georgia,serif;font-size:clamp(36px,5vw,54px);font-weight:400;letter-spacing:-.035em;line-height:1.08;margin:12px 0 16px;color:#213b2e}
+.legal-intro>p{font-size:14px;line-height:1.8;color:#637269;margin:0 auto 16px;max-width:720px}
+.legal-intro small{font-size:11px;color:#879187}
+.legal-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+.legal-toc{position:sticky;top:18px;display:grid;gap:5px;padding:12px;border:1px solid #e4e8df;background:#fbfaf6;border-radius:14px}
+.legal-toc button{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 10px;border:0;border-radius:8px;background:transparent;color:#64736a;text-align:left;font-size:12px;cursor:pointer}
+.legal-toc button:hover,.legal-toc button.active{background:#eaf1e9;color:#28563f;font-weight:700}
+.legal-document{padding:clamp(20px,4vw,38px);border:1px solid #e5e8e0;border-radius:16px;background:#fff;box-shadow:0 10px 36px rgba(31,56,42,.035)}
+.legal-document section+section{border-top:1px solid #edf0e9;margin-top:23px;padding-top:22px}
+.legal-document h2{font-size:16px;line-height:1.4;margin:0 0 9px;color:#2e4b3b}
+.legal-document p{font-size:13px;line-height:1.85;color:#69776e;margin:0}
+.legal-contact{display:flex;gap:12px;align-items:flex-start;margin-top:28px;padding:16px;border:1px solid #dce7dc;border-radius:12px;background:#f4f8f2;color:#2e6347}
+.legal-contact>svg{flex:0 0 auto;margin-top:2px}
+.legal-contact strong{font-size:13px}
+.legal-contact p{font-size:12px;line-height:1.65;margin-top:4px;color:#627369}
+.legal-bottom-links{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:28px 0 14px}
+.legal-bottom-links button,.footer-bottom button{border:0;background:transparent;color:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.legal-bottom-links button{padding:7px 10px;font-size:12px;color:#41654f}
+.legal-review-note{max-width:800px;margin:24px auto 0;color:#8a8377;font-size:10px;line-height:1.7;text-align:center}
+.legal-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px clamp(18px,5vw,76px);background:#193d30;color:#e6eee7}
+.legal-footer>span{font-size:11px;color:rgba(255,255,255,.7)}
+.inline-legal-link{border:0;background:transparent;color:#2f6b52;text-decoration:underline;text-underline-offset:2px;padding:0;font:inherit;font-weight:650;cursor:pointer}
+.footer-bottom button{font:inherit;font-size:inherit;padding:0}
+@media(max-width:760px){.legal-header{gap:12px;flex-wrap:wrap}.legal-header>.kicker{display:none}.legal-layout{grid-template-columns:1fr}.legal-toc{position:static;display:flex;overflow-x:auto;gap:4px;padding:6px}.legal-toc button{flex:0 0 auto;white-space:nowrap}.legal-toc button svg{display:none}.legal-main{padding-top:32px}.legal-document{padding:20px}.legal-footer{align-items:flex-start;flex-direction:column}.legal-intro{margin-bottom:24px}}
