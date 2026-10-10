@@ -2217,7 +2217,7 @@ function JobWorkspace({go}){
 }
 
 function App(){
-  const routeFromLocation=()=>{const hash=window.location.hash.replace("#/","");if(hash)return hash;const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
+  const routeFromLocation=()=>{const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";const hash=window.location.hash.replace("#/","");if(hash)return hash;return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
   const initial=routeFromLocation;
   const [screen,setScreen]=useState(initial); const screenRef=useRef(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const interviewReturnRef=useRef("applications"); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
