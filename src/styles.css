@@ -1268,3 +1268,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .support-agent-role{margin-bottom:10px}
  .support-welcome{padding-bottom:12px}
 }
+
+
+/* Dedicated administrator Support Desk: single-conversation mobile chat view. */
+.support-install-help{align-items:center;gap:14px}.support-install-help>div{flex:1;min-width:0}.support-install-help span{line-height:1.6}.support-mobile-hidden{display:block}
+@media(max-width:900px){.support-mobile-hidden{display:none!important}.support-desk-native .admin-support-detail{min-height:calc(100dvh - 250px);display:flex;flex-direction:column}.support-desk-native .admin-support-messages{flex:1;max-height:none;min-height:220px}.support-desk-native .admin-support-reply{position:sticky;bottom:0;background:#fff}.support-desk-native .admin-support-detail-head h2{overflow-wrap:anywhere}}
