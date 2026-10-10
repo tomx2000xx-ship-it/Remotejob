@@ -1,8 +1,8 @@
 {
-  "name": "RemoteWay Support Desk",
+  "name": "RemoteWay",
   "short_name": "RemoteWay",
   "description": "Remote work opportunities and career tools.",
-  "start_url": "/support-desk",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
