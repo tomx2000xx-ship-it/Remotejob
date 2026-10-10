@@ -2220,12 +2220,12 @@ function JobWorkspace({go}){
 }
 
 function App(){
-  const routeFromLocation=()=>{const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";const hash=window.location.hash.replace("#/","");if(hash)return hash;return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
+  const routeFromLocation=()=>{const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";const hash=window.location.hash.replace("#/","");if(hash)return hash;if(path===PRIVATE_ADMIN_ROUTE){try{const saved=sessionStorage.getItem("remoteWayLastAdminScreen");if(["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"].includes(saved))return saved;}catch{}return "admin"}return "home"};
   const initial=routeFromLocation;
   const [screen,setScreen]=useState(initial); const screenRef=useRef(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const interviewReturnRef=useRef("applications"); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
-  const [authReady,setAuthReady]=useState(false); const [loaderVisible,setLoaderVisible]=useState(true);
-  const go=(next,value="")=>{if(next==="interview"&&screenRef.current!=="interview")interviewReturnRef.current=screenRef.current==="home"?"jobs":screenRef.current;setParam(String(value||""));screenRef.current=next;window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
+  const [authReady,setAuthReady]=useState(false); const [roleReady,setRoleReady]=useState(false); const [loaderVisible,setLoaderVisible]=useState(true);
+  const go=(next,value="")=>{if(next==="interview"&&screenRef.current!=="interview")interviewReturnRef.current=screenRef.current==="home"?"jobs":screenRef.current;setParam(String(value||""));screenRef.current=next;try{const adminRoutes=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"];if(adminRoutes.includes(next))sessionStorage.setItem("remoteWayLastAdminScreen",next);else if(!["support-desk"].includes(next))sessionStorage.removeItem("remoteWayLastAdminScreen")}catch{}window.location.hash=`/${next}`;setScreen(next);window.scrollTo(0,0)};
   useEffect(()=>{
     let mounted=true;
     const loaderTimer=setTimeout(()=>{if(mounted)setLoaderVisible(false)},700);
@@ -2235,7 +2235,7 @@ function App(){
       setSession(data.session);
       if(data.session){
         const {data:profile}=await supabase.from("profiles").select("role,account_status").eq("id",data.session.user.id).maybeSingle();
-        if(mounted)setRole(profile?.role||"user"); setAccountStatus(profile?.account_status||"active");
+        if(mounted){setRole(profile?.role||"user");setAccountStatus(profile?.account_status||"active");setRoleReady(true)}
       }else {setRole("user");setAccountStatus("active");}
       setAuthReady(true);
     };
@@ -2245,11 +2245,14 @@ function App(){
       if(event==="SIGNED_OUT"){try{sessionStorage.removeItem("remotePathLoginGreeting")}catch{}}
       setSession(nextSession);
       if(nextSession){
-        supabase.from("profiles").select("role").eq("id",nextSession.user.id).maybeSingle().then(({data:profile})=>{
-          if(mounted)setRole(profile?.role||"user");
+        // Resolve the user's role before protected-route guards run, so a refresh on an admin subpage
+        // cannot briefly treat an administrator as a regular member and redirect them away.
+        Promise.resolve().then(async()=>{
+          const {data:profile}=await supabase.from("profiles").select("role,account_status").eq("id",nextSession.user.id).maybeSingle();
+          if(!mounted)return;
+          setRole(profile?.role||"user");setAccountStatus(profile?.account_status||"active");setRoleReady(true);setAuthReady(true);
         });
-      }else setRole("user");
-      setAuthReady(true);
+      }else {setRole("user");setAccountStatus("active");setRoleReady(true);setAuthReady(true)}
     });
     return()=>{mounted=false;clearTimeout(loaderTimer);subscription.unsubscribe()};
   },[]);
@@ -2264,7 +2267,7 @@ function App(){
     const adminScreens=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","support-desk"];
     const memberScreens=["dashboard","jobs","saved","applications","application","application-confirmation","interview","job-workspace","profile","payouts","verification","settings","notifications","onboarding"];
     if(session&&screen==="home"){let pendingVerification=false;try{pendingVerification=!!sessionStorage.getItem("remotePathVerificationEmail");if(pendingVerification)sessionStorage.removeItem("remotePathVerificationEmail")}catch{}if(pendingVerification){go("onboarding");return;}}
-    if(session&&["admin","super_admin"].includes(role)&&screen==="admin"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";if(target==="support-desk")sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target==="support-desk"){go("support-desk");return;}}
+    if(session&&adminScreens.includes(screen)&&!roleReady)return;\n    if(session&&["admin","super_admin"].includes(role)&&screen==="admin"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";if(target==="support-desk")sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target==="support-desk"){go("support-desk");return;}}
 
     if(!session&&protectedScreens.includes(screen)&&screen!=="admin"){try{sessionStorage.setItem("remotePathAfterLogin",screen)}catch{}go(screen==="support-desk"?"admin":"login");return;}
     if(session&&accountStatus!=="active"&&role!=="admin"&&role!=="super_admin"&&screen!=="restricted"&&screen!=="support"){go("restricted");return;}
@@ -2282,7 +2285,7 @@ function App(){
         if(screen==="login"||screen==="verify"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target&&memberScreens.includes(target)){go(target);return;}go(profile.onboarding_completed?"dashboard":"onboarding");}
       })();
     }
-  },[authReady,session,screen,role,accountStatus]);
+  },[authReady,roleReady,session,screen,role,accountStatus]);
   if(!authReady||loaderVisible)return <RemoteWayLoader/>;
   // Keep the private admin route expression build-safe.
   let page;
