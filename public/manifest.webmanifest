@@ -1,7 +1,7 @@
 {
-  "name": "RemotePath Support Desk",
-  "short_name": "Support Desk",
-  "description": "Private RemotePath admin support inbox.",
+  "name": "RemoteWay Support Desk",
+  "short_name": "RemoteWay",
+  "description": "Remote work opportunities and career tools.",
   "start_url": "/support-desk",
   "scope": "/",
   "display": "standalone",
