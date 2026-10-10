@@ -855,7 +855,7 @@ function Payouts({go}){
     let mounted=true;
     (async()=>{
       const {data:settingsRow}=await supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle();
-      if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value}));
+      if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
       const [methodsRes,payoutsRes,p,w]=await Promise.all([
@@ -1212,7 +1212,7 @@ function AdminStudio({go,role}){
      supabase.from("admin_audit_logs").select("id,admin_user_id,action,target_type,target_id,details,created_at").order("created_at",{ascending:false}).limit(100)
    ]);
    if(s.error||f.error||t.error||a.error||p.error||w.error||al.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||p.error?.message||w.error?.message||al.error?.message||"Some control-center data could not be loaded.");
-   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map}));setEmailTemplates(Array.isArray(map.email_templates)&&map.email_templates.length?map.email_templates:starterEmails);
+   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map,job_workspace_settings:{...x.job_workspace_settings,...(map.job_workspace_settings||{})}}));setEmailTemplates(Array.isArray(map.email_templates)&&map.email_templates.length?map.email_templates:starterEmails);
    const {data:secs}=await supabase.from("site_sections").select("*").order("sort_order");setSections(secs||[]);
    setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);setAuditLogs(al.data||[]);
  };
