@@ -1179,23 +1179,24 @@ return <div className="workspace admin-workspace" style={standalone?{maxWidth:"n
 }
 
 function AdminStudio({go,role}){
- const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState(""); const [emailStats,setEmailStats]=useState({total:0,last24:0,active:0});
  const [settings,setSettings]=useState({brand:{site_name:"RemoteWay",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false},verification_demo_identity_storage:{enabled:false}});
  const [sections,setSections]=useState([]),[forms,setForms]=useState([]),[selectedForm,setSelectedForm]=useState(null),[formFields,setFormFields]=useState([]),[templates,setTemplates]=useState([]),[selectedTemplate,setSelectedTemplate]=useState(null),[templateQuestions,setTemplateQuestions]=useState([]),[admins,setAdmins]=useState([]),[invite,setInvite]=useState({email:"",full_name:""}),[payoutConfigs,setPayoutConfigs]=useState([]),[payoutEditor,setPayoutEditor]=useState(null),[payoutField,setPayoutField]=useState({key:"",label:"",type:"text",required:true,placeholder:"",help_text:"",optionsText:"",min:"",max:"",step:""}),[withdrawalFields,setWithdrawalFields]=useState([]),[auditLogs,setAuditLogs]=useState([]),[saving,setSaving]=useState(false);
  const flash=(msg)=>{setNotice(msg);setTimeout(()=>setNotice(""),2600)};
  const load=async()=>{
    setError("");
-   const [s,f,t,a,p,w,al]=await Promise.all([
+   const [s,f,t,a,p,w,al,members]=await Promise.all([
      supabase.from("site_settings").select("key,value").order("key"),
      supabase.from("form_definitions").select("*").order("created_at",{ascending:false}),
      supabase.from("interview_templates").select("*").order("created_at",{ascending:false}),
      supabase.from("profiles").select("id,full_name,role,account_status,created_at").in("role",["admin","super_admin"]).order("created_at",{ascending:false}),
      supabase.from("payout_method_configs").select("*").order("sort_order").order("name"),
      supabase.from("site_settings").select("key,value").eq("key","withdrawal_form_fields").maybeSingle(),
-     supabase.from("admin_audit_logs").select("id,admin_user_id,action,target_type,target_id,details,created_at").order("created_at",{ascending:false}).limit(100)
+     supabase.from("admin_audit_logs").select("id,admin_user_id,action,target_type,target_id,details,created_at").order("created_at",{ascending:false}).limit(100),
+     supabase.from("profiles").select("id,created_at,account_status")
    ]);
    if(s.error||f.error||t.error||a.error||p.error||w.error||al.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||p.error?.message||w.error?.message||al.error?.message||"Some control-center data could not be loaded.");
-   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map}));
+   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map})); const memberRows=members.data||[],cutoff=Date.now()-86400000;setEmailStats({total:memberRows.length,last24:memberRows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:memberRows.filter(x=>x.account_status==="active").length});
    const {data:secs}=await supabase.from("site_sections").select("*").order("sort_order");setSections(secs||[]);
    setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);setAuditLogs(al.data||[]);
  };
@@ -1228,6 +1229,7 @@ function AdminStudio({go,role}){
  return <div className="workspace admin-workspace">
    <div className="workspace-head"><div><span className="kicker">PLATFORM CONTROL CENTER</span><h1>Admin Studio</h1><p>Manage the public experience, reusable forms, interview series and administrative team without editing source code.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
    <div className="studio-tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{label}</button>)}</div>
+   <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.total.toLocaleString()}</h2><span className="studio-muted">All registered accounts</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.last24.toLocaleString()}</h2><span className="studio-muted">Based on account creation time</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE ACCOUNTS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.active.toLocaleString()}</h2><span className="studio-muted">Accounts currently marked active</span></article></section>
    {notice&&<div className="auth-message auth-success">{notice}</div>}{error&&<div className="auth-message auth-error">{error}</div>}
    {tab==="site"&&<section className="studio-grid">
      <div className="panel"><PanelTitle title="Brand controls"/><div className="studio-fields">
