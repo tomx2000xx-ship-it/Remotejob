@@ -1179,7 +1179,7 @@ return <div className="workspace admin-workspace" style={standalone?{maxWidth:"n
 }
 
 function AdminStudio({go,role}){
- const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState(""); const [emailStats,setEmailStats]=useState({total:0,last24:0,active:0});
+ const [tab,setTab]=useState("site"),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const starterEmails=[{id:"welcome",name:"Welcome to RemoteWay",category:"Account",subject:"Welcome to RemoteWay, {{first_name}}",body:"Hi {{first_name}},\n\nWelcome to RemoteWay — your next remote-work opportunity starts here.\n\nWork. Anywhere.\nThe RemoteWay Team"},{id:"verification",name:"Email verification",category:"Security",subject:"Confirm your RemoteWay email",body:"Hi {{first_name}},\n\nPlease confirm your email address using the secure verification link in the original email. If you did not create this account, you can ignore this message.\n\nThe RemoteWay Team"},{id:"reset",name:"Password reset",category:"Security",subject:"Reset your RemoteWay password",body:"Hi {{first_name}},\n\nUse the secure password-reset link in the original email to choose a new password. If you did not request this, you can ignore this message.\n\nThe RemoteWay Team"},{id:"application",name:"Application received",category:"Applications",subject:"We received your application for {{job_title}}",body:"Hi {{first_name}},\n\nYour application for {{job_title}} has been received. Sign in to RemoteWay to review its status and any next steps.\n\nThe RemoteWay Team"},{id:"interview",name:"Interview invitation",category:"Interviews",subject:"Your next step for {{job_title}}",body:"Hi {{first_name}},\n\nThere is an interview step for {{job_title}}. Sign in to RemoteWay to review the invitation and instructions.\n\nThe RemoteWay Team"},{id:"status",name:"Application status update",category:"Applications",subject:"An update on your {{job_title}} application",body:"Hi {{first_name}},\n\nThere is an update to your application for {{job_title}}. Sign in to RemoteWay to see the latest details.\n\nThe RemoteWay Team"},{id:"support",name:"Support reply",category:"Support",subject:"An update from RemoteWay Support",body:"Hi {{first_name}},\n\n{{message}}\n\nReply through your RemoteWay account if you need further help.\n\nRemoteWay Support"},{id:"custom",name:"Blank custom email",category:"Custom",subject:"",body:"Hi {{first_name}},\n\n\n\nBest regards,\nThe RemoteWay Team"}];
  const [emailTemplates,setEmailTemplates]=useState(starterEmails),[selectedEmailId,setSelectedEmailId]=useState("welcome");
  const [settings,setSettings]=useState({brand:{site_name:"RemoteWay",tagline:"Work. Anywhere.",accent:"#2f6b52",background:"#f7f4ec",heading_font:"DM Serif Display",body_font:"Inter"},home_hero:{badge:"",title:"",description:"",search_button:"Search Jobs",popular:[]},home_metrics:{items:[]},verification_demo_uploads:{enabled:false},verification_demo_identity_storage:{enabled:false}});
@@ -1187,18 +1187,17 @@ function AdminStudio({go,role}){
  const flash=(msg)=>{setNotice(msg);setTimeout(()=>setNotice(""),2600)};
  const load=async()=>{
    setError("");
-   const [s,f,t,a,p,w,al,members]=await Promise.all([
+   const [s,f,t,a,p,w,al]=await Promise.all([
      supabase.from("site_settings").select("key,value").order("key"),
      supabase.from("form_definitions").select("*").order("created_at",{ascending:false}),
      supabase.from("interview_templates").select("*").order("created_at",{ascending:false}),
      supabase.from("profiles").select("id,full_name,role,account_status,created_at").in("role",["admin","super_admin"]).order("created_at",{ascending:false}),
      supabase.from("payout_method_configs").select("*").order("sort_order").order("name"),
      supabase.from("site_settings").select("key,value").eq("key","withdrawal_form_fields").maybeSingle(),
-     supabase.from("admin_audit_logs").select("id,admin_user_id,action,target_type,target_id,details,created_at").order("created_at",{ascending:false}).limit(100),
-     supabase.from("profiles").select("id,created_at,account_status")
+     supabase.from("admin_audit_logs").select("id,admin_user_id,action,target_type,target_id,details,created_at").order("created_at",{ascending:false}).limit(100)
    ]);
    if(s.error||f.error||t.error||a.error||p.error||w.error||al.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||p.error?.message||w.error?.message||al.error?.message||"Some control-center data could not be loaded.");
-   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map}));setEmailTemplates(Array.isArray(map.email_templates)&&map.email_templates.length?map.email_templates:starterEmails); const memberRows=members.data||[],cutoff=Date.now()-86400000;setEmailStats({total:memberRows.length,last24:memberRows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:memberRows.filter(x=>x.account_status==="active").length});
+   const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>({...x,...map}));setEmailTemplates(Array.isArray(map.email_templates)&&map.email_templates.length?map.email_templates:starterEmails);
    const {data:secs}=await supabase.from("site_sections").select("*").order("sort_order");setSections(secs||[]);
    setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);setAuditLogs(al.data||[]);
  };
@@ -1231,7 +1230,6 @@ function AdminStudio({go,role}){
  return <div className="workspace admin-workspace">
    <div className="workspace-head"><div><span className="kicker">PLATFORM CONTROL CENTER</span><h1>Admin Studio</h1><p>Manage the public experience, reusable forms, interview series and administrative team without editing source code.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
    <div className="studio-tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{label}</button>)}</div>
-   <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.total.toLocaleString()}</h2><span className="studio-muted">All registered accounts</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.last24.toLocaleString()}</h2><span className="studio-muted">Based on account creation time</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE ACCOUNTS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{emailStats.active.toLocaleString()}</h2><span className="studio-muted">Accounts currently marked active</span></article></section>
    {notice&&<div className="auth-message auth-success">{notice}</div>}{error&&<div className="auth-message auth-error">{error}</div>}
    {tab==="emails"&&<section className="studio-two-col">
     <div className="panel"><PanelTitle title="RemoteWay email templates"/><p className="studio-muted">Choose a reusable template, then edit its subject and message. Save your changes before leaving this tab.</p><div className="studio-list">{emailTemplates.map(t=><button key={t.id} className={selectedEmailId===t.id?"selected":""} onClick={()=>setSelectedEmailId(t.id)}><strong>{t.name}</strong><span>{t.category} · {t.subject||"No subject"}</span></button>)}</div><div className="flow-actions" style={{marginTop:14}}><Button variant="outline" onClick={()=>{const fresh={id:"custom-"+Date.now(),name:"New custom email",category:"Custom",subject:"",body:"Hi {{first_name}},\n\n\n\nBest regards,\nThe RemoteWay Team"};setEmailTemplates(v=>[...v,fresh]);setSelectedEmailId(fresh.id)}}><Plus size={14}/> New template</Button><Button onClick={()=>saveSetting("email_templates",emailTemplates)} disabled={saving}>{saving?"Saving…":"Save all templates"} <Check size={14}/></Button></div></div>
@@ -1273,6 +1271,7 @@ function AdminStudio({go,role}){
 function Admin({go}){
   const emptyForm={title:"",companyName:"",location:"Worldwide",salaryMin:"",salaryMax:"",salaryCurrency:"USD",salaryPeriod:"year",jobType:"Full-time",remoteType:"Fully remote",experienceLevel:"",category:"",tags:"",description:"",status:"draft",applicationFormId:"",interviewTemplateId:""};
   const [rows,setRows]=useState([]);
+  const [memberStats,setMemberStats]=useState({total:0,last24:0,active:0});
   const [form,setForm]=useState(emptyForm);
   const [editingId,setEditingId]=useState(null);
   const [showForm,setShowForm]=useState(false);
@@ -1283,14 +1282,17 @@ function Admin({go}){
   const load=async()=>{
     setLoading(true);setError("");
     try{
-      const [{data,error:e},{data:formsData,error:formsError},{data:templatesData,error:templatesError}]=await Promise.all([
+      const [{data,error:e},{data:formsData,error:formsError},{data:templatesData,error:templatesError},{data:membersData,error:membersError}]=await Promise.all([
         supabase.from("jobs").select("*").order("created_at",{ascending:false}),
         supabase.from("form_definitions").select("id,name,status").order("name"),
-        supabase.from("interview_templates").select("id,name,status").order("name")
+        supabase.from("interview_templates").select("id,name,status").order("name"),
+        supabase.from("profiles").select("id,created_at,account_status")
       ]);
       if(e)throw e;
       if(formsError)throw formsError;
       if(templatesError)throw templatesError;
+      if(membersError)throw membersError;
+      const memberRows=membersData||[],cutoff=Date.now()-86400000;setMemberStats({total:memberRows.length,last24:memberRows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:memberRows.filter(x=>x.account_status==="active").length});
       setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
     }catch(err){setError(err?.message||"We couldn't load the job listings. Please try again.")}
     finally{setLoading(false)}
@@ -1337,6 +1339,7 @@ function Admin({go}){
     if(error)setError(error.message);else setRows(v=>v.map(j=>j.id===id?{...j,status}:j));
   };
   return <div className="workspace admin-workspace">
+    <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">TOTAL REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.total.toLocaleString()}</h2><span className="studio-muted">All member profiles</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.last24.toLocaleString()}</h2><span className="studio-muted">Accounts created in the last 24 hours</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE ACCOUNTS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.active.toLocaleString()}</h2><span className="studio-muted">Accounts marked active</span></article></section>
     <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Job management</h1><p>Your team controls which partner-company opportunities appear on RemoteWay.</p></div><Button onClick={openNew}><Plus size={15}/> Add a job</Button></div>
     <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Admin-controlled listings</strong><span>Partner companies do not create accounts or post jobs here. Your team adds, reviews and publishes every opportunity.</span></div></section>
     {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
@@ -1595,6 +1598,7 @@ function AdminVerification({go}){
 }
 function AdminMembers({go}){
   const [rows,setRows]=useState([]);
+  const memberStats=useMemo(()=>{const cutoff=Date.now()-86400000;return {total:rows.length,last24:rows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:rows.filter(x=>x.account_status==="active").length}},[rows]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [saving,setSaving]=useState("");
@@ -1664,6 +1668,7 @@ function AdminMembers({go}){
   const q=query.trim().toLowerCase();
   const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status,r.id].filter(Boolean).join(" ").toLowerCase().includes(q));
   return <div className="workspace admin-workspace">
+    <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">TOTAL REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.total.toLocaleString()}</h2><span className="studio-muted">All member profiles</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.last24.toLocaleString()}</h2><span className="studio-muted">Accounts created in the last 24 hours</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE ACCOUNTS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.active.toLocaleString()}</h2><span className="studio-muted">Accounts marked active</span></article></section>
     <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Member management</h1><p>Open any member to review their available account, work, document and activity records in one place.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
     <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Restricted administrative controls</strong><span>Private files use short-lived signed links. Passwords, authentication tokens and full payment card credentials are not displayed.</span></div></section>
     {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
