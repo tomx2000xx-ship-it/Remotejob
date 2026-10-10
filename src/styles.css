@@ -1273,3 +1273,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* Dedicated administrator Support Desk: single-conversation mobile chat view. */
 .support-install-help{align-items:center;gap:14px}.support-install-help>div{flex:1;min-width:0}.support-install-help span{line-height:1.6}.support-mobile-hidden{display:block}
 @media(max-width:900px){.support-mobile-hidden{display:none!important}.support-desk-native .admin-support-detail{min-height:calc(100dvh - 250px);display:flex;flex-direction:column}.support-desk-native .admin-support-messages{flex:1;max-height:none;min-height:220px}.support-desk-native .admin-support-reply{position:sticky;bottom:0;background:#fff}.support-desk-native .admin-support-detail-head h2{overflow-wrap:anywhere}}
+
+
+/* Admin Studio Job Workspace form builder and live preview */
+.workspace-studio{align-items:start}
+.workspace-field-editor-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:24px 0 12px}
+.workspace-field-editor-head h3{margin:0 0 5px}
+.workspace-field-editor-head p{margin:0}
+.workspace-field-list{gap:14px}
+.workspace-form-preview{border:1px solid var(--border,#e4e7e2);border-radius:18px;padding:20px;background:var(--surface-soft,#f7f8f5);margin:16px 0 22px}
+.workspace-form-preview>h2{font-size:clamp(24px,3vw,32px);line-height:1.15;margin:12px 0}
+.workspace-form-preview>p{line-height:1.65}
+.workspace-preview-card{background:var(--surface,#fff);border:1px solid var(--border,#e4e7e2);border-radius:14px;padding:18px;margin-top:20px}
+.workspace-preview-card h3{margin:0 0 8px}
+.workspace-preview-card .field{margin:15px 0}
+.workspace-preview-card input:not([type=checkbox]):not([type=radio]),.workspace-preview-card textarea,.workspace-preview-card select{width:100%;box-sizing:border-box}
+.workspace-preview-options{display:grid;gap:8px}
+.workspace-preview-options label{display:flex;align-items:center;gap:8px}
+.workspace-preview-card button:disabled{opacity:.8;cursor:default}
+@media(max-width:760px){.workspace-field-editor-head{align-items:flex-start;flex-direction:column}.workspace-form-preview{padding:14px}.workspace-preview-card{padding:14px}}
