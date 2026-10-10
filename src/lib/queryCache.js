@@ -12,7 +12,7 @@ export function cachedRequest(key, fetcher, ttlMs = 30000) {
     .then(fetcher)
     .then((result) => {
       // Supabase returns errors as values; do not cache failed requests.
-      if (result?.error) {
+      if (result?.error || (Array.isArray(result) && result.some((item) => item?.error))) {
         cache.delete(key);
         return result;
       }
