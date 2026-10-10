@@ -1337,7 +1337,6 @@ function AdminApplications({go}){
   const [resumeUrl,setResumeUrl]=useState("");
   const [updating,setUpdating]=useState(false);
   const [results,setResults]=useState([]);
-  const [emailRecipients,setEmailRecipients]=useState([]);
   const [selectedIds,setSelectedIds]=useState([]);
   const [bulkSubject,setBulkSubject]=useState("An update about your RemotePath application");
   const [bulkBody,setBulkBody]=useState("Thank you for applying through RemotePath. The team has an update about your application. Please sign in to your account to review your next steps.");
@@ -1352,12 +1351,8 @@ function AdminApplications({go}){
     ]);
     if(appError||jobError){setError((appError||jobError).message);setRows([]);setJobs([])}
     else{setRows(apps||[]);setJobs(jobRows||[])}
-    const [{data:scoreRows},{data:emailRows}] = await Promise.all([
-      supabase.from("interview_results").select("application_id,score,total_questions,passed,reviewed_at"),
-      supabase.from("interview_email_queue").select("application_id,interview_id,candidate_id,recipient_email,status")
-    ]);
+    const {data:scoreRows}=await supabase.from("interview_results").select("application_id,score,total_questions,passed,reviewed_at");
     setResults(scoreRows||[]);
-    setEmailRecipients(emailRows||[]);
     setLoading(false);
   };
 
@@ -1396,19 +1391,16 @@ function AdminApplications({go}){
     const targets=[...new Map(selectedTargets.map(r=>[r.user_id,r])).values()];
     if(!targets.length){setBulkMessage("Select at least one candidate first.");return}
     if(!bulkSubject.trim()||!bulkBody.trim()){setBulkMessage("Enter an email subject and message.");return}
-    const {data:{user}}=await supabase.auth.getUser();
-    if(!user){setBulkMessage("Your admin session has expired. Please sign in again.");return}
-    const payload=targets.map(r=>{
-      const delivery=emailRecipients.find(e=>e.application_id===r.id);
-      if(!delivery)return null;
-      return {application_id:r.id,candidate_id:r.user_id,recipient_email:delivery.recipient_email,subject:bulkSubject.trim(),body:bulkBody.trim(),route_path:"/#/dashboard",send_after:new Date().toISOString(),status:"queued",created_by:user.id};
-    }).filter(Boolean);
-    if(!payload.length){setBulkMessage("No selected application has an email address available in the invitation queue.");return}
     setQueueing(true);setBulkMessage("");
-    const {error:queueError}=await supabase.from("admin_email_queue").insert(payload);
-    if(queueError)setBulkMessage("Could not queue the emails: "+queueError.message);
-    else{setBulkMessage("Queued "+payload.length+" email(s). Delivery is pending until the email-sending service is configured.");setSelectedIds([])}
-    setQueueing(false);
+    try{
+      const {data,error:queueError}=await supabase.functions.invoke("queue-admin-broadcast",{body:{candidate_ids:targets.map(r=>r.user_id),subject:bulkSubject.trim(),body:bulkBody.trim()}});
+      if(queueError)throw queueError;
+      if(data?.error)throw new Error(data.error);
+      const count=Number(data?.queued||0);
+      setBulkMessage("Queued "+count+" email(s) for delivery. "+(data?.skipped?data.skipped+" selected candidate(s) were skipped because no deliverable email was available.":"The delivery worker will process the queue automatically."));
+      setSelectedIds([]);
+    }catch(e){setBulkMessage("Could not queue the emails: "+(e?.message||"Please try again."))}
+    finally{setQueueing(false)}
   };
   const selectAllFiltered=()=>setSelectedIds(filtered.map(r=>r.id));
   const selectPassedFiltered=()=>setSelectedIds(filtered.filter(r=>results.some(x=>x.application_id===r.id&&x.passed)).map(r=>r.id));
@@ -1433,7 +1425,7 @@ function AdminApplications({go}){
       <label className="field"><span>Email message</span><textarea rows={4} value={bulkBody} onChange={e=>setBulkBody(e.target.value)} placeholder="Write the message for selected candidates"/></label>
       {bulkMessage&&<div className={bulkMessage.startsWith("Queued")?"notice":"auth-message auth-error"} role="status">{bulkMessage}</div>}
       <Button onClick={queueBulkEmail} disabled={queueing||selectedIds.length===0}>{queueing?"Queuing emails…":"Queue email to selected candidates"} <Send size={15}/></Button>
-      <p className="admin-email-disclaimer">Automatic delivery runs every minute, but messages will remain queued until the Resend API key, verified sender address, and live site URL are configured in Supabase.</p>
+      <p className="admin-email-disclaimer">Broadcasts are queued securely for selected applicants and processed automatically by RemotePath’s email worker. Delivery still depends on valid Resend credentials and a verified sender domain.</p>
     </section>
     <div className="pipeline-tabs">
       {["All","submitted","reviewing","interview","hired"].map(x=><button key={x} className={status===x?"active":""} onClick={()=>setStatus(x)}>{x==="All"?"All":x[0].toUpperCase()+x.slice(1)} <span>{x==="All"?rows.length:rows.filter(r=>r.status===x).length}</span></button>)}
