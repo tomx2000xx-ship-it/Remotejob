@@ -292,7 +292,7 @@ const navItems = [
   ["verification","Verification",ShieldCheck]
 ];
 
-function Logo({light=false}){return <div className={`brand ${light?"brand-light":""}`}><span className="brand-mark">↗</span><span>RemoteWay</span></div>}
+function Logo({light=false,go}){const content=<><span className="brand-mark" aria-hidden="true">↗</span><span>RemoteWay</span></>;return go?<button type="button" className={`brand ${light?"brand-light":""}`} onClick={()=>go("home")} aria-label="RemoteWay home" style={{border:0,background:"transparent",padding:0,cursor:"pointer",font:"inherit",color:"inherit",display:"inline-flex",alignItems:"center",textAlign:"left"}}>{content}</button>:<div className={`brand ${light?"brand-light":""}`}>{content}</div>}
 function Button({children,variant="primary",className="",onClick,type="button",disabled=false}){return <button type={type} className={`btn btn-${variant} ${className}`} onClick={onClick} disabled={disabled}>{children}</button>}
 function Badge({children,tone="soft"}){return <span className={`badge badge-${tone}`}>{children}</span>}
 function Avatar({letter="A",size="md"}){return <span className={`avatar avatar-${size}`}>{letter}</span>}
@@ -342,7 +342,7 @@ function AboutPage({go}) {
 function PublicNav({go}){
   const [open,setOpen]=useState(false);
   return <header className="public-nav">
-    <Logo/>
+    <Logo go={go}/>
     <nav className={open?"public-links open":"public-links"}>
       <button onClick={()=>go("jobs")}>Find Jobs</button><button onClick={()=>go("companies")}>Companies</button><button onClick={()=>go("resources")}>Resources</button><button onClick={()=>go("about")}>About</button>
     </nav>
