@@ -854,6 +854,8 @@ function Payouts({go}){
   useEffect(()=>{
     let mounted=true;
     (async()=>{
+      const {data:settingsRow}=await supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle();
+      if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value}));
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
       const [methodsRes,payoutsRes,p,w]=await Promise.all([
@@ -2099,6 +2101,7 @@ function RemoteWayLoader(){
 
 function JobWorkspace({go}){
   const [offers,setOffers]=useState([]);
+  const [workspaceSettings,setWorkspaceSettings]=useState({title:"Set up your network information",description:"Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools.",provider_label:"Internet or mobile network provider",provider_placeholder:"e.g. MTN, Airtel, fibre provider",connection_label:"Connection type",connection_placeholder:"e.g. 4G, 5G, fibre, broadband",other_label:"Other important network provider information",other_placeholder:"Share any other relevant information about your connection, reliability, or backup network.",submit_label:"Submit and continue",workspace_title:"Your next chapter starts here.",workspace_description:"This dedicated workspace is separate from your main dashboard and is available only for jobs you have been selected for."});
   const [selectedId,setSelectedId]=useState(null);
   const [provider,setProvider]=useState("");
   const [connectionType,setConnectionType]=useState("");
@@ -2161,7 +2164,7 @@ function JobWorkspace({go}){
   return <div className="interview-page">
     <header className="flow-header"><button className="flow-back" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Main dashboard</button><Logo/><Badge tone="soft">Job Workspace</Badge></header>
     <div className="flow-wrap">
-      <div className="flow-intro"><span className="kicker">REMOTEWAY · JOB WORKSPACE</span><h1>Your next chapter <em>starts here.</em></h1><p>This dedicated workspace is separate from your main dashboard and is available only for jobs you have been selected for.</p></div>
+      <div className="flow-intro"><span className="kicker">REMOTEWAY · JOB WORKSPACE</span><h1>{workspaceSettings.workspace_title||"Your next chapter starts here."}</h1><p>{workspaceSettings.workspace_description||"This dedicated workspace is separate from your main dashboard and is available only for jobs you have been selected for."}</p></div>
       {error&&<div className="form-error" role="alert">{error}</div>}
       {offers.length>1&&<div className="flow-card" style={{marginBottom:18}}><label className="field"><span>Select your job offer</span><select value={selected?.id||""} onChange={e=>setSelectedId(Number(e.target.value))}>{offers.map(row=><option key={row.id} value={row.id}>{row.jobs?.title||"Selected job"} · {row.jobs?.company_name||"RemoteWay"}</option>)}</select></label></div>}
       {!selected?<div className="flow-card"><div className="interview-empty"><BriefcaseBusiness size={30}/><h2>Your Job Workspace is not available yet</h2><p>When RemoteWay selects you for a role and confirms your job offer, your job-specific workspace will appear here. Completing an interview alone does not activate job access.</p><Button onClick={()=>go("applications")}>View applications <ArrowRight size={15}/></Button></div></div>:
@@ -2174,12 +2177,12 @@ function JobWorkspace({go}){
           </div>
           <div className="verification-status"><span><i/>{selected.network?"Network information submitted":"Network information required"}</span><small>{selected.network?"Your onboarding details have been saved.":"Complete this step before entering your job workspace."}</small></div>
           {!selected.network||editing?<div style={{marginTop:24}}>
-            <h2>Set up your network information</h2>
-            <p>Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools.</p>
-            <Field label="Internet or mobile network provider" placeholder="e.g. MTN, Airtel, fibre provider" value={provider} onChange={e=>setProvider(e.target.value)}/>
-            <Field label="Connection type" placeholder="e.g. 4G, 5G, fibre, broadband" value={connectionType} onChange={e=>setConnectionType(e.target.value)}/>
-            <label className="field"><span>Other important network provider information</span><textarea rows="4" maxLength={3000} placeholder="Share any other relevant information about your connection, reliability, or backup network." value={otherInfo} onChange={e=>setOtherInfo(e.target.value)}/></label>
-            <Button onClick={submitNetwork} disabled={saving}>{saving?"Saving information…":"Submit and continue"} <ArrowRight size={15}/></Button>
+            <h2>{workspaceSettings.title||"Set up your network information"}</h2>
+            <p>{workspaceSettings.description||"Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools."}</p>
+            <Field label={workspaceSettings.provider_label||"Internet or mobile network provider"} placeholder={workspaceSettings.provider_placeholder||"e.g. MTN, Airtel, fibre provider"} value={provider} onChange={e=>setProvider(e.target.value)}/>
+            <Field label={workspaceSettings.connection_label||"Connection type"} placeholder={workspaceSettings.connection_placeholder||"e.g. 4G, 5G, fibre, broadband"} value={connectionType} onChange={e=>setConnectionType(e.target.value)}/>
+            <label className="field"><span>{workspaceSettings.other_label||"Other important network provider information"}</span><textarea rows="4" maxLength={3000} placeholder={workspaceSettings.other_placeholder||"Share any other relevant information about your connection, reliability, or backup network."} value={otherInfo} onChange={e=>setOtherInfo(e.target.value)}/></label>
+            <Button onClick={submitNetwork} disabled={saving}>{saving?"Saving information…":(workspaceSettings.submit_label||"Submit and continue")} <ArrowRight size={15}/></Button>
           </div>:<div style={{marginTop:22}}>
             <div className="verification-status"><span><Check size={15}/> Onboarding step complete</span><small>Submitted {new Date(selected.network.submitted_at).toLocaleString()}</small></div>
             <h2 style={{marginTop:24}}>Your job workspace</h2>
