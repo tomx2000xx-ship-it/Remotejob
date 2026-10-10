@@ -2109,6 +2109,7 @@ function JobWorkspace({go}){
   const [provider,setProvider]=useState("");
   const [connectionType,setConnectionType]=useState("");
   const [otherInfo,setOtherInfo]=useState("");
+  const [customFieldValues,setCustomFieldValues]=useState({});
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -2141,19 +2142,19 @@ function JobWorkspace({go}){
   useEffect(()=>{
     setProvider(selected?.network?.provider_name||"");
     setConnectionType(selected?.network?.connection_type||"");
-    setOtherInfo(selected?.network?.other_network_information||"");
+    const storedOther=selected?.network?.other_network_information||"";let parsedOther={};let cleanOther=storedOther;try{const parsed=JSON.parse(storedOther);if(parsed&&parsed.__remoteWayOnboarding){parsedOther=parsed.values||{};cleanOther=parsed.other||""}}catch{}setCustomFieldValues(parsedOther);setOtherInfo(cleanOther);
     setEditing(false);
     setNotice("");
   },[selected?.id,selected?.network?.submitted_at]);
 
   const submitNetwork=async()=>{
     if(!selected)return;
-    if(!provider.trim()||!connectionType.trim()){setError("Please provide your network provider and connection type.");return}
+    const requiredFields=(workspaceSettings.form_fields||[]).filter(field=>field.enabled!==false&&field.required);for(const field of requiredFields){const value=field.id==="provider"?provider:field.id==="connection"?connectionType:field.id==="other"?otherInfo:customFieldValues[field.key];if(!String(value??"").trim()){setError("Please complete: "+(field.label||field.key));return}}
     setSaving(true);setError("");setNotice("");
     try{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)throw new Error("Your session has expired. Please sign in again.");
-      const payload={application_id:selected.id,candidate_id:user.id,job_id:selected.job_id,provider_name:provider.trim(),connection_type:connectionType.trim(),other_network_information:otherInfo.trim(),submitted_at:new Date().toISOString()};
+      const configuredFields=(workspaceSettings.form_fields||[]).filter(field=>field.enabled!==false);for(const field of configuredFields){if(field.required&&field.id!=="provider"&&field.id!=="connection"&&field.id!=="other"&&!String(customFieldValues[field.key]??"").trim())throw new Error("Please complete: "+(field.label||field.key));}const extraValues={...customFieldValues};configuredFields.forEach(field=>{if(field.id==="provider")extraValues[field.key]=provider.trim();else if(field.id==="connection")extraValues[field.key]=connectionType.trim();else if(field.id==="other")extraValues[field.key]=otherInfo.trim()});const payload={application_id:selected.id,candidate_id:user.id,job_id:selected.job_id,provider_name:provider.trim(),connection_type:connectionType.trim(),other_network_information:JSON.stringify({__remoteWayOnboarding:true,other:otherInfo.trim(),values:extraValues}),submitted_at:new Date().toISOString()};
       const {data,error:saveError}=await supabase.from("job_network_profiles").upsert(payload,{onConflict:"application_id"}).select("application_id,provider_name,connection_type,other_network_information,submitted_at").single();
       if(saveError)throw saveError;
       setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:data}:row));
@@ -2182,9 +2183,7 @@ function JobWorkspace({go}){
           {!selected.network||editing?<div style={{marginTop:24}}>
             <h2>{workspaceSettings.title||"Set up your network information"}</h2>
             <p>{workspaceSettings.description||"Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools."}</p>
-            <Field label={workspaceSettings.provider_label||"Internet or mobile network provider"} placeholder={workspaceSettings.provider_placeholder||"e.g. MTN, Airtel, fibre provider"} value={provider} onChange={e=>setProvider(e.target.value)}/>
-            <Field label={workspaceSettings.connection_label||"Connection type"} placeholder={workspaceSettings.connection_placeholder||"e.g. 4G, 5G, fibre, broadband"} value={connectionType} onChange={e=>setConnectionType(e.target.value)}/>
-            <label className="field"><span>{workspaceSettings.other_label||"Other important network provider information"}</span><textarea rows="4" maxLength={3000} placeholder={workspaceSettings.other_placeholder||"Share any other relevant information about your connection, reliability, or backup network."} value={otherInfo} onChange={e=>setOtherInfo(e.target.value)}/></label>
+            {(workspaceSettings.form_fields||[{id:"provider",key:"provider",label:workspaceSettings.provider_label||"Internet or mobile network provider",type:"text",placeholder:workspaceSettings.provider_placeholder||"e.g. MTN, Airtel, fibre provider",required:true},{id:"connection",key:"connection",label:workspaceSettings.connection_label||"Connection type",type:"text",placeholder:workspaceSettings.connection_placeholder||"e.g. 4G, 5G, fibre, broadband",required:true},{id:"other",key:"other",label:workspaceSettings.other_label||"Other important network provider information",type:"textarea",placeholder:workspaceSettings.other_placeholder||"",required:false}]).filter(field=>field.enabled!==false).map(field=><label className="field" key={field.id}><span>{field.label||"Untitled field"}{field.required?" *":""}</span>{field.id==="provider"?<input type="text" placeholder={field.placeholder||""} value={provider} onChange={e=>setProvider(e.target.value)} required={!!field.required}/>:field.id==="connection"?((field.type==="select"||field.type==="radio")?<select value={connectionType} onChange={e=>setConnectionType(e.target.value)} required={!!field.required}><option value="">{field.placeholder||"Choose an option"}</option>{(field.options||[]).map(o=><option key={o}>{o}</option>)}</select>:<input type={["email","number","tel","url","date"].includes(field.type)?field.type:"text"} placeholder={field.placeholder||""} value={connectionType} onChange={e=>setConnectionType(e.target.value)} required={!!field.required}/>):field.id==="other"?<textarea rows="4" maxLength={3000} placeholder={field.placeholder||""} value={otherInfo} onChange={e=>setOtherInfo(e.target.value)} required={!!field.required}/>:field.type==="textarea"?<textarea rows="3" placeholder={field.placeholder||""} value={customFieldValues[field.key]||""} onChange={e=>setCustomFieldValues(v=>({...v,[field.key]:e.target.value}))} required={!!field.required}/>:field.type==="select"||field.type==="radio"?<select value={customFieldValues[field.key]||""} onChange={e=>setCustomFieldValues(v=>({...v,[field.key]:e.target.value}))} required={!!field.required}><option value="">{field.placeholder||"Choose an option"}</option>{(field.options||[]).map(o=><option key={o}>{o}</option>)}</select>:field.type==="checkbox"?<input type="checkbox" checked={!!customFieldValues[field.key]} onChange={e=>setCustomFieldValues(v=>({...v,[field.key]:e.target.checked}))} required={!!field.required}/>:<input type={["email","number","tel","url","date"].includes(field.type)?field.type:"text"} placeholder={field.placeholder||""} value={customFieldValues[field.key]||""} onChange={e=>setCustomFieldValues(v=>({...v,[field.key]:e.target.value}))} required={!!field.required}/ >}{field.help_text&&<small>{field.help_text}</small>}</label>)}
             <Button onClick={submitNetwork} disabled={saving}>{saving?"Saving information…":(workspaceSettings.submit_label||"Submit and continue")} <ArrowRight size={15}/></Button>
           </div>:<div style={{marginTop:22}}>
             <div className="verification-status"><span><Check size={15}/> Onboarding step complete</span><small>Submitted {new Date(selected.network.submitted_at).toLocaleString()}</small></div>
