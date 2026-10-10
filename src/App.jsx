@@ -2085,6 +2085,107 @@ function RemoteWayLoader(){
   </div>;
 }
 
+
+function JobWorkspace({go}){
+  const [offers,setOffers]=useState([]);
+  const [selectedId,setSelectedId]=useState(null);
+  const [provider,setProvider]=useState("");
+  const [connectionType,setConnectionType]=useState("");
+  const [otherInfo,setOtherInfo]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
+
+  useEffect(()=>{
+    let mounted=true;
+    (async()=>{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user){if(mounted){setLoading(false);go("login")}return}
+      const {data:accessRows,error:accessError}=await supabase.from("job_workspace_access").select("application_id,candidate_id,job_id,created_at").eq("candidate_id",user.id).order("created_at",{ascending:false});
+      if(accessError){if(mounted){setError(accessError.message);setLoading(false)}return}
+      if(!accessRows?.length){if(mounted){setOffers([]);setLoading(false)}return}
+      const ids=accessRows.map(row=>row.application_id);
+      const [{data:applicationRows,error:applicationError},{data:networkRowsData,error:networkError}]=await Promise.all([
+        supabase.from("applications").select("id,job_id,status,created_at,jobs(id,title,company_name,company_logo,description,location,job_type,responsibilities,requirements,benefits)").in("id",ids).eq("user_id",user.id).eq("status","hired"),
+        supabase.from("job_network_profiles").select("application_id,provider_name,connection_type,other_network_information,submitted_at").eq("candidate_id",user.id).in("application_id",ids)
+      ]);
+      if(!mounted)return;
+      if(applicationError||networkError){setError((applicationError||networkError).message);setLoading(false);return}
+      const networkMap={};(networkRowsData||[]).forEach(row=>{networkMap[row.application_id]=row});
+      const rows=(applicationRows||[]).filter(row=>accessRows.some(a=>a.application_id===row.id)).map(row=>({...row,network:networkMap[row.id]||null}));
+      setOffers(rows);setSelectedId(rows[0]?.id||null);setLoading(false);
+    })();
+    return()=>{mounted=false};
+  },[]);
+
+  const selected=offers.find(row=>String(row.id)===String(selectedId))||offers[0]||null;
+  useEffect(()=>{
+    setProvider(selected?.network?.provider_name||"");
+    setConnectionType(selected?.network?.connection_type||"");
+    setOtherInfo(selected?.network?.other_network_information||"");
+    setNotice("");
+  },[selected?.id,selected?.network?.submitted_at]);
+
+  const submitNetwork=async()=>{
+    if(!selected)return;
+    if(!provider.trim()||!connectionType.trim()){setError("Please provide your network provider and connection type.");return}
+    setSaving(true);setError("");setNotice("");
+    try{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const payload={application_id:selected.id,candidate_id:user.id,job_id:selected.job_id,provider_name:provider.trim(),connection_type:connectionType.trim(),other_network_information:otherInfo.trim(),submitted_at:new Date().toISOString()};
+      const {data,error:saveError}=await supabase.from("job_network_profiles").upsert(payload,{onConflict:"application_id"}).select("application_id,provider_name,connection_type,other_network_information,submitted_at").single();
+      if(saveError)throw saveError;
+      setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:data}:row));
+      setNotice("Network information saved. Your job workspace is now available.");
+    }catch(err){setError(err?.message||"We couldn't save your network information. Please try again.")}
+    finally{setSaving(false)}
+  };
+
+  if(loading)return <div className="interview-page"><header className="flow-header"><button className="flow-back" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Main dashboard</button><Logo/><Badge tone="soft">Job Workspace</Badge></header><div className="interview-empty"><Clock3 size={24}/><h2>Preparing your Job Workspace…</h2><p>Checking your job offer and onboarding status.</p></div></div>;
+
+  return <div className="interview-page">
+    <header className="flow-header"><button className="flow-back" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Main dashboard</button><Logo/><Badge tone="soft">Job Workspace</Badge></header>
+    <div className="flow-wrap">
+      <div className="flow-intro"><span className="kicker">REMOTEWAY · JOB WORKSPACE</span><h1>Your next chapter <em>starts here.</em></h1><p>This dedicated workspace is separate from your main dashboard and is available only for jobs you have been selected for.</p></div>
+      {error&&<div className="form-error" role="alert">{error}</div>}
+      {offers.length>1&&<div className="flow-card" style={{marginBottom:18}}><label className="field"><span>Select your job offer</span><select value={selected?.id||""} onChange={e=>setSelectedId(Number(e.target.value))}>{offers.map(row=><option key={row.id} value={row.id}>{row.jobs?.title||"Selected job"} · {row.jobs?.company_name||"RemoteWay"}</option>)}</select></label></div>}
+      {!selected?<div className="flow-card"><div className="interview-empty"><BriefcaseBusiness size={30}/><h2>Your Job Workspace is not available yet</h2><p>When RemoteWay selects you for a role and confirms your job offer, your job-specific workspace will appear here. Completing an interview alone does not activate job access.</p><Button onClick={()=>go("applications")}>View applications <ArrowRight size={15}/></Button></div></div>:
+      <div className="workspace-grid" style={{alignItems:"start"}}>
+        <section className="flow-card">
+          <span className="kicker">SELECTED POSITION</span>
+          <div style={{display:"flex",gap:14,alignItems:"center",margin:"14px 0 18px"}}>
+            <div className="company-avatar">{selected.jobs?.company_name?.[0]||"R"}</div>
+            <div><h2 style={{margin:"0 0 5px"}}>{selected.jobs?.title||"Your selected role"}</h2><p style={{margin:0}}>{selected.jobs?.company_name||"RemoteWay partner"}{selected.jobs?.location?" · "+selected.jobs.location:""}</p></div>
+          </div>
+          <div className="verification-status"><span><i/>{selected.network?"Network information submitted":"Network information required"}</span><small>{selected.network?"Your onboarding details have been saved.":"Complete this step before entering your job workspace."}</small></div>
+          {!selected.network?<div style={{marginTop:24}}>
+            <h2>Set up your network information</h2>
+            <p>Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools.</p>
+            <Field label="Internet or mobile network provider" placeholder="e.g. MTN, Airtel, fibre provider" value={provider} onChange={e=>setProvider(e.target.value)}/>
+            <Field label="Connection type" placeholder="e.g. 4G, 5G, fibre, broadband" value={connectionType} onChange={e=>setConnectionType(e.target.value)}/>
+            <label className="field"><span>Other important network provider information</span><textarea rows="4" maxLength={3000} placeholder="Share any other relevant information about your connection, reliability, or backup network." value={otherInfo} onChange={e=>setOtherInfo(e.target.value)}/></label>
+            <Button onClick={submitNetwork} disabled={saving}>{saving?"Saving information…":"Submit and continue"} <ArrowRight size={15}/></Button>
+          </div>:<div style={{marginTop:22}}>
+            <div className="verification-status"><span><Check size={15}/> Onboarding step complete</span><small>Submitted {new Date(selected.network.submitted_at).toLocaleString()}</small></div>
+            <h2 style={{marginTop:24}}>Your job workspace</h2>
+            <p>Your job-specific workspace is now unlocked. Job instructions, work resources, and tasks will appear here as they are made available for this role.</p>
+            <div className="summary-grid" style={{marginTop:18}}><Summary icon={BriefcaseBusiness} value="Active" label="Job access" change="Selected position"/><Summary icon={Check} value="Complete" label="Network setup" change="Information received"/></div>
+            {selected.jobs?.description&&<div style={{marginTop:22}}><h3>Role overview</h3><p style={{whiteSpace:"pre-wrap"}}>{selected.jobs.description}</p></div>}
+            {Array.isArray(selected.jobs?.responsibilities)&&selected.jobs.responsibilities.length>0&&<div style={{marginTop:22}}><h3>Your responsibilities</h3><ul>{selected.jobs.responsibilities.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+            {Array.isArray(selected.jobs?.requirements)&&selected.jobs.requirements.length>0&&<div style={{marginTop:22}}><h3>Role requirements</h3><ul>{selected.jobs.requirements.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
+            <div className="payout-reminder" style={{marginTop:24}}><div className="payout-reminder-icon"><FileText size={20}/></div><div className="payout-reminder-copy"><span className="kicker">WORK TASKS</span><h2>Work instructions and tasks</h2><p>Your job-specific tasks and working resources will be shown here once they have been configured for this position.</p></div></div>
+            <Button variant="soft" onClick={()=>{setError("");setNotice("");setProvider(selected.network.provider_name||"");setConnectionType(selected.network.connection_type||"");setOtherInfo(selected.network.other_network_information||"");setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:null}:row))}}>Edit network information</Button>
+          </div>}
+          {notice&&<div className="form-success" role="status" style={{marginTop:16}}>{notice}</div>}
+        </section>
+        <aside className="flow-card"><span className="kicker">ONBOARDING CHECKLIST</span><h2 style={{marginTop:10}}>Ready to get started?</h2><div style={{display:"grid",gap:14,marginTop:18}}><div style={{display:"flex",gap:10,alignItems:"start"}}><Check size={18}/><div><strong>Job offer confirmed</strong><p>You're seeing this workspace because you've been selected for this role.</p></div></div><div style={{display:"flex",gap:10,alignItems:"start"}}>{selected.network?<Check size={18}/>:<Globe2 size={18}/>}<div><strong>Network information</strong><p>{selected.network?"Your provider information has been submitted.":"Required before entering your job workspace."}</p></div></div><div style={{display:"flex",gap:10,alignItems:"start"}}>{selected.network?<Zap size={18}/>:<LockKeyhole size={18}/>}<div><strong>Job tools and tasks</strong><p>{selected.network?"Workspace access is enabled. Work resources will appear here when configured.":"Unlocks after network information is submitted."}</p></div></div></div></aside>
+      </div>}
+    </div>
+  </div>;
+}
+
 function App(){
   const routeFromLocation=()=>{const hash=window.location.hash.replace("#/","");if(hash)return hash;const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";return path===PRIVATE_ADMIN_ROUTE?"admin":"home"};
   const initial=routeFromLocation;
@@ -2124,11 +2225,11 @@ function App(){
     window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)
   },[]);
   useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),2800);return()=>clearTimeout(t)}},[toast]);
-  const protectedScreens=["dashboard","jobs","saved","applications","application-confirmation","interview","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","support-desk","notifications","onboarding"];
+  const protectedScreens=["dashboard","jobs","saved","applications","application-confirmation","interview","job-workspace","profile","payouts","verification","settings","employer","postjob","candidates","admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","support-desk","notifications","onboarding"];
   useEffect(()=>{
     if(!authReady)return;
     const adminScreens=["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio","support-desk"];
-    const memberScreens=["dashboard","jobs","saved","applications","application","application-confirmation","interview","profile","payouts","verification","settings","notifications","onboarding"];
+    const memberScreens=["dashboard","jobs","saved","applications","application","application-confirmation","interview","job-workspace","profile","payouts","verification","settings","notifications","onboarding"];
     if(session&&screen==="home"){let pendingVerification=false;try{pendingVerification=!!sessionStorage.getItem("remotePathVerificationEmail");if(pendingVerification)sessionStorage.removeItem("remotePathVerificationEmail")}catch{}if(pendingVerification){go("onboarding");return;}}
     if(session&&["admin","super_admin"].includes(role)&&screen==="admin"){let target="";try{target=sessionStorage.getItem("remotePathAfterLogin")||"";if(target==="support-desk")sessionStorage.removeItem("remotePathAfterLogin")}catch{}if(target==="support-desk"){go("support-desk");return;}}
 
@@ -2152,7 +2253,7 @@ function App(){
   if(!authReady||loaderVisible)return <RemoteWayLoader/>;
   // Keep the private admin route expression build-safe.
   let page;
-  if(["privacy","terms","cookies"].includes(screen)) page=<LegalPage go={go} type={screen}/>; else if(screen==="companies") page=<CompaniesPage go={go}/>; else if(screen==="resources") page=<ResourcesPage go={go}/>; else if(screen==="about") page=<AboutPage go={go}/>; else if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param} member={!!session}/>; else if(screen==="job") page=<JobDetail go={go} id={param} member={!!session}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go} email={param}/>; else if(screen==="reset-password") page=<ResetPassword go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="application-confirmation") page=<ApplicationConfirmation go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go} returnTo={interviewReturnRef.current}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=session&&["admin","super_admin"].includes(role)?<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>:<AdminAuth go={go}/>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="admin-support") page=<AppShell go={go} screen={screen}><AdminSupport go={go}/></AppShell>; else if(screen==="support-desk") page=<AdminSupport go={go} standalone/>; else if(screen==="admin-studio") page=<AppShell go={go} screen={screen}><AdminStudio go={go} role={role}/></AppShell>; else if(screen==="notifications") page=<AppShell go={go} screen={screen}><Notifications go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
+  if(["privacy","terms","cookies"].includes(screen)) page=<LegalPage go={go} type={screen}/>; else if(screen==="companies") page=<CompaniesPage go={go}/>; else if(screen==="resources") page=<ResourcesPage go={go}/>; else if(screen==="about") page=<AboutPage go={go}/>; else if(screen==="home") page=<Home go={go}/>; else if(screen==="restricted") page=<AccessRestricted status={accountStatus} go={go}/>; else if(screen==="jobs") page=<Jobs go={go} initialQuery={param} member={!!session}/>; else if(screen==="job") page=<JobDetail go={go} id={param} member={!!session}/>; else if(screen==="login") page=<Auth go={go} mode="login"/>; else if(screen==="signup") page=<Auth go={go} mode="signup"/>; else if(screen==="verify") page=<VerifyEmail go={go} email={param}/>; else if(screen==="reset-password") page=<ResetPassword go={go}/>; else if(screen==="onboarding") page=<Onboarding go={go}/>; else if(screen==="verification") page=<Verification go={go}/>; else if(screen==="payouts") page=<AppShell go={go} screen={screen}><Payouts go={go}/></AppShell>; else if(screen==="application") page=<ApplicationFlow go={go} id={param}/>; else if(screen==="application-confirmation") page=<ApplicationConfirmation go={go} id={param}/>; else if(screen==="interview") page=<Interview go={go} returnTo={interviewReturnRef.current}/>; else if(screen==="job-workspace") page=<JobWorkspace go={go}/>; else if(screen==="employer") page=<AppShell go={go} screen={screen}><Employer go={go}/></AppShell>; else if(screen==="postjob") page=<PostJob go={go}/>; else if(screen==="candidates") page=<AppShell go={go} screen={screen}><Candidates go={go}/></AppShell>; else if(screen==="admin") page=session&&["admin","super_admin"].includes(role)?<AppShell go={go} screen={screen}><Admin go={go}/></AppShell>:<AdminAuth go={go}/>; else if(screen==="admin-applications") page=<AppShell go={go} screen={screen}><AdminApplications go={go}/></AppShell>; else if(screen==="admin-verification") page=<AppShell go={go} screen={screen}><AdminVerification go={go}/></AppShell>; else if(screen==="admin-members") page=<AppShell go={go} screen={screen}><AdminMembers go={go}/></AppShell>; else if(screen==="admin-support") page=<AppShell go={go} screen={screen}><AdminSupport go={go}/></AppShell>; else if(screen==="support-desk") page=<AdminSupport go={go} standalone/>; else if(screen==="admin-studio") page=<AppShell go={go} screen={screen}><AdminStudio go={go} role={role}/></AppShell>; else if(screen==="notifications") page=<AppShell go={go} screen={screen}><Notifications go={go}/></AppShell>; else if(screen==="profile") page=<AppShell go={go} screen={screen}><Profile go={go}/></AppShell>; else if(screen==="saved") page=<AppShell go={go} screen={screen}><Saved go={go}/></AppShell>; else if(screen==="applications") page=<AppShell go={go} screen={screen}><Applications go={go}/></AppShell>; else if(screen==="settings") page=<AppShell go={go} screen={screen}><Settings go={go}/></AppShell>; else page=<AppShell go={go} screen="dashboard"><Dashboard go={go}/></AppShell>;
   return <>{page}{!(session&&["admin","super_admin"].includes(role))&&<SupportWidget/>}{toast&&<Toast message={toast} onClose={()=>setToast("")}/>}</>;
 }
 export default App;
