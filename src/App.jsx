@@ -288,7 +288,7 @@ function validateGovernmentIdentifier(country,value){
 
 const navItems = [
   ["dashboard","Dashboard",LayoutDashboard],["jobs","Find Jobs",Search],["saved","Saved Jobs",Bookmark],
-  ["applications","Applications",FileText],["interview","Interviews",MessageCircle],["profile","Profile",UserRound],["payouts","Payouts",WalletCards],
+  ["applications","Applications",FileText],["interview","Interviews",MessageCircle],["job-workspace","Job Workspace",BriefcaseBusiness],["profile","Profile",UserRound],["payouts","Payouts",WalletCards],
   ["verification","Verification",ShieldCheck]
 ];
 
@@ -2092,6 +2092,7 @@ function JobWorkspace({go}){
   const [provider,setProvider]=useState("");
   const [connectionType,setConnectionType]=useState("");
   const [otherInfo,setOtherInfo]=useState("");
+  const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
@@ -2124,6 +2125,7 @@ function JobWorkspace({go}){
     setProvider(selected?.network?.provider_name||"");
     setConnectionType(selected?.network?.connection_type||"");
     setOtherInfo(selected?.network?.other_network_information||"");
+    setEditing(false);
     setNotice("");
   },[selected?.id,selected?.network?.submitted_at]);
 
@@ -2138,7 +2140,7 @@ function JobWorkspace({go}){
       const {data,error:saveError}=await supabase.from("job_network_profiles").upsert(payload,{onConflict:"application_id"}).select("application_id,provider_name,connection_type,other_network_information,submitted_at").single();
       if(saveError)throw saveError;
       setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:data}:row));
-      setNotice("Network information saved. Your job workspace is now available.");
+      setEditing(false);setNotice("Network information saved. Your job workspace is now available.");
     }catch(err){setError(err?.message||"We couldn't save your network information. Please try again.")}
     finally{setSaving(false)}
   };
@@ -2160,7 +2162,7 @@ function JobWorkspace({go}){
             <div><h2 style={{margin:"0 0 5px"}}>{selected.jobs?.title||"Your selected role"}</h2><p style={{margin:0}}>{selected.jobs?.company_name||"RemoteWay partner"}{selected.jobs?.location?" · "+selected.jobs.location:""}</p></div>
           </div>
           <div className="verification-status"><span><i/>{selected.network?"Network information submitted":"Network information required"}</span><small>{selected.network?"Your onboarding details have been saved.":"Complete this step before entering your job workspace."}</small></div>
-          {!selected.network?<div style={{marginTop:24}}>
+          {!selected.network||editing?<div style={{marginTop:24}}>
             <h2>Set up your network information</h2>
             <p>Tell us which internet or mobile network you use and share other important network provider information so we can assess your connectivity and arrange the appropriate working tools.</p>
             <Field label="Internet or mobile network provider" placeholder="e.g. MTN, Airtel, fibre provider" value={provider} onChange={e=>setProvider(e.target.value)}/>
@@ -2176,7 +2178,7 @@ function JobWorkspace({go}){
             {Array.isArray(selected.jobs?.responsibilities)&&selected.jobs.responsibilities.length>0&&<div style={{marginTop:22}}><h3>Your responsibilities</h3><ul>{selected.jobs.responsibilities.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
             {Array.isArray(selected.jobs?.requirements)&&selected.jobs.requirements.length>0&&<div style={{marginTop:22}}><h3>Role requirements</h3><ul>{selected.jobs.requirements.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
             <div className="payout-reminder" style={{marginTop:24}}><div className="payout-reminder-icon"><FileText size={20}/></div><div className="payout-reminder-copy"><span className="kicker">WORK TASKS</span><h2>Work instructions and tasks</h2><p>Your job-specific tasks and working resources will be shown here once they have been configured for this position.</p></div></div>
-            <Button variant="soft" onClick={()=>{setError("");setNotice("");setProvider(selected.network.provider_name||"");setConnectionType(selected.network.connection_type||"");setOtherInfo(selected.network.other_network_information||"");setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:null}:row))}}>Edit network information</Button>
+            <Button variant="soft" onClick={()=>{setError("");setNotice("");setEditing(true);setProvider(selected.network.provider_name||"");setConnectionType(selected.network.connection_type||"");setOtherInfo(selected.network.other_network_information||"")}}>Edit network information</Button>
           </div>}
           {notice&&<div className="form-success" role="status" style={{marginTop:16}}>{notice}</div>}
         </section>
