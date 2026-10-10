@@ -671,9 +671,10 @@ function AppShell({go,screen,children,activeNav}){
   useEffect(()=>{
     let mounted=true;
     const loadUnread=async()=>{
-      const {data:{user}}=await supabase.auth.getUser();
+      const {data:{session}}=await supabase.auth.getSession();
+      const user=session?.user;
       if(!user||!mounted)return;
-      const {count}=await supabase.from("notifications").select("id",{count:"exact",head:true}).is("read_at",null);
+      const {count}=await cachedRequest("private:unread-notifications:"+user.id,()=>supabase.from("notifications").select("id",{count:"exact",head:true}).is("read_at",null),5000);
       if(mounted)setUnreadNotifications(count||0);
     };
     loadUnread();
