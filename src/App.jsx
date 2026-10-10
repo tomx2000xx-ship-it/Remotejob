@@ -353,7 +353,7 @@ function PublicNav({go}){
 
 function Home({go}){
   const [query,setQuery]=useState(""),[where,setWhere]=useState("Anywhere"),[cfg,setCfg]=useState(null),[sections,setSections]=useState({});
-  useEffect(()=>{let mounted=true;(async()=>{const [{data},{data:secs}]=await cachedRequest("public:home-config",()=>Promise.all([supabase.from("site_settings").select("key,value").in("key",["brand","home_hero","home_metrics"]),supabase.from("site_sections").select("section_key,is_visible")]),60000);if(mounted){const m={};(data||[]).forEach(x=>m[x.key]=x.value);const vis={};(secs||[]).forEach(x=>vis[x.section_key]=x.is_visible);setCfg(m);setSections(vis)}})();return()=>{mounted=false}},[]);
+  useEffect(()=>{let mounted=true;(async()=>{const [{data},{data:secs}]=await cachedRequest("public:home-config",()=>Promise.all([supabase.from("site_settings").select("key,value").in("key",["brand","home_hero","home_metrics"]),supabase.from("site_sections").select("section_key,is_visible")]),30000);if(mounted){const m={};(data||[]).forEach(x=>m[x.key]=x.value);const vis={};(secs||[]).forEach(x=>vis[x.section_key]=x.is_visible);setCfg(m);setSections(vis)}})();return()=>{mounted=false}},[]);
   const hero=cfg?.home_hero||{badge:"Trusted by 2,500+ companies worldwide",title:"Work that fits your life.",description:"Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.",search_button:"Search Jobs",popular:["Remote","Design","Development","Marketing","Customer Support","Data Entry"]};
   const metrics=cfg?.home_metrics?.items||[["50,000+","Active job seekers"],["3,200+","Trusted companies"],["120+","Countries"],["98%","Satisfaction rate"]];
   const section=(key)=>cfg?true:true;
