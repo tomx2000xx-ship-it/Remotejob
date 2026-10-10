@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
+import { cachedRequest } from "./lib/queryCache";
 import {
   ArrowLeft, ArrowRight, Bell, Bookmark, BriefcaseBusiness, Check,
   ChevronDown, ChevronRight, CircleHelp, Clock3, CreditCard, FileText, Filter,
@@ -320,7 +321,7 @@ function PublicInfoLayout({go,eyebrow,title,lead,children}) {
 }
 function CompaniesPage({go}) {
  const [jobs,setJobs]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState("");
- useEffect(()=>{let live=true;(async()=>{const {data,error:e}=await supabase.from("jobs").select("id,title,company_name,company_logo,category,location,job_type,created_at").eq("status","published").order("company_name",{ascending:true});if(!live)return;if(e)setError("We couldn't load company listings right now.");setJobs(data||[]);setLoading(false)})();return()=>{live=false}},[]);
+ useEffect(()=>{let live=true;(async()=>{const {data,error:e}=await cachedRequest("public:company-directory",()=>supabase.from("jobs").select("id,title,company_name,company_logo,category,location,job_type,created_at").eq("status","published").order("company_name",{ascending:true}),30000);if(!live)return;if(e)setError("We couldn't load company listings right now.");setJobs(data||[]);setLoading(false)})();return()=>{live=false}},[]);
  const companies=useMemo(()=>{const grouped=new Map();jobs.forEach(j=>{const key=(j.company_name||"Company").trim();if(!grouped.has(key))grouped.set(key,{name:key,logo:j.company_logo||"",jobs:[]});const row=grouped.get(key);if(!row.logo&&j.company_logo)row.logo=j.company_logo;row.jobs.push(j)});return [...grouped.values()]},[jobs]);
  return <PublicInfoLayout go={go} eyebrow="OUR COMPANY DIRECTORY" title="Explore companies hiring for remote work." lead="Browse the employers represented in RemoteWay’s currently published job listings. Open a company to see the opportunities listed under its name."><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:18}}><strong>{loading?"Loading companies…":companies.length+" companies listed"}</strong><button className="btn btn-outline" onClick={()=>go("jobs")}>Browse all jobs <ArrowRight size={15}/></button></div>{error&&<div className="auth-message auth-error">{error}</div>}{loading?<div className="empty-state"><h3>Loading company directory…</h3></div>:companies.length===0?<EmptyState title="No published company listings yet" text="New company opportunities will appear here when jobs are published." action="Browse jobs" onAction={()=>go("jobs")}/>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,285px),1fr))",gap:16}}>{companies.map(company=><article key={company.name} className="panel" style={{padding:16,display:"flex",flexDirection:"column",gap:13,minWidth:0,overflow:"hidden",borderRadius:18}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:64,height:64,flex:"0 0 64px",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",borderRadius:14,border:"1px solid var(--line,#e4e7e3)",background:"#fff",padding:7,boxSizing:"border-box"}}>{company.logo?<img src={company.logo} alt={company.name+" logo"} loading="lazy" decoding="async" style={{display:"block",width:"100%",height:"100%",objectFit:"contain",objectPosition:"center"}} onError={e=>{e.currentTarget.style.display="none"}}/>:<span style={{fontSize:25,fontWeight:750,color:"var(--green,#176653)"}}>{company.name.slice(0,1)}</span>}</div><div style={{minWidth:0,flex:1}}><h2 style={{fontSize:18,lineHeight:1.25,margin:"0 0 6px",overflowWrap:"anywhere"}}>{company.name}</h2><span style={{fontSize:13,color:"var(--muted,#6c7773)"}}>{company.jobs.length} published {company.jobs.length===1?"role":"roles"}</span></div></div><div style={{display:"grid",gap:9}}>{company.jobs.slice(0,3).map(job=><button key={job.id} onClick={()=>go("job",job.id)} style={{textAlign:"left",background:"var(--cream,#f8f6f0)",border:"1px solid var(--line,#e4e7e3)",borderRadius:12,padding:"12px",color:"inherit",cursor:"pointer",width:"100%",minWidth:0,boxSizing:"border-box"}}><strong style={{display:"block",fontSize:14,lineHeight:1.4,overflowWrap:"anywhere"}}>{job.title}</strong><span style={{display:"block",marginTop:5,fontSize:12,lineHeight:1.5,color:"var(--muted,#6c7773)",overflowWrap:"anywhere"}}>{job.category||"Remote role"} · {job.location||"Location varies"}</span></button>)}</div><button className="btn btn-soft" style={{marginTop:2,alignSelf:"stretch",justifyContent:"center",width:"100%",boxSizing:"border-box"}} onClick={()=>go("jobs",company.name)}>View company jobs <ArrowRight size={15}/></button></article>)}</div>}<p style={{marginTop:24,fontSize:13,lineHeight:1.7,color:"var(--muted,#6c7773)"}}>Listings on RemoteWay are managed by our platform team. A company appearing here means one or more listings currently name that company; it does not by itself mean RemoteWay is an official partner or that the employer has independently verified every listing.</p></PublicInfoLayout>;
 }
@@ -352,7 +353,7 @@ function PublicNav({go}){
 
 function Home({go}){
   const [query,setQuery]=useState(""),[where,setWhere]=useState("Anywhere"),[cfg,setCfg]=useState(null),[sections,setSections]=useState({});
-  useEffect(()=>{let mounted=true;(async()=>{const [{data},{data:secs}]=await Promise.all([supabase.from("site_settings").select("key,value").in("key",["brand","home_hero","home_metrics"]),supabase.from("site_sections").select("section_key,is_visible")]);if(mounted){const m={};(data||[]).forEach(x=>m[x.key]=x.value);const vis={};(secs||[]).forEach(x=>vis[x.section_key]=x.is_visible);setCfg(m);setSections(vis)}})();return()=>{mounted=false}},[]);
+  useEffect(()=>{let mounted=true;(async()=>{const [{data},{data:secs}]=await cachedRequest("public:home-config",()=>Promise.all([supabase.from("site_settings").select("key,value").in("key",["brand","home_hero","home_metrics"]),supabase.from("site_sections").select("section_key,is_visible")]),60000);if(mounted){const m={};(data||[]).forEach(x=>m[x.key]=x.value);const vis={};(secs||[]).forEach(x=>vis[x.section_key]=x.is_visible);setCfg(m);setSections(vis)}})();return()=>{mounted=false}},[]);
   const hero=cfg?.home_hero||{badge:"Trusted by 2,500+ companies worldwide",title:"Work that fits your life.",description:"Discover verified remote opportunities from trusted companies around the world. Build your career on your terms.",search_button:"Search Jobs",popular:["Remote","Design","Development","Marketing","Customer Support","Data Entry"]};
   const metrics=cfg?.home_metrics?.items||[["50,000+","Active job seekers"],["3,200+","Trusted companies"],["120+","Countries"],["98%","Satisfaction rate"]];
   const section=(key)=>cfg?true:true;
@@ -472,9 +473,11 @@ function Jobs({go,initialQuery="",member=false}){
       if(!hasLoaded.current)setLoading(true);
       setError("");
       try{
-        let request=supabase.from("jobs").select("*").eq("status","published");
-        if(remote!=="All")request=request.ilike("location","%"+remote+"%");
-        const {data,error:fetchError}=await request.order("created_at",{ascending:false});
+        const {data,error:fetchError}=await cachedRequest("public:jobs:"+remote,()=>{
+          let request=supabase.from("jobs").select("id,title,company_name,company_logo,verified,salary_min,salary_max,salary_currency,salary_period,location,job_type,tags,category,created_at,remote_type,experience_level").eq("status","published");
+          if(remote!=="All")request=request.ilike("location","%"+remote+"%");
+          return request.order("created_at",{ascending:false});
+        },20000);
         if(!mounted||current!==requestId)return;
         if(fetchError){
           setError(fetchError.message);
