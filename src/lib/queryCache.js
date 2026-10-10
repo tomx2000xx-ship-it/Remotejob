@@ -8,19 +8,23 @@ export function cachedRequest(key, fetcher, ttlMs = 30000) {
   if (existing?.promise) return existing.promise;
   if (existing && existing.expiresAt > now) return Promise.resolve(existing.value);
 
-  const promise = Promise.resolve()
+  let promise;
+  promise = Promise.resolve()
     .then(fetcher)
     .then((result) => {
       // Supabase returns errors as values; do not cache failed requests.
       if (result?.error || (Array.isArray(result) && result.some((item) => item?.error))) {
-        cache.delete(key);
+        if (cache.get(key)?.promise === promise) cache.delete(key);
         return result;
       }
-      cache.set(key, { value: result, expiresAt: Date.now() + ttlMs });
+      // An invalidated or superseded request must not repopulate the cache.
+      if (cache.get(key)?.promise === promise) {
+        cache.set(key, { value: result, expiresAt: Date.now() + ttlMs });
+      }
       return result;
     })
     .catch((error) => {
-      cache.delete(key);
+      if (cache.get(key)?.promise === promise) cache.delete(key);
       throw error;
     });
 
