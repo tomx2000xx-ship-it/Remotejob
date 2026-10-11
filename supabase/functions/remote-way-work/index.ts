@@ -117,6 +117,7 @@ export default {
     }
 
     if (body.action === "submit_task") {
+      if (!isWeekday(parseDate(today))) return json({ error: "Task submissions are available Monday to Friday only. Please return on the next weekday." }, 403);
       const assignmentId = Number(body.assignment_id);
       const responseText = String(body.response || "").trim();
       if (!Number.isSafeInteger(assignmentId) || assignmentId <= 0) return json({ error: "Choose a valid task." }, 400);
