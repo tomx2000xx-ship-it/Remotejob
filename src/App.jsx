@@ -700,7 +700,7 @@ function GoogleAuthCallback({go}){
      else if(active){setError("Google sign-in did not return an active session. Please try again.");setWorking(false)}
    });
    return()=>{active=false;subscription.unsubscribe()};
- },[go]);
+ },[]);
  return <div className="auth-page"><div className="auth-art"><Logo light/><div><span className="kicker">WELCOME TO REMOTEWAY</span><h1>Your next chapter starts here.</h1><p>We’re securely connecting your account and preparing your profile.</p></div><small>© 2026 RemoteWay</small></div><div className="auth-form-wrap"><div className="auth-card"><Logo/><div className="verify-icon"><ShieldCheck size={22}/></div><h2>{working?"Finishing your sign-in…":"One more step"}</h2><p>{working?"Your Google account is connected. We’re checking your profile and onboarding progress.":"Your account is signed in, but we couldn’t finish preparing your profile."}</p>{error&&<div className="auth-message auth-error" role="alert">{error}</div>}{!working&&<Button className="full" onClick={()=>go("login")}>Return to sign in <ArrowRight size={15}/></Button>}</div></div></div>;
 }
 
