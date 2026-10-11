@@ -950,8 +950,8 @@ function Payouts({go}){
     setRequestingPayout(true);setError("");setPayoutNotice("");
     try{
       const {data,error:invokeError}=await supabase.functions.invoke("remote-way-work",{body:{action:"request_payout",amount,payout_method_id:savedMethod.id,request_details:withdrawalValues}});
-      if(invokeError)throw invokeError;
       if(data?.error)throw new Error(data.error);
+      if(invokeError)throw invokeError;
       const payout=data?.payout;
       if(!payout?.id)throw new Error("The withdrawal request could not be confirmed. Please refresh your history.");
       setHistory(prev=>[payout,...prev]);
