@@ -1334,3 +1334,40 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .admin-email-reply>div{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px}
 .admin-email-reply small{font-size:11px;color:var(--muted,#66736b)}
 @media(max-width:760px){.admin-support-tabs{width:100%;box-sizing:border-box}.admin-support-tabs button{flex:1;justify-content:center;padding:11px 8px;font-size:12px}.admin-email-toolbar{align-items:flex-start;flex-direction:column}.admin-email-layout{display:block;min-height:0}.admin-email-list,.admin-email-detail{min-height:calc(100dvh - 260px)}.admin-email-detail{min-height:calc(100dvh - 250px)}.admin-email-messages{max-height:none;min-height:240px}.admin-email-message{max-width:100%;box-sizing:border-box}.admin-email-detail-head{padding:12px;gap:8px}.admin-email-detail-head h3{font-size:15px}.admin-email-detail-head select{max-width:96px}.admin-email-reply>div{align-items:flex-start;flex-direction:column}.admin-email-reply>div button{width:100%}}
+
+
+/* Cohesive, understated contact details in the existing footer and support panel */
+.footer-contact{margin-top:18px;padding-top:13px;border-top:1px solid rgba(255,255,255,.12);min-width:0}
+.footer-contact h4{margin:0 0 6px!important}
+.footer-contact .footer-copy{margin:0 0 8px!important;line-height:1.5}
+.footer-contact-list{display:grid;gap:0;min-width:0}
+.footer-contact-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.footer-contact-number{font-size:10px;line-height:1.5;color:#c6d2cc;white-space:nowrap}
+.footer-contact-actions{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:9px;color:#6f897d;white-space:nowrap}
+.footer-contact-actions a{color:#c6d2cc;text-decoration:none;font-size:9px}
+.footer-contact-actions a:hover{text-decoration:underline;color:#fff}
+.support-direct{margin:14px 0 6px;padding:14px 0 2px;border-top:1px solid #e7ece8}
+.support-direct>strong{display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.support-direct>p{font-size:9px;color:#7b8580;line-height:1.5;margin:0 0 8px}
+.support-direct-list{display:grid;gap:0}
+.support-direct-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:9px 0;border-top:1px solid #edf0ed}
+.support-direct-row>span{font-size:10px;font-weight:600;color:#46554d;white-space:nowrap}
+.support-direct-row>div{display:flex;align-items:center;gap:10px;flex:none}
+.support-direct-row a{display:inline-flex;align-items:center;gap:4px;color:var(--green);font-size:9px;font-weight:650;text-decoration:none;white-space:nowrap}
+.support-direct-row a:hover{text-decoration:underline}
+@media(max-width:900px){
+  .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 24px}
+  .footer-contact-number{font-size:10px}
+}
+@media(max-width:560px){
+  .footer{padding:42px 6% 20px}
+  .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 18px;padding-bottom:32px}
+  .footer-grid>div{min-width:0}
+  .footer-contact-row{align-items:flex-start;flex-direction:column;gap:3px}
+  .footer-contact-number{white-space:normal;overflow-wrap:anywhere}
+  .footer-bottom{align-items:flex-start;gap:12px;flex-direction:column}
+  .footer-bottom div{flex-wrap:wrap;gap:12px}
+  .support-panel{right:12px;bottom:72px;width:calc(100vw - 24px);height:min(650px,calc(100dvh - 90px));min-height:min(470px,calc(100dvh - 90px));border-radius:16px}
+  .support-launcher{right:16px;bottom:16px}
+  .support-direct-row>span{white-space:normal;overflow-wrap:anywhere}
+}
