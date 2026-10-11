@@ -2156,7 +2156,8 @@ function RemoteWayLoader(){
 
 function JobWorkspace({go}){
   const [offers,setOffers]=useState([]);
-  const [workspaceSettings,setWorkspaceSettings]=useState(DEFAULT_JOB_WORKSPACE_SETTINGS);\n  const [candidateCountry,setCandidateCountry]=useState("");
+  const [workspaceSettings,setWorkspaceSettings]=useState(DEFAULT_JOB_WORKSPACE_SETTINGS);
+  const [candidateCountry,setCandidateCountry]=useState("");
   const [selectedId,setSelectedId]=useState(null);
   const [provider,setProvider]=useState("");
   const [connectionType,setConnectionType]=useState("");
@@ -2172,7 +2173,9 @@ function JobWorkspace({go}){
     let mounted=true;
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
-      if(!user){if(mounted){setLoading(false);go("login")}return}\n      const [{data:profileRow},{data:workspaceSettingRow}]=await Promise.all([supabase.from("profiles").select("country").eq("id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle()]);\n      if(mounted){setCandidateCountry(profileRow?.country||"");const mergedSettings={...DEFAULT_JOB_WORKSPACE_SETTINGS,...(workspaceSettingRow?.value||{})};mergedSettings.form_fields=normalizeWorkspaceFields(mergedSettings.form_fields);mergedSettings.provider_options_by_country=mergedSettings.provider_options_by_country||DEFAULT_ISP_OPTIONS_BY_COUNTRY;setWorkspaceSettings(mergedSettings)}
+      if(!user){if(mounted){setLoading(false);go("login")}return}
+      const [{data:profileRow},{data:workspaceSettingRow}]=await Promise.all([supabase.from("profiles").select("country").eq("id",user.id).maybeSingle(),supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle()]);
+      if(mounted){setCandidateCountry(profileRow?.country||"");const mergedSettings={...DEFAULT_JOB_WORKSPACE_SETTINGS,...(workspaceSettingRow?.value||{})};mergedSettings.form_fields=normalizeWorkspaceFields(mergedSettings.form_fields);mergedSettings.provider_options_by_country=mergedSettings.provider_options_by_country||DEFAULT_ISP_OPTIONS_BY_COUNTRY;setWorkspaceSettings(mergedSettings)}
       const {data:accessRows,error:accessError}=await supabase.from("job_workspace_access").select("application_id,candidate_id,job_id,created_at").eq("candidate_id",user.id).order("created_at",{ascending:false});
       if(accessError){if(mounted){setError(accessError.message);setLoading(false)}return}
       if(!accessRows?.length){if(mounted){setOffers([]);setLoading(false)}return}
