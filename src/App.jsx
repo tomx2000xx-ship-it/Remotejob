@@ -836,6 +836,9 @@ function Payouts({go}){
   const [savedMethod,setSavedMethod]=useState(null);
   const [history,setHistory]=useState([]);
   const [earnings,setEarnings]=useState({available:0,currentPeriod:0,lifetime:0,eligibleAt:null,hasStartDate:false});
+  const [withdrawalAmount,setWithdrawalAmount]=useState("");
+  const [requestingPayout,setRequestingPayout]=useState(false);
+  const [payoutNotice,setPayoutNotice]=useState("");
   const [loading,setLoading]=useState(true);
   const [payoutConfigs,setPayoutConfigs]=useState([]);
   const [withdrawalFields,setWithdrawalFields]=useState([]),[withdrawalValues,setWithdrawalValues]=useState({});
@@ -864,11 +867,11 @@ function Payouts({go}){
       if(!user){if(mounted)setLoading(false);return;}
       const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
-        supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20),
+        supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}),
         supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name"),
         supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle(),
         supabase.from("job_earnings_ledger").select("amount,status,week_start,week_end,earning_date").eq("candidate_id",user.id).in("status",["approved","pending","paid"]),
-        supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id).not("work_started_at","is",null)
+        supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id)
       ]);
       if(!mounted)return;
       if(methodsRes.error||payoutsRes.error||p.error||w.error)setError((methodsRes.error||payoutsRes.error||p.error||w.error).message);
@@ -876,7 +879,9 @@ function Payouts({go}){
       const today=new Date();const todayKey=today.toISOString().slice(0,10);
       const ledger=ledgerRes.data||[];
       const approved=ledger.filter(row=>row.status==="approved");
-      const available=approved.filter(row=>row.week_end<todayKey).reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const earnedAvailable=approved.filter(row=>row.week_end<todayKey).reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const reserved=(payoutsRes.data||[]).filter(row=>["pending","processing","paid"].includes(row.status)).reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const available=Math.max(0,earnedAvailable-reserved);
       const currentPeriod=ledger.filter(row=>row.week_start<=todayKey&&row.week_end>=todayKey&&row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
       const lifetime=ledger.filter(row=>row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
       const starts=(accessRes.data||[]).map(row=>row.work_started_at||row.created_at).filter(Boolean).sort();
@@ -937,6 +942,23 @@ function Payouts({go}){
     finally{setSaving(false);}
   };
 
+  const requestWithdrawal=async()=>{
+    const amount=Number(withdrawalAmount);
+    if(requestingPayout||!savedMethod||!Number.isFinite(amount)||amount<1)return;
+    setRequestingPayout(true);setError("");setPayoutNotice("");
+    try{
+      const {data,error:invokeError}=await supabase.functions.invoke("remote-way-work",{body:{action:"request_payout",amount,payout_method_id:savedMethod.id}});
+      if(invokeError)throw invokeError;
+      if(data?.error)throw new Error(data.error);
+      const payout=data?.payout;
+      if(!payout?.id)throw new Error("The withdrawal request could not be confirmed. Please refresh your history.");
+      setHistory(prev=>[payout,...prev]);
+      setEarnings(prev=>({...prev,available:Math.max(0,prev.available-Number(payout.amount||amount))}));
+      setWithdrawalAmount("");
+      setPayoutNotice("Withdrawal request #"+payout.id+" has been submitted and is now pending review. Estimated processing is 4–5 working days; funds are not sent automatically.");
+    }catch(err){setError(err?.message||"We couldn't submit your withdrawal request.");}
+    finally{setRequestingPayout(false);}
+  };
   const methodLabel=m=>{const cfg=payoutConfigs.find(x=>x.method_key===m)||payoutConfigs.find(x=>x.method_type===m);return cfg?.name||m||"Payout method"};
   const methodSummary=m=>m.method_type==="bank"?`${m.bank_name||"Bank"} · ${m.bank_country||""} · Account ending ${m.account_last4||"••••"}`:m.method_type==="paypal"?`${m.paypal_name||""} · ${m.paypal_email||""}`:m.method_type==="card"?`${m.cardholder_name||""} · Card ending ${m.card_last4||"••••"}`:`${methodLabel(m.method_type)} · ${Object.values(m.details||{}).filter(Boolean).join(" · ")}`;
 
@@ -968,7 +990,7 @@ function Payouts({go}){
         <div className="payout-confirm-row"><label><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/><span>I have checked these details carefully.</span></label><Button onClick={saveMethod} disabled={!canSave||!confirmed||saving}>{saving?"Saving…":"Add payment method"} {!saving&&<ArrowRight size={15}/>}</Button></div>
       </div></div>)}
     </section>
-    <section className="payout-withdrawal-request panel"><div className="payout-section-head"><div><span className="kicker">WITHDRAWAL</span><h2>How much would you like to withdraw?</h2><p>Enter the amount and any additional information requested for this withdrawal.</p></div></div><div className="payout-form-grid">{withdrawalFields.map(f=>{const value=withdrawalValues[f.key]??"";const type=f.type||"text";const setValue=v=>setWithdrawalValues(prev=>({...prev,[f.key]:v}));return <div className="field" key={f.key}><span>{f.label||"Field"}{f.required?" *":""}</span>{type==="textarea"?<textarea value={value} placeholder={f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)} onChange={e=>setValue(e.target.value)}/>:type==="select"?<select value={value} onChange={e=>setValue(e.target.value)}><option value="">{f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)}</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>:type==="radio"?<div className="universal-choice-list">{(f.options||[]).map(o=><label key={o}><input type="radio" name={"withdraw_"+f.key} checked={value===o} onChange={()=>setValue(o)}/><span>{o}</span></label>)}</div>:type==="checkbox"?<label className="checkbox-field"><input type="checkbox" checked={value===true||value==="true"} onChange={e=>setValue(e.target.checked)}/><span>{f.label}</span></label>:type==="file"?<input type="file" onChange={e=>setValue(e.target.files?.[0]?.name||"")}/>:type==="country"?<select value={value} onChange={e=>setValue(e.target.value)}><option value="">{f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)}</option>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select>:<UniversalFieldInput type={type} value={value} onChange={setValue} placeholder={f.placeholder} label={f.label} keyName={f.key} min={f.config?.min} max={f.config?.max} step={f.config?.step}/>} {f.help_text&&<small>{f.help_text}</small>}</div>})}</div><div className="payout-country-note"><WalletCards size={15}/><span>The withdrawal fields are controlled from Admin Studio. Processing will be connected when the withdrawal-request workflow is enabled.</span></div></section>
+    <section className="payout-withdrawal-request panel"><div className="payout-section-head"><div><span className="kicker">WITHDRAWAL</span><h2>How much would you like to withdraw?</h2><p>Request a withdrawal from your eligible, approved balance.</p></div></div><div className="field" style={{maxWidth:360,marginBottom:18}}><span>Withdrawal amount (USD) *</span><input type="number" min="1" max={earnings.available} step="0.01" value={withdrawalAmount} onChange={e=>setWithdrawalAmount(e.target.value)} placeholder="Enter amount to withdraw" disabled={!savedMethod||requestingPayout}/><small>Available now: {earnings.available.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} USD. Minimum request: $1.00.</small></div><div className="payout-form-grid">{withdrawalFields.filter(f=>!["amount","withdrawal_amount"].includes(String(f.key||"").toLowerCase())).map(f=>{const value=withdrawalValues[f.key]??"";const type=f.type||"text";const setValue=v=>setWithdrawalValues(prev=>({...prev,[f.key]:v}));return <div className="field" key={f.key}><span>{f.label||"Field"}{f.required?" *":""}</span>{type==="textarea"?<textarea value={value} placeholder={f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)} onChange={e=>setValue(e.target.value)}/>:type==="select"?<select value={value} onChange={e=>setValue(e.target.value)}><option value="">{f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)}</option>{(f.options||[]).map(o=><option key={o} value={o}>{o}</option>)}</select>:type==="radio"?<div className="universal-choice-list">{(f.options||[]).map(o=><label key={o}><input type="radio" name={"withdraw_"+f.key} checked={value===o} onChange={()=>setValue(o)}/><span>{o}</span></label>)}</div>:type==="checkbox"?<label className="checkbox-field"><input type="checkbox" checked={value===true||value==="true"} onChange={e=>setValue(e.target.checked)}/><span>{f.label}</span></label>:type==="file"?<input type="file" onChange={e=>setValue(e.target.files?.[0]?.name||"")}/>:type==="country"?<select value={value} onChange={e=>setValue(e.target.value)}><option value="">{f.placeholder||defaultFieldPlaceholder(type,f.label,f.key)}</option>{registrationCountries.map(([flag,c])=><option key={c} value={c}>{flag} {c}</option>)}</select>:<UniversalFieldInput type={type} value={value} onChange={setValue} placeholder={f.placeholder} label={f.label} keyName={f.key} min={f.config?.min} max={f.config?.max} step={f.config?.step}/>} {f.help_text&&<small>{f.help_text}</small>}</div>})}</div><div className="payout-country-note"><WalletCards size={15}/><span>{savedMethod?"Requests are reviewed against your approved balance and seven-day work period. Processing target: 4–5 working days after review.":"Add an active payout method before requesting a withdrawal."} Actual transfer is not automatic; the RemoteWay team must review and process requests.</span></div>{payoutNotice&&<div className="form-success" role="status" style={{marginTop:14}}>{payoutNotice}</div>}<div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><Button onClick={requestWithdrawal} disabled={requestingPayout||!savedMethod||!Number.isFinite(Number(withdrawalAmount))||Number(withdrawalAmount)<1||Number(withdrawalAmount)>earnings.available}>{requestingPayout?"Submitting request…":"Request withdrawal"} {!requestingPayout&&<ArrowRight size={15}/>}</Button></div></section>
     <section className="payout-history panel"><PanelTitle title="Payout history" action="View all" onAction={()=>{}}/>{history.length===0?<div className="payout-empty"><WalletCards size={20}/><strong>No payouts yet</strong><span>Your payout history will appear here once you receive your first payout.</span></div>:<div className="payout-history-list">{history.map(p=><div className="payout-history-row" key={p.id}><div><strong>{p.currency} {Number(p.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</strong><small>{new Date(p.created_at).toLocaleDateString()} · {p.status}</small></div><Badge tone={p.status==="paid"?"green":"amber"}>{p.status}</Badge></div>)}</div>}</section>
   </div>
 }
@@ -2191,6 +2213,49 @@ function JobWorkspace({go}){
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
+  const [workTasks,setWorkTasks]=useState([]);
+  const [tasksLoading,setTasksLoading]=useState(false);
+  const [taskError,setTaskError]=useState("");
+  const [taskNotice,setTaskNotice]=useState("");
+  const [taskResponses,setTaskResponses]=useState({});
+  const [taskSubmitting,setTaskSubmitting]=useState(null);
+  const [taskSummary,setTaskSummary]=useState({completed:0,score:null,earnings:0});
+  const [weeklyEarned,setWeeklyEarned]=useState(0);
+  const [workdayNumber,setWorkdayNumber]=useState(0);
+  const [workMessage,setWorkMessage]=useState("");
+  const [workStartDate,setWorkStartDate]=useState("");
+
+  const loadWorkTasks=async(applicationId)=>{
+    if(!applicationId)return;
+    setTasksLoading(true);setTaskError("");
+    try{
+      const {data,error:invokeError}=await supabase.functions.invoke("remote-way-work",{body:{action:"get_tasks",application_id:applicationId}});
+      if(invokeError)throw invokeError;
+      if(data?.error)throw new Error(data.error);
+      setWorkTasks(data?.tasks||[]);
+      setTaskSummary(data?.daily_summary||{completed:0,score:null,earnings:0});
+      setWeeklyEarned(Number(data?.weekly_earned||0));
+      setWorkdayNumber(Number(data?.workday_number||0));
+      setWorkStartDate(data?.start_date||"");
+      setWorkMessage(data?.message||"");
+    }catch(err){setTaskError(err?.message||"We couldn't load your work tasks. Please try again.");}
+    finally{setTasksLoading(false);}
+  };
+  const submitWorkTask=async(task)=>{
+    const response=String(taskResponses[task.id]||"").trim();
+    if(!response){setTaskError("Write your response before submitting the task.");return;}
+    setTaskSubmitting(task.id);setTaskError("");setTaskNotice("");
+    try{
+      const {data,error:invokeError}=await supabase.functions.invoke("remote-way-work",{body:{action:"submit_task",assignment_id:task.id,response}});
+      if(invokeError)throw invokeError;
+      if(data?.error)throw new Error(data.error);
+      const g=data?.grade||{};
+      setTaskNotice((data?.task_title||task.template?.title||"Task")+" graded: "+String(g.grade_band||"review").replace(/^./,x=>x.toUpperCase())+". Reward approved: $"+Number(g.reward_amount||0).toFixed(2)+".");
+      setTaskResponses(prev=>({...prev,[task.id]:""}));
+      await loadWorkTasks(selected?.id);
+    }catch(err){setTaskError(err?.message||"We couldn't submit this task. Please try again.");}
+    finally{setTaskSubmitting(null);}
+  };
 
   useEffect(()=>{
     let mounted=true;
@@ -2217,6 +2282,11 @@ function JobWorkspace({go}){
   },[]);
 
   const selected=offers.find(row=>String(row.id)===String(selectedId))||offers[0]||null;
+  useEffect(()=>{
+    if(selected?.network&&!editing)loadWorkTasks(selected.id);
+    else {setWorkTasks([]);setTaskSummary({completed:0,score:null,earnings:0});setWeeklyEarned(0);}
+  },[selected?.id,selected?.network?.submitted_at,editing]);
+
   useEffect(()=>{
     setProvider(selected?.network?.provider_name||"");
     setConnectionType(selected?.network?.connection_type||"");
@@ -2273,7 +2343,17 @@ function JobWorkspace({go}){
             {selected.jobs?.description&&<div style={{marginTop:22}}><h3>Role overview</h3><p style={{whiteSpace:"pre-wrap"}}>{selected.jobs.description}</p></div>}
             {Array.isArray(selected.jobs?.responsibilities)&&selected.jobs.responsibilities.length>0&&<div style={{marginTop:22}}><h3>Your responsibilities</h3><ul>{selected.jobs.responsibilities.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
             {Array.isArray(selected.jobs?.requirements)&&selected.jobs.requirements.length>0&&<div style={{marginTop:22}}><h3>Role requirements</h3><ul>{selected.jobs.requirements.map((item,i)=><li key={i}>{item}</li>)}</ul></div>}
-            <div className="payout-reminder" style={{marginTop:24}}><div className="payout-reminder-icon"><FileText size={20}/></div><div className="payout-reminder-copy"><span className="kicker">WORK TASKS</span><h2>Work instructions and tasks</h2><p>Your job-specific tasks and working resources will be shown here once they have been configured for this position.</p></div></div>
+            <div className="work-tasks-panel" style={{marginTop:24,border:"1px solid var(--line,#e2e8e4)",borderRadius:16,padding:18,background:"var(--panel,#fff)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}><div><span className="kicker">DAILY WORK</span><h2 style={{margin:"7px 0"}}>Your task programme</h2><p style={{margin:0}}>20 weekdays · Monday–Friday · Up to $200 per seven-day work period. Rewards depend on completion and quality; earnings are not guaranteed.</p></div><Button variant="outline" onClick={()=>go("payouts")}><WalletCards size={15}/> Earnings & payouts</Button></div>
+              <div className="summary-grid" style={{marginTop:18}}><Summary icon={Clock3} value={workdayNumber>20?"20 / 20":(workdayNumber||0)+" / 20"} label="Workday" change={workStartDate?"Started "+new Date(workStartDate+"T00:00:00").toLocaleDateString():"Start date recording"}/><Summary icon={Check} value={taskSummary.completed} label="Graded today" change="Completed task submissions"/><Summary icon={Star} value={taskSummary.score===null?"—":taskSummary.score+"/100"} label="Today's score" change="Average automatic rubric score"/><Summary icon={WalletCards} value={"$"+Number(taskSummary.earnings||0).toFixed(2)} label="Earned today" change={"$"+Number(weeklyEarned||0).toFixed(2)+" of $200 this period"}/></div>
+              {workMessage&&<div className="payout-country-note" style={{marginTop:14}}><Clock3 size={15}/><span>{workMessage}</span></div>}
+              {taskError&&<div className="form-error" role="alert" style={{marginTop:14}}>{taskError}</div>}
+              {taskNotice&&<div className="form-success" role="status" style={{marginTop:14}}>{taskNotice}</div>}
+              {tasksLoading?<div className="empty-state" style={{padding:20}}><h3>Preparing today's work…</h3><p>Loading your assigned tasks and grading history.</p></div>:workTasks.length===0?<div className="empty-state" style={{padding:20}}><FileText size={22}/><h3>No task assigned yet</h3><p>{workMessage||"Your task programme will appear here after your work start date is recorded."}</p></div>:<div style={{display:"grid",gap:14,marginTop:18}}>{workTasks.map(task=><article key={task.id} className="panel" style={{padding:16,border:"1px solid var(--line,#e2e8e4)",boxShadow:"none"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}><div><span className="kicker">DAY {task.template.day_number} · {new Date(task.assigned_date+"T00:00:00").toLocaleDateString()}</span><h3 style={{margin:"8px 0"}}>{task.template.title}</h3><p style={{margin:"0 0 10px",whiteSpace:"pre-wrap"}}>{task.template.instructions}</p><small>{task.template.estimated_minutes} min · Maximum reward ${Number(task.template.max_reward||0).toFixed(2)} · Practice simulation</small></div><Badge tone={task.submission?"green":task.status==="available"?"soft":"amber"}>{task.submission?task.submission.grade_band||task.submission.status:task.status}</Badge></div>
+                {task.submission?<div style={{marginTop:14,padding:14,borderRadius:12,background:"var(--surface,#f6f8f6)"}}><div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}><strong>Score: {task.submission.quality_score??0}/100</strong><strong>Reward: ${Number(task.submission.reward_amount||0).toFixed(2)}</strong><strong>Completion: {Number(task.submission.completion_percent||0)}%</strong></div><p style={{margin:0}}>{task.submission.feedback||"Your submission has been graded."}</p></div>:<div style={{marginTop:14}}><label className="field"><span>Your response *</span><textarea rows="6" value={taskResponses[task.id]||""} onChange={e=>setTaskResponses(prev=>({...prev,[task.id]:e.target.value}))} placeholder="Describe your steps, decision, quality check and next action. Use fictional data only." disabled={taskSubmitting===task.id}/></label><div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}><Button onClick={()=>submitWorkTask(task)} disabled={taskSubmitting===task.id||!String(taskResponses[task.id]||"").trim()}>{taskSubmitting===task.id?"Submitting & grading…":"Submit task for automatic grading"} <ArrowRight size={15}/></Button></div></div>}
+              </article>)}</div>}
+              <p style={{fontSize:12,color:"var(--muted,#68756e)",marginTop:16}}>Medical billing, payroll, bookkeeping and medical coding activities are synthetic training exercises. They are not official assignments from the companies named on job listings and must not contain real patient or customer information.</p>
+            </div>
             <Button variant="soft" onClick={()=>{setError("");setNotice("");setEditing(true);setProvider(selected.network.provider_name||"");setConnectionType(selected.network.connection_type||"");setOtherInfo(selected.network.other_network_information||"")}}>Edit network information</Button>
           </div>}
           {notice&&<div className="form-success" role="status" style={{marginTop:16}}>{notice}</div>}
