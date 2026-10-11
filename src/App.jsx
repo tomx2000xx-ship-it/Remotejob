@@ -5,7 +5,7 @@ import {
   ArrowLeft, ArrowRight, Bell, Bookmark, BriefcaseBusiness, Check,
   ChevronDown, ChevronRight, CircleHelp, Clock3, CreditCard, FileText, Filter,
   Globe2, Heart, LayoutDashboard, Landmark, LockKeyhole, Mail, MapPin,
-  Menu, MessageCircle, MoreHorizontal, PenLine, Plus, Search, Send,
+  Menu, MessageCircle, MoreHorizontal, PenLine, Phone, Plus, Search, Send,
   Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Star, UserRound,
   Users, WalletCards, X, Zap
 } from "lucide-react";
