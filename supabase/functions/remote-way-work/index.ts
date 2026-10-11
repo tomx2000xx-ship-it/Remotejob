@@ -121,6 +121,7 @@ export default {
       const responseText = String(body.response || "").trim();
       if (!Number.isSafeInteger(assignmentId) || assignmentId <= 0) return json({ error: "Choose a valid task." }, 400);
       if (wordsIn(responseText) < 8) return json({ error: "Please write at least 8 words so the task can be assessed." }, 400);
+      if (responseText.length > 10000) return json({ error: "Please keep your response under 10,000 characters." }, 400);
       const { data: assignment, error: assignmentError } = await db.from("job_task_assignments")
         .select("id,candidate_id,application_id,task_template_id,assigned_date,status")
         .eq("id", assignmentId).eq("candidate_id", uid).maybeSingle();
@@ -138,7 +139,16 @@ export default {
       const matched = keywords.filter((k: string) => keywordMatches(responseText, k));
       const coverage = keywords.length ? matched.length / keywords.length : 0.5;
       const lengthScore = Math.min(1, count / minWords);
-      const quality = Math.max(0, Math.min(100, Math.round((coverage * 0.75 + lengthScore * 0.25) * 100)));
+      const structureGroups = [
+        ["first","step","begin","start","initially"],
+        ["decision","recommend","resolve","record","route","calculate","choose","result","output","classify","match"],
+        ["verify","check","accuracy","quality","privacy","confidential","review","validate","audit","confirm"],
+        ["follow-up","follow up","deadline","escalate","owner","handoff","next action","next step","schedule","notify","document"]
+      ];
+      const normalizedResponse = normalize(responseText);
+      const structureHits = structureGroups.filter((group: string[]) => group.some(term => (" " + normalizedResponse + " ").includes(" " + normalize(term) + " "))).length;
+      const structureScore = structureHits / structureGroups.length;
+      const quality = Math.max(0, Math.min(100, Math.round((coverage * 0.65 + structureScore * 0.25 + lengthScore * 0.10) * 100)));
       const completion = count < 8 ? 0 : Math.min(100, Math.round((count / minWords) * 100));
       let band = "invalid";
       if (count >= 8) band = quality >= 85 ? "excellent" : quality >= 60 ? "average" : quality >= 30 ? "poor" : "invalid";
