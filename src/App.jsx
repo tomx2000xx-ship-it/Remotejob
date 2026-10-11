@@ -835,6 +835,7 @@ function Payouts({go}){
   const [confirmed,setConfirmed]=useState(false);
   const [savedMethod,setSavedMethod]=useState(null);
   const [history,setHistory]=useState([]);
+  const [earnings,setEarnings]=useState({available:0,currentPeriod:0,lifetime:0,eligibleAt:null,hasStartDate:false});
   const [loading,setLoading]=useState(true);
   const [payoutConfigs,setPayoutConfigs]=useState([]);
   const [withdrawalFields,setWithdrawalFields]=useState([]),[withdrawalValues,setWithdrawalValues]=useState({});
@@ -861,14 +862,27 @@ function Payouts({go}){
       if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      const [methodsRes,payoutsRes,p,w]=await Promise.all([
+      const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
         supabase.from("payouts").select("id,amount,currency,status,provider_reference,created_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name"),
-        supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle()
+        supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle(),
+        supabase.from("job_earnings_ledger").select("amount,status,week_start,week_end,earning_date").eq("candidate_id",user.id).in("status",["approved","pending","paid"]),
+        supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id).not("work_started_at","is",null)
       ]);
       if(!mounted)return;
       if(methodsRes.error||payoutsRes.error||p.error||w.error)setError((methodsRes.error||payoutsRes.error||p.error||w.error).message);
+      if(ledgerRes.error||accessRes.error)setError(v=>v||((ledgerRes.error||accessRes.error).message));
+      const today=new Date();const todayKey=today.toISOString().slice(0,10);
+      const ledger=ledgerRes.data||[];
+      const approved=ledger.filter(row=>row.status==="approved");
+      const available=approved.filter(row=>row.week_end<todayKey).reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const currentPeriod=ledger.filter(row=>row.week_start<=todayKey&&row.week_end>=todayKey&&row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const lifetime=ledger.filter(row=>row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const starts=(accessRes.data||[]).map(row=>row.work_started_at||row.created_at).filter(Boolean).sort();
+      const earliestStart=starts[0]?new Date(starts[0]):null;
+      const eligibleAt=earliestStart?new Date(earliestStart.getTime()+(Math.floor(Math.max(0,today.getTime()-earliestStart.getTime())/(7*86400000))+1)*7*86400000):null;
+      setEarnings({available,currentPeriod,lifetime,eligibleAt,hasStartDate:!!earliestStart});
       setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);
       const m=methodsRes.data||null;
       setSavedMethod(m);
@@ -931,6 +945,15 @@ function Payouts({go}){
   return <div className="workspace">
     <div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Choose where you want your earnings sent and keep your payment details up to date.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Secure payout details</Badge></div>
     {error&&<div className="auth-message auth-error">{error}</div>}
+    <section className="payout-method-panel" aria-label="Earnings balance">
+      <div className="payout-section-head"><div><span className="kicker">YOUR EARNINGS</span><h2>Approved earnings balance</h2><p>Only graded and approved task earnings are counted. The weekly earnings limit is $200 across your work.</p></div></div>
+      <div className="payout-method-grid">
+        <div className="payout-method-card"><span className="kicker">AVAILABLE FOR WITHDRAWAL</span><h2>{earnings.available.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} USD</h2><p>Approved earnings from completed payout periods</p></div>
+        <div className="payout-method-card"><span className="kicker">CURRENT 7-DAY PERIOD</span><h2>{earnings.currentPeriod.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} USD</h2><p>Ledger earnings recorded in the current period</p></div>
+        <div className="payout-method-card"><span className="kicker">TOTAL EARNED</span><h2>{earnings.lifetime.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} USD</h2><p>Approved, pending, and paid ledger entries</p></div>
+      </div>
+      <div className="payout-country-note"><WalletCards size={15}/><span>{earnings.hasStartDate&&earnings.eligibleAt?"Your next weekly eligibility checkpoint is "+earnings.eligibleAt.toLocaleDateString()+". Approved funds become eligible after the relevant seven-day work period closes.":"Your payout eligibility date will appear after your job start date is recorded."} Payout requests and actual payment processing are not enabled yet.</span></div>
+    </section>
     {savedMethod?<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><Button variant="outline" onClick={()=>setModalOpen(true)}><PenLine size={15}/> Review details</Button></section>:null}
     <section className="payout-warning"><div className="payout-warning-icon"><CircleHelp size={19}/></div><div><strong>Take your time before you save.</strong><p>Make sure your name, bank or PayPal details are exactly correct. Incorrect payout information can cause a payment to fail or be sent to the wrong destination. Once saved, changes may be restricted and you may need to contact <button onClick={()=>go("home")}>Customer Care</button> to request an update.</p></div></section>
     
