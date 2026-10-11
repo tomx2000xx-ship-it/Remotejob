@@ -1307,7 +1307,7 @@ function AdminStudio({go,role}){
    const {data,error:e}=await supabase.from("payouts").update(patch).eq("id",request.id).select("*").single();
    if(e){setError(e.message);setSaving(false);return;}
    const {data:{user}}=await supabase.auth.getUser();
-   if(user)await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"payout_request_status_changed",target_type:"payout",target_id:String(request.id),details:{from:request.status,to:status,amount:request.amount,provider_reference:patch.provider_reference}});
+   if(user)await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"payout_request_status_changed",target_type:"payout",target_id:request.user_id,details:{payout_id:request.id,from:request.status,to:status,amount:request.amount,provider_reference:patch.provider_reference}});
    setPayoutRequests(prev=>prev.map(x=>x.id===request.id?{...x,...data}:x));
    flash("Withdrawal request #"+request.id+" updated to "+status+".");
    setSaving(false);
