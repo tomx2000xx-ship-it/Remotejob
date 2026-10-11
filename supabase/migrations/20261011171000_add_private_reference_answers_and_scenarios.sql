@@ -36,11 +36,20 @@ updated_at=now()
 from scenarios s where t.id=s.id;
 
 update private.job_task_answer_keys k
-set reference_answer='For "'||t.title||'", '||s.reference_answer||' This is a training example only; use fictional data and follow the documented policy for this role.',
+set reference_answer='For "'||t.title||'", '||
+    case
+      when t.job_id=1 then 'I would review the overdue queue, repeat-contact rate and quality score against the target, identify the highest-risk issue, assign an owner and deadline, then track follow-up in the dashboard. I would verify the underlying records, document the decision, protect customer data, and review results at the next team huddle.'
+      when t.job_id in (6,11) then 'I would acknowledge the customer concern, verify the order record and policy before promising a remedy, explain the next action in plain language, document the case, and set a follow-up deadline. I would escalate if the case exceeds policy and avoid including unnecessary personal data.'
+      when t.job_id in (2,4,5,12) then 'I would preserve the original file, normalize date formats, flag duplicates and missing fields rather than guessing, verify corrections against the source record, log changes and owners, and send a concise status update before the deadline.'
+      when t.job_id=3 then 'I would confirm the prospect goals, timeline and budget, map a relevant product benefit to the need without overpromising, acknowledge the objection, record the CRM next step, and schedule a follow-up with a clear owner and date.'
+      when t.job_id=7 then 'I would compare the claim fields against the synthetic eligibility and service record, flag missing or inconsistent information, avoid changing codes or coverage without documentation, protect patient information, and route the exception to an authorized billing reviewer before resubmission.'
+      when t.job_id=8 then 'I would verify approved hours and pay rate, calculate regular and overtime hours under the stated practice policy, check approved deductions, reconcile gross and net totals, and hold the item for approval if timesheet or employee details are incomplete.'
+      when t.job_id=9 then 'I would match the transaction to the invoice and bank line, confirm amount, date and vendor, check for duplicate postings, record any correction with an audit trail, and escalate unresolved differences before closing the period.'
+      when t.job_id=10 then 'I would compare the documentation with the supplied coding reference, verify that required specificity and support are present, flag unsupported or conflicting details rather than guessing a code, protect patient confidentiality, and send a compliant query to a qualified reviewer.'
+    end||' This is a training example only; use fictional data and follow the documented policy for this role.',
     updated_at=now()
 from public.job_task_templates t
-join scenarios s on s.id=t.id
-where k.task_template_id=t.id;
+where k.task_template_id=t.id and t.is_published=true;
 
 create or replace function public.remote_way_get_task_answer_key(p_template_id bigint)
 returns jsonb
