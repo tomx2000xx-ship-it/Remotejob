@@ -1777,6 +1777,7 @@ function AdminVerification({go}){
           </button>)}
         </div>}
         <div className="verification-preview-note"><LockKeyhole size={15}/><span>Preview links expire automatically. The storage bucket remains private and documents are never made public.</span></div>
+        </div>
       </section>
     </div>}
 
