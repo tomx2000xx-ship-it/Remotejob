@@ -1515,13 +1515,13 @@ function Admin({go}){
         supabase.from("jobs").select("*").order("created_at",{ascending:false}),
         supabase.from("form_definitions").select("id,name,status").order("name"),
         supabase.from("interview_templates").select("id,name,status").order("name"),
-        supabase.from("profiles").select("id,created_at,account_status")
+        supabase.from("profiles").select("id,created_at,account_status,role")
       ]);
       if(e)throw e;
       if(formsError)throw formsError;
       if(templatesError)throw templatesError;
       if(membersError)throw membersError;
-      const memberRows=membersData||[],cutoff=Date.now()-86400000;setMemberStats({total:memberRows.length,last24:memberRows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:memberRows.filter(x=>x.account_status==="active").length});
+      const memberRows=(membersData||[]).filter(x=>!["admin","super_admin"].includes(x.role)),cutoff=Date.now()-86400000;setMemberStats({total:memberRows.length,last24:memberRows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:memberRows.filter(x=>x.account_status==="active").length});
       setRows(data||[]);setForms(formsData||[]);setTemplates(templatesData||[]);
     }catch(err){setError(err?.message||"We couldn't load the job listings. Please try again.")}
     finally{setLoading(false)}
