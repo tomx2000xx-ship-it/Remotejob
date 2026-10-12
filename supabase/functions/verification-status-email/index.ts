@@ -18,9 +18,9 @@ Deno.serve(async (req: Request) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const from = Deno.env.get("REMOTEWAY_FROM_EMAIL");
+    const from = Deno.env.get("EMAIL_FROM");
     if (!url || !anonKey || !serviceKey || !resendKey || !from) {
-      return json({ error: "Verification email service is not configured. Set RESEND_API_KEY and REMOTEWAY_FROM_EMAIL in Supabase function secrets." }, 503);
+      return json({ error: "Verification email service is not configured. Set RESEND_API_KEY and EMAIL_FROM in Supabase function secrets." }, 503);
     }
     const callerClient = createClient(url, anonKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false, autoRefreshToken: false } });
     const { data: callerData, error: callerError } = await callerClient.auth.getUser();
