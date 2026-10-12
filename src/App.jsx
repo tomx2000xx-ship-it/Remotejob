@@ -1742,7 +1742,7 @@ function AdminVerification({go}){
     setDocumentsLoading(true);setIdentityLoading(true);setError("");
     try{
       const [docsResult,identityResult]=await Promise.all([
-        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,mime_type,created_at").eq("verification_id",item.id).order("side"),
+        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,created_at").eq("verification_id",item.id).order("side"),
         supabase.from("demo_identity_records").select("id,verification_id,user_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("verification_id",item.id).maybeSingle()
       ]);
       if(docsResult.error)throw docsResult.error;
@@ -1750,7 +1750,7 @@ function AdminVerification({go}){
       const resolved=await Promise.all((docsResult.data||[]).filter(doc=>doc.storage_path).map(async doc=>{
         const {data:signed,error:signedError}=await supabase.storage.from("verification-demo").createSignedUrl(doc.storage_path,300);
         if(signedError)throw signedError;
-        return {...doc,signedUrl:signed?.signedUrl||""};
+        return {...doc,mime_type:/\.(jpe?g|png|webp)$/i.test(doc.storage_path||"")?"image/*":"application/octet-stream",signedUrl:signed?.signedUrl||""};
       }));
       setDocuments(resolved);setIdentityRecord(identityResult.data||null);
     }catch(e){setError(e?.message||"Could not load the verification record.");}
@@ -1812,13 +1812,17 @@ function AdminMembers({go}){
   const [removing,setRemoving]=useState("");
   const load=async()=>{
     setLoading(true);setError("");
+    let timeoutId;
     try{
-      const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
+      const request=supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
+      const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Member list took too long to load. Refresh and check administrator profile permissions.")),12000);});
+      const {data,error:e}=await Promise.race([request,timeout]);
       if(e)throw e;
       setRows(data||[]);
     }catch(e){setError(e?.message||"Member records could not be loaded. Please refresh.");}
-    finally{setLoading(false);}
+    finally{if(timeoutId)clearTimeout(timeoutId);setLoading(false);}
   };
+  useEffect(()=>{void load();},[]);
   const openDetails=async(row)=>{
     setSelected(row);setDetails(null);setDetailError("");setDetailLoading(true);
     try{
