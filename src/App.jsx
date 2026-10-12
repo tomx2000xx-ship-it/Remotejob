@@ -1709,29 +1709,30 @@ function AdminVerification({go}){
   useEffect(()=>{load()},[]);
 
   const updateStatus=async(item,status)=>{
-    setError("");
-    if(status==="verified"){
-      const [documentsRes,identityRes]=await Promise.all([
-        supabase.from("verification_documents").select("id,side,status,storage_path").eq("verification_id",item.id),
-        supabase.from("demo_identity_records").select("id").eq("verification_id",item.id).maybeSingle()
-      ]);
-      if(documentsRes.error||identityRes.error){setError((documentsRes.error||identityRes.error).message);return;}
-      const hasFront=(documentsRes.data||[]).some(d=>d.side==="front"&&d.status==="submitted"&&d.storage_path);
-      const hasBack=(documentsRes.data||[]).some(d=>d.side==="back"&&d.status==="submitted"&&d.storage_path);
-      if(status==="verified"&&(item.status!=="pending"||!item.submitted_at||!hasFront||!hasBack||!identityRes.data)){
-        setError("This case cannot be approved yet. The member must submit all required identity fields and both document sides before admin review.");
-        return;
+    setError("");setSaving(String(item.id));
+    try{
+      if(status==="verified"){
+        const [documentsRes,identityRes]=await Promise.all([
+          supabase.from("verification_documents").select("id,side,status,storage_path").eq("verification_id",item.id),
+          supabase.from("demo_identity_records").select("id").eq("verification_id",item.id).maybeSingle()
+        ]);
+        if(documentsRes.error||identityRes.error)throw (documentsRes.error||identityRes.error);
+        const docs=documentsRes.data||[];
+        const hasFront=docs.some(d=>d.side==="front"&&d.status==="submitted"&&d.storage_path);
+        const hasBack=docs.some(d=>d.side==="back"&&d.status==="submitted"&&d.storage_path);
+        if(item.status!=="pending"||!item.submitted_at||!hasFront||!hasBack||!identityRes.data)
+          throw new Error("This case cannot be approved yet. The member must submit all required identity fields and both document sides before admin review.");
       }
-    }
-    setSaving(String(item.id));
-    const payload={status};
-    if(status==="verified")payload.verified_at=new Date().toISOString();
-    if(status==="in_progress")payload.verified_at=null;
-    if(status==="needs_attention")payload.needs_attention_reason="Manual review required";
-    if(status==="rejected")payload.needs_attention_reason="Verification could not be completed";
-    const {data,error:e}=await supabase.from("verification_profiles").update(payload).eq("id",item.id).select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").single();
-    if(e)setError(e.message); else setItems(prev=>prev.map(x=>x.id===item.id?data:x));
-    setSaving("");
+      const payload={status};
+      if(status==="verified")payload.verified_at=new Date().toISOString();
+      if(status==="in_progress")payload.verified_at=null;
+      if(status==="needs_attention")payload.needs_attention_reason="Manual review required";
+      if(status==="rejected")payload.needs_attention_reason="Verification could not be completed";
+      const {data,error:e}=await supabase.from("verification_profiles").update(payload).eq("id",item.id).select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").single();
+      if(e)throw e;
+      setItems(prev=>prev.map(x=>x.id===item.id?data:x));
+    }catch(e){setError(e?.message||"Verification status could not be updated.");}
+    finally{setSaving("");}
   };
 
   const openDocuments=async(item)=>{
@@ -1809,34 +1810,37 @@ function AdminMembers({go}){
   const [removing,setRemoving]=useState("");
   const load=async()=>{
     setLoading(true);setError("");
-    const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
-    if(e)setError(e.message);
-    setRows(data||[]);setLoading(false);
+    try{
+      const {data,error:e}=await supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
+      if(e)throw e;
+      setRows(data||[]);
+    }catch(e){setError(e?.message||"Member records could not be loaded. Please refresh.");}
+    finally{setLoading(false);}
   };
-  useEffect(()=>{load()},[]);
   const openDetails=async(row)=>{
     setSelected(row);setDetails(null);setDetailError("");setDetailLoading(true);
-    const userId=row.id;
-    const requests=[
-      ["applications",supabase.from("applications").select("id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["resumes",supabase.from("resumes").select("id,file_name,storage_path,file_size,mime_type,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["savedJobs",supabase.from("saved_jobs").select("job_id,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["interviews",supabase.from("interviews").select("id,application_id,title,company_name,status,scheduled_at,duration_minutes,started_at,completed_at,score,total_questions,passed,created_at").eq("candidate_id",userId).order("created_at",{ascending:false})],
-      ["tickets",supabase.from("support_tickets").select("id,issue_type,subject,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["verification",supabase.from("verification_profiles").select("id,status,country,document_type,provider,started_at,submitted_at,verified_at,needs_attention_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["payouts",supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["payoutMethods",supabase.from("payout_methods").select("id,method_type,is_default,bank_country,bank_name,account_holder_name,account_last4,paypal_name,paypal_email,cardholder_name,card_last4,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["notifications",supabase.from("notifications").select("id,type,title,body,read_at,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(30)],
-      ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-      ["supportMessages",supabase.from("support_messages").select("id,ticket_id,sender_type,body,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(50)]
-    ];
-    const results=await Promise.all(requests.map(async([key,request])=>({key,...(await request)})));
-    const loaded={};
-    const failed=[];
-    for(const result of results){loaded[result.key]=result.data||[];if(result.error)failed.push(result.key);}
-    setDetails(loaded);
-    if(failed.length)setDetailError("Some sections could not be loaded due to database access rules: "+failed.join(", ")+". Other available details are shown below.");
-    setDetailLoading(false);
+    try{
+      const userId=row.id;
+      const requests=[
+        ["applications",supabase.from("applications").select("id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["resumes",supabase.from("resumes").select("id,file_name,storage_path,file_size,mime_type,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["savedJobs",supabase.from("saved_jobs").select("job_id,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["interviews",supabase.from("interviews").select("id,application_id,title,company_name,status,scheduled_at,duration_minutes,started_at,completed_at,score,total_questions,passed,created_at").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["tickets",supabase.from("support_tickets").select("id,issue_type,subject,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["verification",supabase.from("verification_profiles").select("id,status,country,document_type,provider,started_at,submitted_at,verified_at,needs_attention_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["payouts",supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["payoutMethods",supabase.from("payout_methods").select("id,method_type,is_default,bank_country,bank_name,account_holder_name,account_last4,paypal_name,paypal_email,cardholder_name,card_last4,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["notifications",supabase.from("notifications").select("id,type,title,body,read_at,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(30)],
+        ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["supportMessages",supabase.from("support_messages").select("id,ticket_id,sender_type,body,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(50)]
+      ];
+      const results=await Promise.all(requests.map(async([key,request])=>({key,...(await request)})));
+      const loaded={};const failed=[];
+      for(const result of results){loaded[result.key]=result.data||[];if(result.error)failed.push(result.key);}
+      setDetails(loaded);
+      if(failed.length)setDetailError("Some sections could not be loaded due to database access rules: "+failed.join(", ")+". Other available details are shown below.");
+    }catch(e){setDetailError(e?.message||"The member's linked records could not be loaded.");}
+    finally{setDetailLoading(false);}
   };
   const changeStatus=async(row,status)=>{
     if(row.account_status===status)return;
