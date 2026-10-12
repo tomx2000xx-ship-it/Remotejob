@@ -921,9 +921,8 @@ function Payouts({go}){
     (async()=>{
       let payoutLoadTimeout;
       try {
-      const {data:settingsRow}=await supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle();
-      if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
-      const {data:{user}}=await supabase.auth.getUser();
+      const {data:{user},error:userError}=await supabase.auth.getUser();
+      if(userError)throw userError;
       if(!user){if(mounted)setLoading(false);return;}
       const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.race([Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
@@ -1396,19 +1395,19 @@ function AdminStudio({go,role}){
    ]);
    if(s.error||f.error||t.error||a.error||p.error||w.error||al.error)setError(s.error?.message||f.error?.message||t.error?.message||a.error?.message||p.error?.message||w.error?.message||al.error?.message||"Some control-center data could not be loaded.");
    const map={};(s.data||[]).forEach(x=>map[x.key]=x.value);setSettings(x=>{const merged={...x,...map,job_workspace_settings:{...DEFAULT_JOB_WORKSPACE_SETTINGS,...x.job_workspace_settings,...(map.job_workspace_settings||{})}};merged.job_workspace_settings.form_fields=normalizeWorkspaceFields(merged.job_workspace_settings.form_fields);merged.job_workspace_settings.provider_options_by_country=merged.job_workspace_settings.provider_options_by_country||DEFAULT_ISP_OPTIONS_BY_COUNTRY;return merged;});setEmailTemplates(Array.isArray(map.email_templates)&&map.email_templates.length?map.email_templates:starterEmails);
-   const {data:secs}=await supabase.from("site_sections").select("*").order("sort_order");setSections(secs||[]);
+   const {data:secs,error:sectionsError}=await supabase.from("site_sections").select("*").order("sort_order");if(sectionsError)setError(v=>v||sectionsError.message);setSections(secs||[]);
    setForms(f.data||[]);setTemplates(t.data||[]);setAdmins(a.data||[]);setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);setAuditLogs(al.data||[]);
  };
  useEffect(()=>{load()},[]);
- const saveSetting=async(key,value)=>{setSaving(true);const {data:{user}}=await supabase.auth.getUser();const {error:e}=await supabase.from("site_settings").upsert({key,value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:"key"});setSaving(false);if(e)setError(e.message);else flash("Site settings saved.")};
+ const saveSetting=async(key,value)=>{setSaving(true);setError("");try{const {data:{user},error:userError}=await supabase.auth.getUser();if(userError)throw userError;const {data,error:e}=await supabase.from("site_settings").upsert({key,value,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:"key"}).select("key,value").single();if(e)throw e;if(data?.key!==key)throw new Error("The setting could not be verified after saving.");flash("Site settings saved and verified.");}catch(e){setError(e?.message||"The setting could not be saved.");}finally{setSaving(false);}};
  const toggleSection=async(sec)=>{const {data:{user}}=await supabase.auth.getUser();const next=!sec.is_visible;const {data,error:e}=await supabase.from("site_sections").update({is_visible:next,updated_by:user?.id||null}).eq("id",sec.id).select("*").single();if(e)setError(e.message);else setSections(v=>v.map(x=>x.id===sec.id?data:x))};
  const createForm=async()=>{const name=prompt("Form name");if(!name?.trim())return;const slug=name.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");const {data,error:e}=await supabase.from("form_definitions").insert({name:name.trim(),slug,description:"",created_by:(await supabase.auth.getUser()).data.user?.id}).select("*").single();if(e)setError(e.message);else{setForms(v=>[data,...v]);setSelectedForm(data);setFormFields([]);flash("Form created.")}};
  const addField=async()=>{if(!selectedForm)return;const key="field_"+(formFields.length+1);const {data,error:e}=await supabase.from("form_fields").insert({form_id:selectedForm.id,position:formFields.length+1,label:"New field",field_key:key,field_type:"text",placeholder:"",help_text:"",options:[],required:false,config:{}}).select("*").single();if(e)setError(e.message);else setFormFields(v=>[...v,data])};
  const updateForm=async(patch)=>{if(!selectedForm)return;const {data,error:e}=await supabase.from("form_definitions").update({...patch,updated_at:new Date().toISOString()}).eq("id",selectedForm.id).select("*").single();if(e)setError(e.message);else{setSelectedForm(data);setForms(v=>v.map(x=>x.id===data.id?data:x));flash("Form settings saved.")}};
  const loadForm=async f=>{setSelectedForm(f);const {data,error:e}=await supabase.from("form_fields").select("*").eq("form_id",f.id).order("position");if(e)setError(e.message);setFormFields(data||[])};
  const updateField=async(field,patch)=>{const {data,error:e}=await supabase.from("form_fields").update(patch).eq("id",field.id).select("*").single();if(e)setError(e.message);else setFormFields(v=>v.map(x=>x.id===field.id?data:x))};
- const deleteField=async(field)=>{const {error:e}=await supabase.from("form_fields").delete().eq("id",field.id);if(e)setError(e.message);else{const remaining=formFields.filter(x=>x.id!==field.id);await Promise.all(remaining.map((x,i)=>supabase.from("form_fields").update({position:i+1}).eq("id",x.id)));setFormFields(remaining.map((x,i)=>({...x,position:i+1})))}}; 
- const moveField=async(field,direction)=>{const sorted=[...formFields].sort((x,y)=>x.position-y.position),i=sorted.findIndex(x=>x.id===field.id),j=i+direction;if(i<0||j<0||j>=sorted.length)return;const next=[...sorted];[next[i],next[j]]=[next[j],next[i]];await Promise.all(next.map((x,n)=>supabase.from("form_fields").update({position:n+1}).eq("id",x.id)));setFormFields(next.map((x,n)=>({...x,position:n+1})))};
+ const deleteField=async(field)=>{const {error:e}=await supabase.from("form_fields").delete().eq("id",field.id);if(e){setError(e.message);return;}const remaining=formFields.filter(x=>x.id!==field.id);const results=await Promise.all(remaining.map((x,i)=>supabase.from("form_fields").update({position:i+1}).eq("id",x.id)));const failed=results.find(x=>x.error);if(failed){setError("Field was deleted, but its order could not be refreshed: "+failed.error.message);if(selectedForm)await loadForm(selectedForm);return;}setFormFields(remaining.map((x,i)=>({...x,position:i+1}));};
+ const moveField=async(field,direction)=>{const sorted=[...formFields].sort((x,y)=>x.position-y.position),i=sorted.findIndex(x=>x.id===field.id),j=i+direction;if(i<0||j<0||j>=sorted.length)return;const next=[...sorted];[next[i],next[j]]=[next[j],next[i]];const results=await Promise.all(next.map((x,n)=>supabase.from("form_fields").update({position:n+1}).eq("id",x.id)));const failed=results.find(x=>x.error);if(failed){setError("Field order could not be saved: "+failed.error.message);if(selectedForm)await loadForm(selectedForm);return;}setFormFields(next.map((x,n)=>({...x,position:n+1}));};
  const saveWithdrawalFields=async()=>{setSaving(true);const {data:{user}}=await supabase.auth.getUser();const {error:e}=await supabase.from("site_settings").upsert({key:"withdrawal_form_fields",value:withdrawalFields,updated_by:user?.id||null,updated_at:new Date().toISOString()},{onConflict:"key"});setSaving(false);if(e)setError(e.message);else flash("Withdrawal fields saved.")};
  const addWithdrawalField=()=>setWithdrawalFields(v=>[...v,{key:"field_"+(v.length+1),label:"New field",type:"text",required:false,placeholder:"",help_text:"",config:{}}]);
  const updateWithdrawalField=(key,patch)=>setWithdrawalFields(v=>v.map(x=>x.key===key?{...x,...patch}:x));
@@ -1738,7 +1737,7 @@ function AdminVerification({go}){
     setDocumentsLoading(true);setIdentityLoading(true);setError("");
     try{
       const [docsResult,identityResult]=await Promise.all([
-        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,created_at").eq("verification_id",item.id).order("side"),
+        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,mime_type,created_at").eq("verification_id",item.id).order("side"),
         supabase.from("demo_identity_records").select("id,verification_id,user_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("verification_id",item.id).maybeSingle()
       ]);
       if(docsResult.error)throw docsResult.error;
@@ -1786,7 +1785,7 @@ function AdminVerification({go}){
     {selectedDocument?.signedUrl&&<div className="payout-modal-backdrop verification-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDocument(null)}}>
       <section className="verification-document-viewer" role="dialog" aria-modal="true">
         <div className="verification-document-viewer-head"><div><span className="kicker">{selectedDocument.side==="front"?"FRONT":"BACK"} OF DOCUMENT</span><strong>{selectedCandidate?.profiles?.full_name||"RemoteWay member"}</strong></div><button className="payout-modal-close" onClick={()=>setSelectedDocument(null)}><X size={18}/></button></div>
-        <div className="verification-document-viewer-body">{selectedDocument.mime_type?.startsWith("image/")?<img src={selectedDocument.signedUrl} alt={selectedDocument.side+" of identity document"}/>:<iframe title="Secure identity document preview" src={selectedDocument.signedUrl}/>}</div>
+        <div className="verification-document-viewer-body">{(selectedDocument.mime_type?.startsWith("image/")||/\.(jpe?g|png|webp)$/i.test(selectedDocument.storage_path||""))?<img src={selectedDocument.signedUrl} alt={selectedDocument.side+" of identity document"}/>:<iframe title="Secure identity document preview" src={selectedDocument.signedUrl}/>}</div>
       </section>
     </div>}
   </div>;
@@ -2089,7 +2088,8 @@ function Verification({go}){
       const payload={user_id:user.id,status:"in_progress",country,document_type:documentType,started_at:existing?.started_at||new Date().toISOString()};
       let verification=existing;
       if(existing){
-        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        const retrying=["needs_attention","rejected"].includes(existing.status);
+        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type,started_at:payload.started_at,...(retrying?{status:"in_progress",submitted_at:null}: {})}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
         if(e)throw e;
         verification=data;
       }else{
