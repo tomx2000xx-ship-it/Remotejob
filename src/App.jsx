@@ -1873,17 +1873,20 @@ function AdminMembers({go}){
     }catch(e){setError(e?.message||"Member details could not be saved.");}finally{setSaving("");}
   };
   const removeMemberSafely=async(row)=>{
-    if(!row||row.role==="admin"||row.role==="super_admin"){setError("Administrator accounts are protected from member removal.");return;}
-    const confirmed=window.confirm("Remove "+(row.full_name||"this member")+" from active access? This safely suspends the account and preserves its history; it does not permanently erase records.");
-    if(!confirmed)return;
+    if(!row||row.role==="admin"||row.role==="super_admin"){setError("Administrator accounts are protected from deletion.");return;}
+    const confirmation=window.prompt("Permanently delete "+(row.full_name||"this member")+" and their associated account records? This cannot be undone. Type DELETE to confirm.");
+    if(confirmation!=="DELETE")return;
     setRemoving(row.id);setError("");
     try{
-      const {data:{user},error:userError}=await supabase.auth.getUser();if(userError)throw userError;
-      const {data,error:e}=await supabase.from("profiles").update({account_status:"suspended"}).eq("id",row.id).eq("role","user").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
+      const {data,error:e}=await supabase.functions.invoke("admin-delete-member",{body:{target_user_id:row.id}});
       if(e)throw e;
-      setRows(prev=>prev.map(x=>x.id===row.id?data:x));if(selected?.id===row.id){setSelected(data);setEditing(false);}
-      if(user)await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"member_removed_suspended",target_type:"profile",target_id:row.id,details:{from:row.account_status,to:"suspended"}});
-    }catch(e){setError(e?.message||"The member could not be removed.");}finally{setRemoving("");}
+      if(data?.error)throw new Error(data.error);
+      if(data?.deleted!==true)throw new Error("The server did not confirm the account deletion.");
+      setRows(prev=>prev.filter(x=>x.id!==row.id));
+      setSelected(null);setDetails(null);setEditing(false);
+      if(data.storage_cleanup_complete===false)setError(data.warning||"The account was deleted, but some private files need cleanup.");
+    }catch(e){setError(e?.message||"The member could not be deleted.");}
+    finally{setRemoving("");}
   };
   const openResume=async(file)=>{
     setFileBusy(file.id);setDetailError("");
@@ -1915,7 +1918,7 @@ function AdminMembers({go}){
     </div>)}</div></section>}
     {selected&&<div role="dialog" aria-modal="true" aria-label={"Member profile: "+(selected.full_name||"Unnamed member")} style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,25,22,.62)",display:"flex",justifyContent:"center",alignItems:"stretch",padding:"clamp(8px,2vw,24px)"}}>
       <div style={{background:"var(--surface,#fff)",color:"var(--text,#222)",borderRadius:18,width:"min(1100px,100%)",overflowY:"auto",padding:"clamp(16px,3vw,28px)",boxShadow:"0 24px 80px rgba(0,0,0,.24)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,marginBottom:20}}><div><span className="kicker">COMPLETE MEMBER RECORD</span><h2 style={{margin:"6px 0"}}>{selected.full_name||"Unnamed member"}</h2><p style={{margin:0,color:"var(--muted,#777)",overflowWrap:"anywhere"}}>{selected.id}</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>{selected.role==="admin"||selected.role==="super_admin"?<span className="admin-member-protected">Protected administrator</span>:<><Button variant="outline" onClick={beginEdit} disabled={editing}><PenLine size={15}/> Edit details</Button><Button variant="outline" onClick={()=>removeMemberSafely(selected)} disabled={removing===selected.id||selected.account_status==="suspended"}><X size={15}/>{removing===selected.id?"Removing…":"Remove member"}</Button></>}<Button variant="outline" onClick={()=>{setSelected(null);setDetails(null);setEditing(false)}}><X size={16}/> Close</Button></div></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,marginBottom:20}}><div><span className="kicker">COMPLETE MEMBER RECORD</span><h2 style={{margin:"6px 0"}}>{selected.full_name||"Unnamed member"}</h2><p style={{margin:0,color:"var(--muted,#777)",overflowWrap:"anywhere"}}>{selected.id}</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>{selected.role==="admin"||selected.role==="super_admin"?<span className="admin-member-protected">Protected administrator</span>:<><Button variant="outline" onClick={beginEdit} disabled={editing}><PenLine size={15}/> Edit details</Button><Button variant="outline" onClick={()=>removeMemberSafely(selected)} disabled={removing===selected.id}><X size={15}/>{removing===selected.id?"Deleting…":"Delete permanently"}</Button></>}<Button variant="outline" onClick={()=>{setSelected(null);setDetails(null);setEditing(false)}}><X size={16}/> Close</Button></div></div>
         {detailLoading?<div className="empty-state"><h3>Loading member record…</h3><p>Collecting this member’s linked records.</p></div>:<React.Fragment>
           {detailError&&<div className="auth-message auth-error" role="alert">{detailError}</div>}
           {editing&&<section className="panel" style={{padding:18,marginBottom:14,border:"1px solid var(--accent,#2f6b52)"}}><h3 style={{margin:"0 0 14px"}}>Edit member details</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>{[["full_name","Full name"],["country","Country"],["experience","Experience"],["work_type","Work preference"],["goal","Work goal"],["adaptive_answer","Onboarding answer"],["interest_areas","Interest areas (comma-separated)"]].map(([key,label])=><label className="field" key={key}><span>{label}</span><input value={editDraft[key]??""} onChange={e=>setEditDraft(v=>({...v,[key]:e.target.value}))}/></label>)}</div><div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14}}><Button variant="outline" onClick={()=>setEditing(false)} disabled={saving===selected.id}>Cancel</Button><Button onClick={saveMemberEdit} disabled={saving===selected.id}>{saving===selected.id?"Saving…":"Save member details"}</Button></div></section>}
