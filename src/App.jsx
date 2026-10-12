@@ -801,23 +801,29 @@ function AppShell({go,screen,children,activeNav}){
 function Dashboard({go}){
  const [greeting]=useState(()=>{try{const saved=sessionStorage.getItem("remotePathLoginGreeting");if(saved)return saved}catch{}const hour=new Date().getHours();return hour<12?"Good morning":hour<17?"Good afternoon":"Good evening"});
  const [profile,setProfile]=useState(null);
+ const [verificationStatus,setVerificationStatus]=useState(null);
+ const [hasPayoutMethod,setHasPayoutMethod]=useState(null);
  const [dashboard,setDashboard]=useState({applications:0,interviews:0,offers:0,saved:0,latestApplication:null,recommended:[]});
  useEffect(()=>{
    let mounted=true;
    (async()=>{
      const {data:{user}}=await supabase.auth.getUser();
      if(!user||!mounted)return;
-     const [profileRes,applicationsRes,interviewsRes,offersRes,savedRes,latestRes,jobsRes]=await Promise.all([
+     const [profileRes,applicationsRes,interviewsRes,offersRes,savedRes,latestRes,jobsRes,verificationRes,payoutMethodRes]=await Promise.all([
        supabase.from("profiles").select("full_name,onboarding_completed").eq("id",user.id).maybeSingle(),
        supabase.from("applications").select("id",{count:"exact",head:true}).eq("user_id",user.id).neq("status","draft"),
        supabase.from("interviews").select("id",{count:"exact",head:true}).eq("candidate_id",user.id),
        supabase.from("applications").select("id",{count:"exact",head:true}).eq("user_id",user.id).eq("status","hired"),
        supabase.from("saved_jobs").select("job_id",{count:"exact",head:true}).eq("user_id",user.id),
        supabase.from("applications").select("id,status,submitted_at,created_at,jobs(id,title,company_name,company_logo)").eq("user_id",user.id).neq("status","draft").order("created_at",{ascending:false}).limit(1).maybeSingle(),
-       cachedRequest("public:featured-jobs",()=>supabase.from("jobs").select("id,title,company_name,company_logo,verified,salary_min,salary_max,salary_currency,salary_period,location,job_type,tags,category,created_at,remote_type,experience_level").eq("status","published").order("created_at",{ascending:false}).limit(4),20000).then(({data,error})=>({data:(data||[]).slice(0,3),error}))
+       cachedRequest("public:featured-jobs",()=>supabase.from("jobs").select("id,title,company_name,company_logo,verified,salary_min,salary_max,salary_currency,salary_period,location,job_type,tags,category,created_at,remote_type,experience_level").eq("status","published").order("created_at",{ascending:false}).limit(4),20000).then(({data,error})=>({data:(data||[]).slice(0,3),error})),
+       supabase.from("verification_profiles").select("status").eq("user_id",user.id).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+       supabase.from("payout_methods").select("id").eq("user_id",user.id).eq("status","active").limit(1).maybeSingle()
      ]);
      if(!mounted)return;
      if(profileRes.data)setProfile(profileRes.data);
+     setVerificationStatus(verificationRes.data?.status||"not_started");
+     setHasPayoutMethod(!!payoutMethodRes.data);
      setDashboard({
        applications:applicationsRes.count||0,
        interviews:interviewsRes.count||0,
@@ -837,16 +843,18 @@ function Dashboard({go}){
      <div className="payout-reminder-copy"><span className="kicker">PROFILE SETUP</span><h2>Finish your profile setup</h2><p>Tell us where you’re based, your experience, work style and goals so we can personalize the opportunities you see.</p></div>
      <button className="payout-reminder-action" onClick={()=>go("onboarding")}><span>Complete profile</span><ArrowRight size={16}/></button>
    </section>}
-   <section className="verification-banner verification-required">
+   {verificationStatus!==null&&verificationStatus!=="verified"&&<section className="verification-banner verification-required">
      <div className="verification-banner-icon"><CircleHelp size={20}/></div>
      <div className="verification-banner-copy"><span className="kicker">ACCOUNT VERIFICATION</span><h2>Complete your verification</h2><p>Your profile is almost ready. Confirm your identity so RemoteWay can keep the marketplace trusted and secure.</p><div className="verification-status"><span><i/> Verification required</span><small>Usually takes a few minutes once verification is connected.</small></div></div>
      <button className="verification-banner-action" onClick={()=>go("verification")}><span className="verification-help">?</span><strong>Complete verification</strong><ArrowRight size={16}/></button>
-   </section>
-   <section className="payout-reminder" aria-label="Payout method reminder">
+   </section>}
+
+   {hasPayoutMethod===false&&<section className="payout-reminder" aria-label="Payout method reminder">
      <div className="payout-reminder-icon"><WalletCards size={20}/></div>
      <div className="payout-reminder-copy"><span className="kicker">WITHDRAWALS</span><h2>Add a payout method before you withdraw</h2><p>You need to select and save a payout method before you can make a withdrawal. Choose bank transfer, PayPal, or debit card and keep your details up to date.</p></div>
      <button className="payout-reminder-action" onClick={()=>go("payouts")}><span>Add payout method</span><ArrowRight size={16}/></button>
-   </section>
+   </section>}
+
    <div className="summary-grid"><Summary icon={FileText} value={dashboard.applications} label="Applications" change="Your submitted applications"/><Summary icon={MessageCircle} value={dashboard.interviews} label="Interviews" change="Scheduled interview activity"/><Summary icon={Star} value={dashboard.offers} label="Offers" change="Hired applications"/><Summary icon={Bookmark} value={dashboard.saved} label="Saved jobs" change="Jobs you bookmarked"/></div>
    <div className="workspace-grid"><section className="panel"><PanelTitle title="Continue where you left off" action="View all" onAction={()=>go("applications")}/>{dashboard.latestApplication?<div className="application-highlight"><CompanyLogo job={{company:dashboard.latestApplication.jobs?.company_name,company_logo:dashboard.latestApplication.jobs?.company_logo}}/><div><strong>{dashboard.latestApplication.jobs?.title||"Application"}</strong><span>{dashboard.latestApplication.jobs?.company_name||"Partner company"} · {dashboard.latestApplication.submitted_at?new Date(dashboard.latestApplication.submitted_at).toLocaleDateString():new Date(dashboard.latestApplication.created_at).toLocaleDateString()}</span><Badge tone="amber">{dashboard.latestApplication.status}</Badge></div><Button variant="soft" onClick={()=>go("applications")}>View details</Button></div>:<EmptyState title="No applications yet" text="Find a role you like and your application will appear here." action="Find jobs" onAction={()=>go("jobs")}/>}</section><section className="panel"><PanelTitle title="Recommended for you" action="View more" onAction={()=>go("jobs")}/>{dashboard.recommended.length?<div className="mini-job-grid">{dashboard.recommended.map(j=><JobCard key={j.id} job={j} compact onOpen={id=>go("job",id)}/>)}</div>:<EmptyState title="No published jobs yet" text="Our team is preparing more roles from partner companies." action="Browse jobs" onAction={()=>go("jobs")}/>}</section></div>
  </div>
@@ -911,6 +919,7 @@ function Payouts({go}){
   useEffect(()=>{
     let mounted=true;
     (async()=>{
+      try {
       const {data:settingsRow}=await supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle();
       if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
       const {data:{user}}=await supabase.auth.getUser();
@@ -954,6 +963,12 @@ function Payouts({go}){
         setCustomValues(m.details||{});
       }
       setLoading(false);
+
+      } catch(err) {
+        if(mounted)setError(err?.message||"Payout settings could not be loaded. Please refresh and try again.");
+      } finally {
+        if(mounted)setLoading(false);
+      }
     })();
     return()=>{mounted=false};
   },[]);
