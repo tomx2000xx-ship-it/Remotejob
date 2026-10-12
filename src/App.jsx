@@ -919,12 +919,12 @@ function Payouts({go}){
   useEffect(()=>{
     let mounted=true;
     (async()=>{
+      let payoutLoadTimeout;
       try {
       const {data:settingsRow}=await supabase.from("site_settings").select("value").eq("key","job_workspace_settings").maybeSingle();
       if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      let payoutLoadTimeout;
       const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.race([Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
         supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}),
@@ -969,7 +969,7 @@ function Payouts({go}){
       } catch(err) {
         if(mounted)setError(err?.message||"Payout settings could not be loaded. Please refresh and try again.");
       } finally {
-        if(typeof payoutLoadTimeout!=="undefined"&&payoutLoadTimeout)clearTimeout(payoutLoadTimeout);
+        if(payoutLoadTimeout)clearTimeout(payoutLoadTimeout);
         if(mounted)setLoading(false);
       }
     })();
