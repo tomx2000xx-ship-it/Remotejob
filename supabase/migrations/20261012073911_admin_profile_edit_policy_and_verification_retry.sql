@@ -8,7 +8,7 @@ with check ((select private.is_admin()));
 create or replace function private.prevent_verification_user_status_change()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = public, private
 as $function$
 declare
