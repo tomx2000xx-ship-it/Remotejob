@@ -1780,20 +1780,6 @@ function AdminVerification({go}){
       </section>
     </div>}
 
-    {selectedCandidate&&identityRecord&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeIdentity()}}>
-      <section className="payout-modal admin-application-modal" role="dialog" aria-modal="true">
-        <div className="payout-modal-head"><div><span className="kicker">DEMO IDENTITY DATA</span><h2>{selectedCandidate.profiles?.full_name||"RemoteWay member"}</h2><p>Protected test record · not for production use</p></div><button className="payout-modal-close" onClick={closeIdentity}><X size={18}/></button></div>
-        <div className="review-list">
-          <ReviewItem label="Legal name" value={identityRecord.legal_name||"—"}/>
-          <ReviewItem label="Date of birth" value={identityRecord.date_of_birth||"—"}/>
-          <ReviewItem label="Country" value={identityRecord.country||"—"}/>
-          <ReviewItem label="Government identifier" value={identityRecord.government_identifier||"—"}/>
-        </div>
-        <div className="notice"><LockKeyhole size={17}/><span><strong>Demo-only sensitive data.</strong><br/>{identityRecord.residential_address||"—"}</span></div>
-        <div className="verification-preview-note"><LockKeyhole size={15}/><span>Access is restricted by Supabase Row Level Security. Remove this demo mode before production and connect a dedicated identity provider.</span></div>
-      </section>
-    </div>}
-    {selectedCandidate&&!identityRecord&&identityLoading&&<div className="payout-modal-backdrop"><section className="payout-modal"><div className="empty-state"><h3>Loading demo identity data…</h3><p>Reading the protected test record.</p></div></section></div>}
     {selectedDocument?.signedUrl&&<div className="payout-modal-backdrop verification-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDocument(null)}}>
       <section className="verification-document-viewer" role="dialog" aria-modal="true">
         <div className="verification-document-viewer-head"><div><span className="kicker">{selectedDocument.side==="front"?"FRONT":"BACK"} OF DOCUMENT</span><strong>{selectedCandidate?.profiles?.full_name||"RemoteWay member"}</strong></div><button className="payout-modal-close" onClick={()=>setSelectedDocument(null)}><X size={18}/></button></div>
