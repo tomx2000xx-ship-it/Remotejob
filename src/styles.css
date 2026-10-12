@@ -1371,3 +1371,51 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .support-launcher{right:16px;bottom:16px}
   .support-direct-row>span{white-space:normal;overflow-wrap:anywhere}
 }
+
+
+/* Verification review: readable, task-focused admin workspace */
+.admin-verification-panel{padding:clamp(16px,2.4vw,28px)}
+.admin-verification-row{grid-template-columns:40px minmax(220px,1.7fr) auto minmax(190px,.8fr);gap:16px;padding:18px 0}
+.admin-verification-main strong{font-size:14px;color:var(--text,#23372f);line-height:1.35}
+.admin-verification-main span{font-size:12px;line-height:1.45;color:var(--muted,#68776f)}
+.admin-verification-main small{font-size:11px;line-height:1.45;color:var(--muted,#68776f)}
+.admin-verification-row .admin-status span{font-size:11px;font-weight:600;color:var(--muted,#68776f)}
+.admin-verification-row .admin-status select{font-size:13px;min-height:40px;padding:8px 10px;border-radius:10px}
+.admin-verification-actions{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.admin-verification-actions>.btn{white-space:nowrap}
+.admin-verification-doc-modal{width:min(980px,calc(100vw - 28px));max-height:92vh;padding:0;overflow:auto;border:1px solid rgba(30,55,44,.12);box-shadow:0 24px 90px rgba(13,35,25,.28)}
+.admin-verification-doc-modal .payout-modal-head{position:sticky;top:0;z-index:2;padding:22px 24px;margin:0;background:var(--surface,#fff);border-bottom:1px solid var(--line,#e4e8e4)}
+.admin-verification-doc-modal .payout-modal-head h2{font-size:30px}
+.admin-verification-summary{padding:18px 24px;background:#f6f8f5;border-bottom:1px solid var(--line,#e4e8e4)}
+.admin-verification-summary h3,.admin-verification-section h3{margin:0 0 12px;font-size:16px;color:var(--text,#23372f)}
+.admin-verification-summary p{font-size:12px;line-height:1.6;color:var(--muted,#65736c);margin:5px 0;overflow-wrap:anywhere}
+.admin-verification-section{padding:20px 24px;border-bottom:1px solid var(--line,#e4e8e4)}
+.admin-verification-section:last-child{border-bottom:0}
+.admin-verification-section>div[style*="display: grid"]{gap:0!important}
+.admin-verification-section>div[style*="display: grid"]>div{padding:9px 0;border-bottom:1px solid #edf0ed}
+.admin-verification-section>div[style*="display: grid"]>div:last-child{border-bottom:0}
+.admin-verification-section>div[style*="display: grid"]>div>span{font-size:12px;color:var(--muted,#65736c)}
+.admin-verification-section>div[style*="display: grid"]>div>strong{font-size:13px;line-height:1.5;overflow-wrap:anywhere;color:var(--text,#23372f)}
+.admin-verification-doc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.admin-verification-doc-card{min-width:0;padding:14px;border-color:var(--line,#e1e6e1);box-shadow:0 3px 12px rgba(22,43,32,.04)}
+.admin-verification-doc-card strong{font-size:13px}
+.admin-verification-doc-card small{font-size:11px}
+.admin-verification-doc-thumb{width:88px;height:72px}
+.admin-verification-documents-section .verification-preview-note{font-size:12px}
+@media(max-width:800px){
+ .admin-verification-row{grid-template-columns:36px minmax(0,1fr) auto;gap:12px}
+ .admin-verification-actions{grid-column:2/-1;align-items:stretch}
+ .admin-verification-actions .admin-status{min-width:170px;flex:1}
+}
+@media(max-width:560px){
+ .admin-verification-row{grid-template-columns:32px minmax(0,1fr);gap:9px}
+ .admin-verification-row>.badge{grid-column:2;justify-self:start}
+ .admin-verification-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr}
+ .admin-verification-actions .admin-status{min-width:0}
+ .admin-verification-doc-modal .payout-modal-head{padding:16px}
+ .admin-verification-doc-modal .payout-modal-head h2{font-size:24px}
+ .admin-verification-summary,.admin-verification-section{padding:16px}
+ .admin-verification-doc-grid{grid-template-columns:1fr}
+ .admin-verification-doc-card{padding:10px}
+ .admin-verification-doc-thumb{width:70px;height:60px}
+}
