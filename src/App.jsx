@@ -468,17 +468,35 @@ function Jobs({go,initialQuery="",member=false}){
     let mounted=true;
     let requestId=0;
     const load=async()=>{
-    setLoading(true);setError("");
-    try{
-      const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
-      if(e)throw e;
-      setItems(data||[]);
-    }catch(e){setError(e?.message||"Verification cases could not be loaded. Please refresh.");}
-    finally{setLoading(false);}
-  };
-
-  useEffect(()=>{load()},[]);
-
+      const current=++requestId;
+      if(!hasLoaded.current)setLoading(true);
+      setError("");
+      try{
+        const {data,error:fetchError}=await cachedRequest("public:jobs:"+remote,()=>{
+          let request=supabase.from("jobs").select("id,title,company_name,company_logo,verified,salary_min,salary_max,salary_currency,salary_period,location,job_type,tags,category,created_at,remote_type,experience_level").eq("status","published");
+          if(remote!=="All")request=request.ilike("location","%"+remote+"%");
+          return request.order("created_at",{ascending:false});
+        },20000);
+        if(!mounted||current!==requestId)return;
+        if(fetchError){
+          setError(fetchError.message);
+        }else{
+          setJobsData((data||[]).map(j=>({...j,company:j.company_name,logo:j.company_logo||j.company_name?.[0]||"R",type:j.job_type,posted:relativePosted(j.created_at),salary:formatSalary(j)})));
+          setError("");
+        }
+      }catch(err){
+        if(mounted&&current===requestId)setError(err?.message||"We couldn't load jobs. Please try again.");
+      }finally{
+        if(mounted&&current===requestId){hasLoaded.current=true;setLoading(false)}
+      }
+    };
+    const refresh=()=>{if(document.visibilityState==="visible")load()};
+    load();
+    window.addEventListener("pageshow",refresh);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",refresh);
+    return()=>{mounted=false;requestId++;window.removeEventListener("pageshow",refresh);window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh)};
+  },[remote]);
   const filtered=useMemo(()=>{
     const q=query.trim().toLowerCase();
     return rows.filter(r=>{
@@ -585,10 +603,12 @@ function AdminVerification({go}){
 
   const load=async()=>{
     setLoading(true);setError("");
-    const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
-    if(e)setError(e.message);
-    setItems(data||[]);
-    setLoading(false);
+    try{
+      const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
+      if(e)throw e;
+      setItems(data||[]);
+    }catch(e){setError(e?.message||"Verification cases could not be loaded. Please refresh.");}
+    finally{setLoading(false);}
   };
 
   useEffect(()=>{load()},[]);
