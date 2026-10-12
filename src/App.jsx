@@ -2550,7 +2550,7 @@ function JobWorkspace({go}){
 }
 
 function App(){
-  const routeFromLocation=()=>{const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path.startsWith("forms/"))return "public-form";if(path==="support-desk")return "support-desk";if(path==="auth-callback")return "auth-callback";const hash=window.location.hash.replace("#/","");if(hash)return hash;if(path===PRIVATE_ADMIN_ROUTE){try{const saved=sessionStorage.getItem("remoteWayLastAdminScreen");if(["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"].includes(saved))return saved;}catch{}return "admin"}return "home"};
+  const routeFromLocation=()=>{const path=window.location.pathname.replace(/^\/+|\/+$/g,"");if(path==="support-desk")return "support-desk";if(path==="auth-callback")return "auth-callback";const hash=window.location.hash.replace("#/","");if(hash)return hash;if(path.startsWith("forms/"))return "public-form";if(path===PRIVATE_ADMIN_ROUTE){try{const saved=sessionStorage.getItem("remoteWayLastAdminScreen");if(["admin","admin-applications","admin-verification","admin-members","admin-support","admin-studio"].includes(saved))return saved;}catch{}return "admin"}return "home"};
   const initial=routeFromLocation;
   const [screen,setScreen]=useState(initial); const screenRef=useRef(initial); const [param,setParam]=useState(""); const [toast,setToast]=useState("");
   const [session,setSession]=useState(null); const interviewReturnRef=useRef("applications"); const [role,setRole]=useState("user"); const [accountStatus,setAccountStatus]=useState("active");
