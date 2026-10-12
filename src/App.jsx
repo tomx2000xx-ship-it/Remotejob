@@ -1706,7 +1706,19 @@ function AdminVerification({go}){
   useEffect(()=>{load()},[]);
 
   const updateStatus=async(item,status)=>{
-    setSaving(String(item.id));setError("");
+    setError("");
+    if(status==="verified"){
+      const [documentsRes,identityRes]=await Promise.all([
+        supabase.from("verification_documents").select("id").eq("verification_id",item.id).limit(1),
+        supabase.from("demo_identity_records").select("id").eq("verification_id",item.id).limit(1).maybeSingle()
+      ]);
+      if(documentsRes.error||identityRes.error){setError((documentsRes.error||identityRes.error).message);return;}
+      if(!item.provider_reference&&!(documentsRes.data||[]).length&&!identityRes.data){
+        setError("This case cannot be marked verified yet. No provider result, submitted document, or protected verification record is attached.");
+        return;
+      }
+    }
+    setSaving(String(item.id));
     const payload={status};
     if(status==="verified")payload.verified_at=new Date().toISOString();
     if(status==="in_progress")payload.verified_at=null;
