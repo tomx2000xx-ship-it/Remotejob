@@ -1852,12 +1852,13 @@ function AdminMembers({go}){
       const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Member list took too long to load. Refresh and check administrator profile permissions.")),12000);});
       const {data,error:e}=await Promise.race([request,timeout]);
       if(e)throw e;
-      setRows(data||[]);
+      setRows((data||[]).filter(row=>!["admin","super_admin"].includes(row.role)));
     }catch(e){setError(e?.message||"Member records could not be loaded. Please refresh.");}
     finally{if(timeoutId)clearTimeout(timeoutId);setLoading(false);}
   };
   useEffect(()=>{void load();},[]);
   const openDetails=async(row)=>{
+    if(["admin","super_admin"].includes(row?.role))return;
     setSelected(row);setDetails(null);setDetailError("");setDetailLoading(true);
     try{
       const userId=row.id;
@@ -1946,6 +1947,7 @@ function AdminMembers({go}){
     <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Member management</h1><p>Open any member to review their available account, work, document and activity records in one place.</p></div><Button variant="outline" onClick={load}><ArrowRight size={15}/> Refresh</Button></div>
     <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Restricted administrative controls</strong><span>Private files use short-lived signed links. Passwords, authentication tokens and full payment card credentials are not displayed.</span></div></section>
     {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
+<section className="panel"><div className="admin-member-list"><div className="admin-member-row"><ShieldCheck size={20}/><div className="admin-member-main"><strong>Administrator accounts are kept separate</strong><span>Admin and super-admin accounts do not appear in this member list and cannot be opened or removed from Member Management.</span></div></div></div></section>
     <section className="panel"><div className="application-admin-filters"><label className="field"><span>Search members</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, country, ID, role or status"/></label></div></section>
     {loading?<div className="empty-state"><h3>Loading members…</h3><p>Fetching profile records from Supabase.</p></div>:filtered.length===0?<EmptyState title="No members found" text="Try a different search."/>:<section className="panel"><div className="admin-member-list">{filtered.map(row=><div className="admin-member-row" key={row.id}>
       <Avatar letter={(row.full_name||"M")[0].toUpperCase()}/>
