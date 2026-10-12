@@ -924,14 +924,16 @@ function Payouts({go}){
       if(mounted&&settingsRow?.value)setWorkspaceSettings(v=>({...v,...settingsRow.value,form_fields:Array.isArray(settingsRow.value.form_fields)&&settingsRow.value.form_fields.length?settingsRow.value.form_fields:(v.form_fields||[])}));
       const {data:{user}}=await supabase.auth.getUser();
       if(!user){if(mounted)setLoading(false);return;}
-      const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.all([
+      let payoutLoadTimeout;
+      const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.race([Promise.all([
         supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
         supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}),
         supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name"),
         supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle(),
         supabase.from("job_earnings_ledger").select("amount,status,week_start,week_end,earning_date").eq("candidate_id",user.id).in("status",["approved","pending","paid"]),
         supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id)
-      ]);
+      ]),new Promise((_,reject)=>{payoutLoadTimeout=setTimeout(()=>reject(new Error("Payout data is taking too long to load. Please refresh and try again.")),15000);})]);
+
       if(!mounted)return;
       if(methodsRes.error||payoutsRes.error||p.error||w.error)setError((methodsRes.error||payoutsRes.error||p.error||w.error).message);
       if(ledgerRes.error||accessRes.error)setError(v=>v||((ledgerRes.error||accessRes.error).message));
@@ -967,6 +969,7 @@ function Payouts({go}){
       } catch(err) {
         if(mounted)setError(err?.message||"Payout settings could not be loaded. Please refresh and try again.");
       } finally {
+        if(typeof payoutLoadTimeout!=="undefined"&&payoutLoadTimeout)clearTimeout(payoutLoadTimeout);
         if(mounted)setLoading(false);
       }
     })();
