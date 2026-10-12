@@ -1715,8 +1715,8 @@ function AdminVerification({go}){
         supabase.from("demo_identity_records").select("id").eq("verification_id",item.id).limit(1).maybeSingle()
       ]);
       if(documentsRes.error||identityRes.error){setError((documentsRes.error||identityRes.error).message);return;}
-      if(!item.provider_reference&&!(documentsRes.data||[]).length&&!identityRes.data){
-        setError("This case cannot be marked verified yet. No provider result, submitted document, or protected verification record is attached.");
+      if(!item.provider_reference||!item.submitted_at){
+        setError("This case cannot be marked verified yet. A completed submission and a successful identity-provider result are required. Uploaded demo files or saved form data alone do not prove identity.");
         return;
       }
     }
@@ -2112,7 +2112,7 @@ function Verification({go}){
   const back=()=>{if(step>1)setStep(v=>v-1);};
 
   if(loading)return <div className="verification-page"><div className="verification-complete"><ShieldCheck size={28}/><span className="kicker">IDENTITY VERIFICATION</span><h1>Loading your verification status…</h1></div></div>;
-  if(existing?.status==="verified")return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFIED</span><h1>Your identity is verified.</h1><p>Your verification status is securely recorded. In production, raw identity data will be handled by the verification provider; demo storage is clearly marked and can be switched off before launch.</p><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
+  if(existing?.status==="verified"&&existing?.provider_reference&&existing?.submitted_at&&existing?.verified_at)return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">VERIFIED</span><h1>Your identity is verified.</h1><p>Your verification status is securely recorded. In production, raw identity data will be handled by the verification provider; demo storage is clearly marked and can be switched off before launch.</p><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
   if(submitted)return <div className="verification-page"><div className="verification-complete"><div className="verification-complete-icon"><Check size={28}/></div><span className="kicker">{demoUploadsEnabled?"DEMO UPLOAD COMPLETE":"VERIFICATION STARTED"}</span><h1>{demoUploadsEnabled?"Your demo verification upload is complete.":"Your verification has been securely started."}</h1><p>{demoUploadsEnabled?(<>The selected identity documents were uploaded to the private Supabase Storage bucket for this demo. {demoIdentityStorageEnabled?" Your test identity fields were also saved to the protected demo identity record.":" Your sensitive identity fields remained session-only."}</>):"RemoteWay saved only the verification workflow status, country and document type. The selected documents remain local until a production verification provider is connected."}</p><div className="verification-complete-note"><ShieldCheck size={17}/><span>{demoUploadsEnabled?"Demo mode is active. Files are private and access-controlled; turn this setting off before production.":"The next production step is the secure identity-provider handoff. Verification decisions and document handling will be managed by that provider."}</span></div><Button onClick={()=>go("dashboard")}>Back to dashboard <ArrowRight size={15}/></Button></div></div>;
   return <div className="verification-page">
     <header className="verification-topbar"><Logo/><button className="back-link" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Back to dashboard</button></header>
