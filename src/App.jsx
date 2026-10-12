@@ -1698,10 +1698,12 @@ function AdminVerification({go}){
 
   const load=async()=>{
     setLoading(true);setError("");
-    const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
-    if(e)setError(e.message);
-    setItems(data||[]);
-    setLoading(false);
+    try{
+      const {data,error:e}=await supabase.from("verification_profiles").select("id,user_id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason,profiles(full_name)").order("updated_at",{ascending:false});
+      if(e)throw e;
+      setItems(data||[]);
+    }catch(e){setError(e?.message||"Verification cases could not be loaded. Please refresh.");}
+    finally{setLoading(false);}
   };
 
   useEffect(()=>{load()},[]);
@@ -1762,14 +1764,14 @@ function AdminVerification({go}){
       <div className="admin-verification-list">{items.map(item=><div className="admin-verification-row" key={item.id}>
         <div className="company-avatar"><ShieldCheck size={16}/></div>
         <div className="admin-verification-main"><strong>{item.profiles?.full_name||"RemoteWay member"}</strong><span>{item.country||"Country not selected"} · {item.document_type||"Document not selected"}</span><small>{item.submitted_at?"Submitted "+new Date(item.submitted_at).toLocaleString():"Submission not complete"}</small></div>
-        <Badge tone={item.status==="verified"?"green":item.status==="needs_attention"?"warning":"soft"}>{item.status.replace("_"," ")}</Badge>
+        <Badge tone={item.status==="verified"?"green":item.status==="needs_attention"?"warning":"soft"}>{item.status==="pending"?"Pending review":item.status.replaceAll("_"," ")}</Badge>
         <div className="admin-verification-actions"><button className="btn btn-soft" onClick={()=>openDocuments(item)}>View documents <ArrowRight size={14}/></button><label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>updateStatus(item,e.target.value)}><option value="required">Required</option><option value="in_progress">In progress</option><option value="pending">Pending review</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label></div>
       </div>)}</div>}
     </section>
 
     {selectedCandidate&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeDocuments()}}>
       <section className="payout-modal admin-verification-doc-modal" role="dialog" aria-modal="true">
-        <div className="payout-modal-head"><div><span className="kicker">VERIFICATION RECORD</span><h2>{selectedCandidate.profiles?.full_name||"RemoteWay member"}</h2><p>{selectedCandidate.document_type||"Identity document"} · {selectedCandidate.status.replaceAll("_"," ")} · Restricted admin view</p></div><button className="payout-modal-close" onClick={closeDocuments}><X size={18}/></button></div><div style={{padding:"14px 18px",borderBottom:"1px solid var(--border,#e7e7e7)"}}><h3>Verification summary</h3><p>Country: {selectedCandidate.country||"Not provided"} · Started: {selectedCandidate.started_at?new Date(selectedCandidate.started_at).toLocaleString():"Not provided"} · Submitted: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"} · Verified: {selectedCandidate.verified_at?new Date(selectedCandidate.verified_at).toLocaleString():"Not verified"}</p><p>Review status: {selectedCandidate.status==="pending"?"Awaiting administrator decision":selectedCandidate.status.replaceAll("_"," ")} · Submission timestamp: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"}</p></div><div style={{padding:"14px 18px"}}><h3>Protected identity data</h3>{identityLoading?<p>Loading identity data…</p>:identityRecord?<div style={{display:"grid",gap:8}}>{[["Legal name",identityRecord.legal_name],["Date of birth",identityRecord.date_of_birth],["Residential address",identityRecord.residential_address],["Country",identityRecord.country],["Government identifier",identityRecord.government_identifier],["Saved",identityRecord.created_at?new Date(identityRecord.created_at).toLocaleString():"Not provided"]].map(([label,value])=><div key={label} style={{display:"grid",gridTemplateColumns:"minmax(120px,180px) minmax(0,1fr)",gap:10,overflowWrap:"anywhere"}}><span>{label}</span><strong style={{fontWeight:500}}>{value||"Not provided"}</strong></div>)}</div>:<p>No protected identity record has been submitted.</p>}</div><div style={{padding:"0 18px 14px"}}><h3>Submitted identity documents</h3>
+        <div className="payout-modal-head"><div><span className="kicker">VERIFICATION RECORD</span><h2>{selectedCandidate.profiles?.full_name||"RemoteWay member"}</h2><p>{selectedCandidate.document_type||"Identity document"} · {selectedCandidate.status.replaceAll("_"," ")} · Restricted admin view</p></div><button className="payout-modal-close" onClick={closeDocuments}><X size={18}/></button></div><div className="admin-verification-summary"><h3>Verification summary</h3><p>Country: {selectedCandidate.country||"Not provided"} · Started: {selectedCandidate.started_at?new Date(selectedCandidate.started_at).toLocaleString():"Not provided"} · Submitted: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"} · Verified: {selectedCandidate.verified_at?new Date(selectedCandidate.verified_at).toLocaleString():"Not verified"}</p><p>Review status: {selectedCandidate.status==="pending"?"Awaiting administrator decision":selectedCandidate.status.replaceAll("_"," ")} · Submission timestamp: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"}</p></div><section className="admin-verification-section"><h3>Protected identity data</h3>{identityLoading?<p>Loading identity data…</p>:identityRecord?<div style={{display:"grid",gap:8}}>{[["Legal name",identityRecord.legal_name],["Date of birth",identityRecord.date_of_birth],["Residential address",identityRecord.residential_address],["Country",identityRecord.country],["Government identifier",identityRecord.government_identifier],["Saved",identityRecord.created_at?new Date(identityRecord.created_at).toLocaleString():"Not provided"]].map(([label,value])=><div key={label} style={{display:"grid",gridTemplateColumns:"minmax(120px,180px) minmax(0,1fr)",gap:10,overflowWrap:"anywhere"}}><span>{label}</span><strong style={{fontWeight:500}}>{value||"Not provided"}</strong></div>)}</div>:<p>No protected identity record has been submitted.</p>}</section><section className="admin-verification-section admin-verification-documents-section"><h3>Submitted identity documents</h3>
         {documentsLoading?<div className="empty-state"><h3>Loading secure previews…</h3><p>Generating short-lived document links.</p></div>:documents.length===0?<div className="empty-state"><FileText size={24}/><h3>No uploaded documents found</h3><p>This verification case has no demo files available for preview.</p></div>:<div className="admin-verification-doc-grid">
           {documents.map(doc=><button type="button" className="admin-verification-doc-card" key={doc.id} onClick={()=>setSelectedDocument(doc)}>
             <span className="admin-verification-doc-thumb">{doc.signedUrl&&/\.(jpe?g|png|webp)$/i.test(doc.storage_path||"")?<img src={doc.signedUrl} alt={doc.side+" of identity document"}/>:<FileText size={26}/>}</span>
@@ -1778,7 +1780,7 @@ function AdminVerification({go}){
           </button>)}
         </div>}
         <div className="verification-preview-note"><LockKeyhole size={15}/><span>Preview links expire automatically. The storage bucket remains private and documents are never made public.</span></div>
-        </div>
+        </section>
       </section>
     </div>}
 
@@ -2033,24 +2035,27 @@ function Verification({go}){
   useEffect(()=>{
     let mounted=true;
     (async()=>{
-      const {data:{user}}=await supabase.auth.getUser();
-      if(!user){if(mounted)setLoading(false);return;}
-      const [{data,error:e},{data:demoSetting},{data:identityDemoSetting}]=await Promise.all([
-        supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),
-        supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle(),
-        supabase.from("site_settings").select("value").eq("key","verification_demo_identity_storage").maybeSingle()
-      ]);
-      if(!mounted)return;
-      if(e)setError(e.message);
-      setDemoUploadsEnabled(demoSetting?.value?.enabled===true);
-      setDemoIdentityStorageEnabled(identityDemoSetting?.value?.enabled===true);
-      if(data){
-        setExisting(data);
-        setCountry(data.country||"United States");
-        setDocumentType(data.document_type||"");
-        if(data.status==="in_progress")setStep(1);
-      }
-      setLoading(false);
+      try{
+        const {data:{user},error:userError}=await supabase.auth.getUser();
+        if(userError)throw userError;
+        if(!user)return;
+        const [verificationResult,demoResult,identityResult]=await Promise.all([
+          supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),
+          supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle(),
+          supabase.from("site_settings").select("value").eq("key","verification_demo_identity_storage").maybeSingle()
+        ]);
+        if(verificationResult.error||demoResult.error||identityResult.error)throw (verificationResult.error||demoResult.error||identityResult.error);
+        if(!mounted)return;
+        setDemoUploadsEnabled(demoResult.data?.value?.enabled===true);
+        setDemoIdentityStorageEnabled(identityResult.data?.value?.enabled===true);
+        if(verificationResult.data){
+          setExisting(verificationResult.data);
+          setCountry(verificationResult.data.country||"United States");
+          setDocumentType(verificationResult.data.document_type||"");
+          if(verificationResult.data.status==="in_progress")setStep(1);
+        }
+      }catch(e){if(mounted)setError(e?.message||"Your verification status could not be loaded. Please refresh.");}
+      finally{if(mounted)setLoading(false);}
     })();
     return()=>{mounted=false};
   },[]);
