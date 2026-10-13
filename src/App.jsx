@@ -2155,13 +2155,16 @@ function Verification({go}){
         const files=[["front",frontFile],["back",backFile]].filter(([,file])=>file);
         for(const [side,file] of files){
           if(file.size>10*1024*1024)throw new Error("Each identity document must be 10 MB or smaller.");
-          const allowed=["image/jpeg","image/png","image/webp","application/pdf"];
-          if(!allowed.includes(file.type))throw new Error("Please use a JPG, PNG, WebP or PDF identity document.");
+          const fileType=String(file.type||"").toLowerCase();
+          const fileName=String(file.name||"").toLowerCase();
+          const isSupportedImage=fileType.startsWith("image/")||/\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif|avif)$/i.test(fileName);
+          const isSupportedDocument=fileType==="application/pdf"||/\.pdf$/i.test(fileName);
+          if(!isSupportedImage&&!isSupportedDocument)throw new Error("Please choose an image or PDF document.");
           const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
           const path=user.id+"/"+verification.id+"/"+side+"-"+Date.now()+"-"+safeName;
           const {error:uploadError}=await supabase.storage.from("verification-demo").upload(path,file,{contentType:file.type,upsert:false});
           if(uploadError)throw uploadError;
-          const {error:docError}=await supabase.from("verification_documents").insert({verification_id:verification.id,document_type,side,storage_path:path,status:"submitted"});
+          const {error:docError}=await supabase.from("verification_documents").insert({verification_id:verification.id,document_type:documentType,side,storage_path:path,status:"submitted"});
           if(docError)throw docError;
         }
       }
@@ -2195,7 +2198,7 @@ function Verification({go}){
   return <div className="verification-page">
     <header className="verification-topbar"><Logo/><button className="back-link" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Back to dashboard</button></header>
     <main className="verification-wrap">
-      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete each required step, save your identity details and upload both sides of your document. Your submission will then move to pending review.</p>{existing&&["rejected","needs_attention"].includes(existing.status)&&<div className="auth-message auth-error" role="alert" style={{marginTop:16}}><strong>Verification needs attention — please submit it again.</strong><p style={{margin:"8px 0 0"}}>{existing.needs_attention_reason||"Your previous submission could not be approved. Please review your details and upload clear, correct document images."}</p></div>}<div className="verification-security-note"><LockKeyhole size={16}/><span><strong>Restricted access.</strong> Identity details and document images are saved to private storage and are visible only to you and authorized administrators.</span></div></div>
+      <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete each required step, save your identity details and upload both sides of your document. Your submission will then move to pending review.</p></div>
       {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
       <div className="verification-progress"><span style={{width:`${(step/5)*100}%`}}/></div>
       <div className="verification-step-card">
