@@ -7,6 +7,11 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: corsHeaders });
+function brandedFrom(value: string): string {
+  const match = value.match(/<([^<>]+)>/);
+  const address = (match?.[1] ?? value).trim();
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address) ? `RemoteWay <${address}>` : value;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -55,7 +60,7 @@ Deno.serve(async (req: Request) => {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [member.user.email], subject, html, text: `${headline}\n\n${explanation}${status === "rejected" ? `\n\nReason: ${reason || "The submitted details or document could not be verified."}` : ""}\n\nVisit https://remoteway.work\nRemoteWay Support` }),
+      body: JSON.stringify({ from: brandedFrom(from), to: [member.user.email], subject, html: `<!doctype html><html><body style="margin:0;background:#f6f5ef;font-family:Arial,sans-serif;color:#26382f"><div style="max-width:620px;margin:24px auto;padding:28px;background:#fff;border:1px solid #e5e9e2;border-radius:16px"><p style="font-size:12px;letter-spacing:2px;color:#4e765d;font-weight:bold">REMOTEWAY</p>${html}<hr style="border:0;border-top:1px solid #e8ece6;margin:24px 0"/><p style="font-size:11px;color:#89948d">RemoteWay · Opportunities that work for you.</p></div></body></html>`, text: `${headline}\n\n${explanation}${status === "rejected" ? `\n\nReason: ${reason || "The submitted details or document could not be verified."}` : ""}\n\nVisit https://remoteway.work\nRemoteWay Support` }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) return json({ error: result?.message || "The email provider rejected the message." }, 502);
