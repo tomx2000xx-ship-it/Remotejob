@@ -1,6 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version", "Access-Control-Allow-Methods": "POST, OPTIONS", "Vary": "Origin" };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const brandedFrom = (value: string) => {
+  const match = value.match(/<([^<>]+)>/);
+  const address = (match?.[1] ?? value).trim();
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address) ? `RemoteWay <${address}>` : value;
+};
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] || ch));
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -43,7 +49,11 @@ Deno.serve(async (req: Request) => {
     if (latest.message_id_header) headers["In-Reply-To"] = latest.message_id_header;
     const refs = [latest.references_header, latest.message_id_header].filter(Boolean).join(" ");
     if (refs) headers["References"] = refs;
-    const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + resendKey, "Content-Type": "application/json" }, body: JSON.stringify({ from: fromAddress, to: [thread.participant_email], subject, text: textBody, headers }) });
+    const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + resendKey, "Content-Type": "application/json" }, body: JSON.stringify({
+      from: brandedFrom(fromAddress), to: [thread.participant_email], subject, text: textBody,
+      html: `<!doctype html><html><body style="margin:0;background:#f6f5ef;font-family:Arial,sans-serif;color:#26382f"><div style="max-width:620px;margin:24px auto;padding:28px;background:#fff;border:1px solid #e5e9e2;border-radius:16px"><p style="font-size:12px;letter-spacing:2px;color:#4e765d;font-weight:bold">REMOTEWAY</p><div style="font-size:15px;line-height:1.75;color:#526258">${escapeHtml(textBody).replace(/\n/g, "<br/>")}</div><hr style="border:0;border-top:1px solid #e8ece6;margin:24px 0"/><p style="font-size:11px;color:#89948d">RemoteWay Support · Opportunities that work for you.</p></div></body></html>`,
+      headers
+    }) });
     const sentData: any = await sent.json().catch(() => ({}));
     if (!sent.ok) return json({ error: sentData.message || "Resend could not send this reply." }, 502);
     const now = new Date().toISOString();
