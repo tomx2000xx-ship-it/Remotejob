@@ -2032,8 +2032,8 @@ function AdminMembers({go}){
           {section("Payout history",details?.payouts,[["Amount","amount"],["Currency","currency"],["Status","status"],["Reference","provider_reference"],["Failure reason","failure_reason"],["Created","created_at"],["Updated","updated_at"]])}
           {section("Support tickets",details?.tickets,[["Subject","subject"],["Issue type","issue_type"],["Status","status"],["Created","created_at"],["Updated","updated_at"]])}
           {section("Support messages",details?.supportMessages,[["Ticket ID","ticket_id"],["Sender type","sender_type"],["Message","body"],["Sent","created_at"]])}
-          {section("Recent notifications",details?.notifications,[["Title","title"],["Type","type"],["Message","body"],["Read at","read_at"],["Created","created_at"]])
-          {section("Custom form responses",details?.formResponses,[["Form ID","form_id"],["User ID","user_id"],["Answers","answers"],["Status","status"],["Submitted","created_at"],["Updated","updated_at"]])}}
+          {section("Recent notifications",details?.notifications,[["Title","title"],["Type","type"],["Message","body"],["Read at","read_at"],["Created","created_at"]])}
+          {section("Custom form responses",details?.formResponses,[["Form ID","form_id"],["User ID","user_id"],["Answers","answers"],["Status","status"],["Submitted","created_at"],["Updated","updated_at"]])}
         </React.Fragment>}
       </div>
     </div>}
