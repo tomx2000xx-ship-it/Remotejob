@@ -100,7 +100,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<voi
       to: [to],
       subject,
       text: body,
-      html: `<!doctype html><html><body style="margin:0;background:#f6f5ef;font-family:Arial,sans-serif;color:#26382f"><div style="max-width:620px;margin:24px auto;padding:28px;background:#fff;border:1px solid #e5e9e2;border-radius:16px"><p style="font-size:12px;letter-spacing:2px;color:#4e765d;font-weight:bold">REMOTEWAY</p><div style="font-size:15px;line-height:1.75;color:#526258;overflow-wrap:anywhere">${renderTextBody(body)}</div><hr style="border:0;border-top:1px solid #e8ece6;margin:24px 0"/><p style="font-size:11px;color:#89948d">RemoteWay · Opportunities that work for you.</p></div></body></html>`,
+      html: `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0;padding:24px 12px;background:#f7f4ec;font-family:Arial,Helvetica,sans-serif;color:#303844"><div style="box-sizing:border-box;max-width:860px;margin:0 auto;padding:28px 30px;background:#fff;border:1px solid #e4e7e3;border-radius:16px"><div style="font-size:20px;line-height:1.4;font-weight:800;color:#1d5d4d;padding-bottom:12px;border-bottom:2px solid #1d5d4d">↗ RemoteWay</div><h1 style="font-size:24px;line-height:1.35;font-weight:750;margin:18px 0 10px;color:#303844">${escapeHtml(subject)}</h1><div style="font-size:16px;line-height:1.75;color:#414854;overflow-wrap:anywhere">${renderTextBody(body)}</div><div style="border-top:1px solid #e4e7e3;margin-top:22px;padding-top:12px;font-size:12px;line-height:1.5;color:#6c7773">RemoteWay · Work. Anywhere.</div></div></body></html>`,
     }),
   });
   const result = await response.json().catch(() => ({}));
