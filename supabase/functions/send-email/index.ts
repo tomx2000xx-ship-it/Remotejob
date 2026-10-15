@@ -136,14 +136,16 @@ Deno.serve(async (req: Request) => {
       email: String(user.email ?? ""),
       ConfirmationURL: actionUrl,
       RecoveryURL: actionUrl,
+      ".ConfirmationURL": actionUrl,
+      ".RecoveryURL": actionUrl,
       token: String(emailData.token ?? ""),
     });
 
     if (action === "email_change" && emailData.token_hash_new && emailData.token_new && user.email && user.new_email) {
       const currentUrl = resolveActionUrl(emailData.token_hash_new, "email_change", emailData.redirect_to, emailData.site_url);
       const newUrl = resolveActionUrl(emailData.token_hash, "email_change", emailData.redirect_to, emailData.site_url);
-      const currentBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: currentUrl, RecoveryURL: currentUrl, token: String(emailData.token ?? "") });
-      const newBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: newUrl, RecoveryURL: newUrl, token: String(emailData.token_new ?? "") });
+      const currentBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: currentUrl, RecoveryURL: currentUrl, ".ConfirmationURL": currentUrl, ".RecoveryURL": currentUrl, token: String(emailData.token ?? "") });
+      const newBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: newUrl, RecoveryURL: newUrl, ".ConfirmationURL": newUrl, ".RecoveryURL": newUrl, token: String(emailData.token_new ?? "") });
       await sendEmail(user.email, subject, currentBody);
       await sendEmail(user.new_email, subject, newBody);
     } else {
