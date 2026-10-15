@@ -920,6 +920,7 @@ function Payouts({go}){
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [modalOpen,setModalOpen]=useState(false);
+  const [changingMethod,setChangingMethod]=useState(false);
   const banks=payoutBanks[country]||[];
   const bankReady=!!bank&&name.trim().length>2&&account.trim().length>4;
   const paypalReady=paypalEmail.trim().includes("@")&&paypalName.trim().length>2;
@@ -933,40 +934,47 @@ function Payouts({go}){
   useEffect(()=>{
     let mounted=true;
     (async()=>{
-      let payoutLoadTimeout;
-      try {
-      const {data:{user},error:userError}=await supabase.auth.getUser();
-      if(userError)throw userError;
-      if(!user){if(mounted)setLoading(false);return;}
-      const [methodsRes,payoutsRes,p,w,ledgerRes,accessRes]=await Promise.race([Promise.all([
-        supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
-        supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}),
-        supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name"),
-        supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle(),
-        supabase.from("job_earnings_ledger").select("amount,status,week_start,week_end,earning_date").eq("candidate_id",user.id).in("status",["approved","pending","paid"]),
-        supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id)
-      ]),new Promise((_,reject)=>{payoutLoadTimeout=setTimeout(()=>reject(new Error("Payout data is taking too long to load. Please refresh and try again.")),15000);})]);
-
-      if(!mounted)return;
-      if(methodsRes.error||payoutsRes.error||p.error||w.error)setError((methodsRes.error||payoutsRes.error||p.error||w.error).message);
-      if(ledgerRes.error||accessRes.error)setError(v=>v||((ledgerRes.error||accessRes.error).message));
-      const today=new Date();const todayKey=today.toISOString().slice(0,10);
-      const ledger=ledgerRes.data||[];
-      const approved=ledger.filter(row=>row.status==="approved");
-      const earnedAvailable=approved.filter(row=>row.week_end<todayKey).reduce((sum,row)=>sum+Number(row.amount||0),0);
-      const reserved=(payoutsRes.data||[]).filter(row=>["pending","processing","paid"].includes(row.status)).reduce((sum,row)=>sum+Number(row.amount||0),0);
-      const available=Math.max(0,earnedAvailable-reserved);
-      const currentPeriod=ledger.filter(row=>row.week_start<=todayKey&&row.week_end>=todayKey&&row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
-      const lifetime=ledger.filter(row=>row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
-      const starts=(accessRes.data||[]).map(row=>row.work_started_at||row.created_at).filter(Boolean).sort();
-      const earliestStart=starts[0]?new Date(starts[0]):null;
-      const eligibleAt=earliestStart?new Date(earliestStart.getTime()+(Math.floor(Math.max(0,today.getTime()-earliestStart.getTime())/(7*86400000))+1)*7*86400000):null;
-      setEarnings({available,currentPeriod,lifetime,eligibleAt,hasStartDate:!!earliestStart});
-      setPayoutConfigs(p.data||[]);setWithdrawalFields(Array.isArray(w.data?.value)?w.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);
-      const m=methodsRes.data||null;
-      setSavedMethod(m);
-      setHistory(payoutsRes.data||[]);
-      if(m){
+      try{
+        const {data:{session},error:sessionError}=await supabase.auth.getSession();
+        if(sessionError)throw sessionError;
+        const user=session?.user;
+        if(!user)throw new Error("Please sign in again to manage your payout method.");
+        // Load only the essential setup data first. Earnings/history are not needed
+        // until a payout method exists, so they must not block first-time setup.
+        const [methodsRes,configsRes]=await Promise.all([
+          supabase.from("payout_methods").select("*").eq("user_id",user.id).eq("status","active").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+          supabase.from("payout_method_configs").select("*").eq("enabled",true).order("sort_order").order("name")
+        ]);
+        if(methodsRes.error)throw methodsRes.error;
+        if(configsRes.error)throw configsRes.error;
+        if(!mounted)return;
+        const m=methodsRes.data||null;
+        setSavedMethod(m);
+        setPayoutConfigs(configsRes.data||[]);
+        if(!m){setLoading(false);return;}
+        const [payoutsRes,fieldsRes,ledgerRes,accessRes]=await Promise.all([
+          supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at,payout_method_id").eq("user_id",user.id).order("created_at",{ascending:false}),
+          supabase.from("site_settings").select("value").eq("key","withdrawal_form_fields").maybeSingle(),
+          supabase.from("job_earnings_ledger").select("amount,status,week_start,week_end,earning_date").eq("candidate_id",user.id).in("status",["approved","pending","paid"]),
+          supabase.from("job_workspace_access").select("work_started_at,created_at").eq("candidate_id",user.id)
+        ]);
+        if(!mounted)return;
+        const nonFatalError=payoutsRes.error||ledgerRes.error||accessRes.error;
+        if(nonFatalError)setError(nonFatalError.message);
+        const today=new Date();const todayKey=today.toISOString().slice(0,10);
+        const ledger=ledgerRes.data||[];
+        const approved=ledger.filter(row=>row.status==="approved");
+        const earnedAvailable=approved.filter(row=>row.week_end&&row.week_end<todayKey).reduce((sum,row)=>sum+Number(row.amount||0),0);
+        const reserved=(payoutsRes.data||[]).filter(row=>["pending","processing","paid"].includes(row.status)).reduce((sum,row)=>sum+Number(row.amount||0),0);
+        const available=Math.max(0,earnedAvailable-reserved);
+        const currentPeriod=ledger.filter(row=>row.week_start<=todayKey&&row.week_end>=todayKey&&row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
+        const lifetime=ledger.filter(row=>row.status!=="reversed").reduce((sum,row)=>sum+Number(row.amount||0),0);
+        const starts=(accessRes.data||[]).map(row=>row.work_started_at||row.created_at).filter(Boolean).sort();
+        const earliestStart=starts[0]?new Date(starts[0]):null;
+        const eligibleAt=earliestStart?new Date(earliestStart.getTime()+(Math.floor(Math.max(0,today.getTime()-earliestStart.getTime())/(7*86400000))+1)*7*86400000):null;
+        setEarnings({available,currentPeriod,lifetime,eligibleAt,hasStartDate:!!earliestStart});
+        setWithdrawalFields(Array.isArray(fieldsRes.data?.value)?fieldsRes.data.value:[{key:"amount",label:"Amount to withdraw",type:"number",required:true,placeholder:"Enter amount",help_text:"Enter the amount you want to withdraw.",config:{min:1,step:"0.01"}}]);
+        setHistory(payoutsRes.data||[]);
         setMethod(m.method_type);
         setCountry(m.bank_country||"United States");
         setBank(m.bank_name||"");
@@ -976,15 +984,9 @@ function Payouts({go}){
         setCardName(m.cardholder_name||"");
         setCardLast4(m.card_last4||"");
         setCustomValues(m.details||{});
-      }
-      setLoading(false);
-
-      } catch(err) {
-        if(mounted)setError(err?.message||"Payout settings could not be loaded. Please refresh and try again.");
-      } finally {
-        if(payoutLoadTimeout)clearTimeout(payoutLoadTimeout);
-        if(mounted)setLoading(false);
-      }
+      }catch(err){
+        if(mounted)setError(err?.message||"Payout settings could not be loaded. Please try again.");
+      }finally{if(mounted)setLoading(false);}
     })();
     return()=>{mounted=false};
   },[]);
@@ -1051,6 +1053,7 @@ function Payouts({go}){
   return <div className="workspace">
     <div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Choose where you want your earnings sent and keep your payment details up to date.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Secure payout details</Badge></div>
     {error&&<div className="auth-message auth-error">{error}</div>}
+    {savedMethod&&<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button variant="outline" onClick={()=>setModalOpen(true)}><PenLine size={15}/> Review details</Button><Button variant="soft" onClick={()=>setChangingMethod(v=>!v)}>{changingMethod?"Cancel change":"Change method"}</Button></div></section>}
     {savedMethod&&<>
     <section className="payout-method-panel" aria-label="Earnings balance">
       <div className="payout-section-head"><div><span className="kicker">YOUR EARNINGS</span><h2>Approved earnings balance</h2><p>Only graded and approved task earnings are counted. The weekly earnings limit is $200 across your work.</p></div></div>
@@ -1062,10 +1065,9 @@ function Payouts({go}){
       <div className="payout-country-note"><WalletCards size={15}/><span>{earnings.hasStartDate&&earnings.eligibleAt?"Your next weekly eligibility checkpoint is "+earnings.eligibleAt.toLocaleDateString()+". Approved funds become eligible after the relevant seven-day work period closes.":"Your payout eligibility date will appear after your job start date is recorded."} Payout requests and actual payment processing are not enabled yet.</span></div>
     </section>
     </>}
-    {savedMethod?<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><Button variant="outline" onClick={()=>setModalOpen(true)}><PenLine size={15}/> Review details</Button></section>:null}
     {savedMethod&&<section className="payout-warning"><div className="payout-warning-icon"><CircleHelp size={19}/></div><div><strong>Take your time before you save.</strong><p>Make sure your name, bank or PayPal details are exactly correct. Incorrect payout information can cause a payment to fail or be sent to the wrong destination. Once saved, changes may be restricted and you may need to contact <button onClick={()=>go("home")}>Customer Care</button> to request an update.</p></div></section>}
     
-    <section className="payout-method-panel">
+    {(!savedMethod||changingMethod)&&<section className="payout-method-panel">
       <div className="payout-section-head"><div><span className="kicker">PAYOUT METHOD</span><h2>{savedMethod?"Change your payout method":"Where should we send your earnings?"}</h2><p>Select one method. You can change the method later according to the platform's payout rules.</p></div></div>
       <div className="payout-method-grid">{payoutConfigs.map(cfg=><button key={cfg.id} className="payout-method-card" onClick={()=>{setMethod(cfg.method_key);setCustomValues({});setModalOpen(true)}}><span className="payout-method-icon">{cfg.method_type==="bank"?<Landmark size={19}/>:cfg.method_type==="paypal"?<span className="paypal-mark">P</span>:(cfg.method_type==="card"||cfg.method_type==="credit_card")?<CreditCard size={19}/>:<WalletCards size={19}/>}</span><div><strong>{cfg.name}</strong><small>{cfg.description||"Choose this payout method."}</small></div><i><ArrowRight size={13}/></i></button>)}</div>
       {modalOpen && (<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><div className="payout-modal" role="dialog" aria-modal="true">
