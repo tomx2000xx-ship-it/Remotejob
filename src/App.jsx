@@ -1901,17 +1901,28 @@ function AdminMembers({go}){
     try{
       const userId=row.id;
       const requests=[
-        ["applications",supabase.from("applications").select("id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["resumes",supabase.from("resumes").select("id,file_name,storage_path,file_size,mime_type,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["savedJobs",supabase.from("saved_jobs").select("job_id,created_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["interviews",supabase.from("interviews").select("id,application_id,title,company_name,status,scheduled_at,duration_minutes,started_at,completed_at,score,total_questions,passed,created_at").eq("candidate_id",userId).order("created_at",{ascending:false})],
-        ["tickets",supabase.from("support_tickets").select("id,issue_type,subject,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["verification",supabase.from("verification_profiles").select("id,status,country,document_type,provider,started_at,submitted_at,verified_at,needs_attention_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["payouts",supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["payoutMethods",supabase.from("payout_methods").select("id,method_type,is_default,bank_country,bank_name,account_holder_name,account_last4,paypal_name,paypal_email,cardholder_name,card_last4,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["notifications",supabase.from("notifications").select("id,type,title,body,read_at,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(30)],
+        ["applications",supabase.from("applications").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["resumes",supabase.from("resumes").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["savedJobs",supabase.from("saved_jobs").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["interviews",supabase.from("interviews").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["tickets",supabase.from("support_tickets").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["verification",supabase.from("verification_profiles").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["payouts",supabase.from("payouts").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["payoutMethods",supabase.from("payout_methods").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["notifications",supabase.from("notifications").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
         ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
-        ["supportMessages",supabase.from("support_messages").select("id,ticket_id,sender_type,body,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(50)]
+        ["supportMessages",supabase.from("support_messages").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["formResponses",supabase.from("form_responses").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["interviewAnswers",supabase.from("interview_answers").select("*").eq("candidate_id",userId).order("saved_at",{ascending:false})],
+        ["interviewResults",supabase.from("interview_results").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobNetworkProfiles",supabase.from("job_network_profiles").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobTaskAssignments",supabase.from("job_task_assignments").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobTaskSubmissions",supabase.from("job_task_submissions").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobWorkspaceAccess",supabase.from("job_workspace_access").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobEarnings",supabase.from("job_earnings_ledger").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["pointOrders",supabase.from("point_orders").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["pointTransactions",supabase.from("point_transactions").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["pointWallet",supabase.from("point_wallets").select("*").eq("user_id",userId)]
       ];
       const results=await Promise.all(requests.map(async([key,request])=>({key,...(await request)})));
       const loaded={};const failed=[];
@@ -1921,10 +1932,21 @@ function AdminMembers({go}){
       else loaded.account=[accountData?.account||{}];
       const verificationIds=(loaded.verification||[]).map(v=>v.id).filter(Boolean);
       if(verificationIds.length){
-        const {data:documentRows,error:documentsError}=await supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,original_file_name,mime_type,status,created_at").in("verification_id",verificationIds).order("created_at",{ascending:false});
-        loaded.verificationDocuments=documentRows||[];
-        if(documentsError)failed.push("identity documents");
-      }else loaded.verificationDocuments=[];
+        const [documentsResult,eventsResult]=await Promise.all([
+          supabase.from("verification_documents").select("*").in("verification_id",verificationIds).order("created_at",{ascending:false}),
+          supabase.from("verification_events").select("*").in("verification_id",verificationIds).order("created_at",{ascending:false})
+        ]);
+        loaded.verificationDocuments=documentsResult.data||[];
+        loaded.verificationEvents=eventsResult.data||[];
+        if(documentsResult.error)failed.push("identity documents");
+        if(eventsResult.error)failed.push("verification events");
+      }else {loaded.verificationDocuments=[];loaded.verificationEvents=[];}
+      const formIds=[...new Set((loaded.formResponses||[]).map(response=>response.form_id).filter(Boolean))];
+      if(formIds.length){
+        const {data:formDefinitions,error:formDefinitionsError}=await supabase.from("form_definitions").select("*").in("id",formIds);
+        loaded.formDefinitions=formDefinitions||[];
+        if(formDefinitionsError)failed.push("form definitions");
+      }else loaded.formDefinitions=[];
       setDetails(loaded);
       if(failed.length)setDetailError("Some sections could not be loaded due to database access rules: "+failed.join(", ")+". Other available details are shown below.");
     }catch(e){setDetailError(e?.message||"The member's linked records could not be loaded.");}
@@ -1997,6 +2019,7 @@ function AdminMembers({go}){
   const fmtDate=value=>value?new Date(value).toLocaleString():"—";
   const showValue=value=>value===null||value===undefined||value===""?"Not provided":Array.isArray(value)?(value.length?value.join(", "):"None selected"):typeof value==="object"?JSON.stringify(value):String(value);
   const section=(title,items,fields,empty="No records found")=><section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>{title} <span style={{fontWeight:400,color:"var(--muted,#777)"}}>({items?.length||0})</span></h3>{!items?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>{empty}</p>:<div style={{display:"grid",gap:10}}>{items.map((item,index)=><div key={item.id||item.job_id||index} style={{padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",overflowWrap:"anywhere"}}>{fields.map(([label,key])=><div key={key} style={{display:"grid",gridTemplateColumns:"minmax(100px, 160px) minmax(0,1fr)",gap:10,padding:"3px 0"}}><span style={{color:"var(--muted,#777)",fontSize:13}}>{label}</span><span style={{fontSize:13}}>{showValue(item[key])}</span></div>)}</div>)}</div>}</section>;
+  const allStoredFields=(title,items,empty="No records found")=>section(title,items,Object.keys((items||[]).reduce((all,item)=>({...all,...item}),{})).map(key=>[key,key]),empty);
   const q=query.trim().toLowerCase();
   const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status,r.id].filter(Boolean).join(" ").toLowerCase().includes(q));
   return <div className="workspace admin-workspace">
@@ -2032,6 +2055,19 @@ function AdminMembers({go}){
           {section("Support tickets",details?.tickets,[["Subject","subject"],["Issue type","issue_type"],["Status","status"],["Created","created_at"],["Updated","updated_at"]])}
           {section("Support messages",details?.supportMessages,[["Ticket ID","ticket_id"],["Sender type","sender_type"],["Message","body"],["Sent","created_at"]])}
           {section("Recent notifications",details?.notifications,[["Title","title"],["Type","type"],["Message","body"],["Read at","read_at"],["Created","created_at"]])}
+          {allStoredFields("Custom form responses",details?.formResponses)}
+          {allStoredFields("Custom form definitions",details?.formDefinitions)}
+          {allStoredFields("Interview answers",details?.interviewAnswers)}
+          {allStoredFields("Interview results",details?.interviewResults)}
+          {allStoredFields("Job network profile and custom fields",details?.jobNetworkProfiles)}
+          {allStoredFields("Job task assignments",details?.jobTaskAssignments)}
+          {allStoredFields("Job task submissions",details?.jobTaskSubmissions)}
+          {allStoredFields("Job workspace access",details?.jobWorkspaceAccess)}
+          {allStoredFields("Earnings ledger",details?.jobEarnings)}
+          {allStoredFields("Points wallet",details?.pointWallet)}
+          {allStoredFields("Points orders",details?.pointOrders)}
+          {allStoredFields("Points transactions",details?.pointTransactions)}
+          {allStoredFields("Identity verification events",details?.verificationEvents)}
         </React.Fragment>}
       </div>
     </div>}
