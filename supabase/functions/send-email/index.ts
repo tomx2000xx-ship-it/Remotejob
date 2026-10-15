@@ -30,14 +30,13 @@ const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, c
 }[ch] as string));
 
 function renderTextBody(text: string, actionUrl: string, actionLabel: string): string {
-  const escapedUrl = escapeHtml(actionUrl);
-  const button = `<div style="margin:24px 0;text-align:center"><a href="${escapedUrl}" style="display:inline-block;background:#1d5d4d;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:1.3;padding:14px 24px;border-radius:8px">${escapeHtml(actionLabel)}</a></div><p style="font-size:12px;line-height:1.6;color:#6c7773">If the button doesn't work, reply to this email or request a new link from RemoteWay.</p>`;
-  const escaped = escapeHtml(text);
-  // Replace the long verification URL wherever the Studio template places its URL placeholder.
-  const bodyWithButton = escaped.split(escapedUrl).join(button);
-  return bodyWithButton
-    .replace(/(https:\/\/[^\s&lt;]+)/g, '<a href="$1" style="color:#2f6b52;text-decoration:underline;overflow-wrap:anywhere">$1</a>')
+  // Render template text as text only. Never inject markup before escaping it.
+  const safeText = text.split(actionUrl).join("");
+  const escaped = escapeHtml(safeText);
+  const button = `<div style="margin:24px 0;text-align:center"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#1d5d4d;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:1.3;padding:14px 24px;border-radius:8px">${escapeHtml(actionLabel)}</a></div><p style="font-size:12px;line-height:1.6;color:#6c7773">If the button doesn't work, copy this link into your browser: <a href="${escapeHtml(actionUrl)}" style="color:#2f6b52;text-decoration:underline;overflow-wrap:anywhere">Open secure link</a></p>`;
+  const readableText = escaped
     .replace(/\n/g, "<br>");
+  return readableText + button;
 }
 
 function resolveActionUrl(tokenHash: string, actionType: string, redirectTo?: string, siteUrl?: string): string {
