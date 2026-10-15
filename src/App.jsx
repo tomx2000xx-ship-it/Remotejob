@@ -1053,7 +1053,7 @@ function Payouts({go}){
   return <div className="workspace">
     <div className="workspace-head"><div><span className="kicker">GET PAID</span><h1>Payouts</h1><p>Choose where you want your earnings sent and keep your payment details up to date.</p></div><Badge tone="soft"><ShieldCheck size={13}/> Secure payout details</Badge></div>
     {error&&<div className="auth-message auth-error">{error}</div>}
-    {savedMethod&&<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button variant="outline" onClick={()=>setModalOpen(true)}><PenLine size={15}/> Review details</Button><Button variant="soft" onClick={()=>setChangingMethod(v=>!v)}>{changingMethod?"Cancel change":"Change method"}</Button></div></section>}
+    {savedMethod&&<section className="payout-success"><div className="payout-success-icon"><Check size={24}/></div><div><span className="kicker">PRIMARY PAYOUT METHOD</span><h2>{methodLabel(savedMethod.method_type)}</h2><p>{methodSummary(savedMethod)}</p><Badge tone="green">Ready for payouts</Badge></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button variant="outline" onClick={()=>{setChangingMethod(true);setModalOpen(true)}}><PenLine size={15}/> Review details</Button><Button variant="soft" onClick={()=>setChangingMethod(v=>!v)}>{changingMethod?"Cancel change":"Change method"}</Button></div></section>}
     {savedMethod&&<>
     <section className="payout-method-panel" aria-label="Earnings balance">
       <div className="payout-section-head"><div><span className="kicker">YOUR EARNINGS</span><h2>Approved earnings balance</h2><p>Only graded and approved task earnings are counted. The weekly earnings limit is $200 across your work.</p></div></div>
@@ -2083,6 +2083,7 @@ function Verification({go}){
   const [step,setStep]=useState(1);
   const [submitted,setSubmitted]=useState(false);
   const [loading,setLoading]=useState(true);
+  const [loadAttempt,setLoadAttempt]=useState(0);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [existing,setExisting]=useState(null);
@@ -2122,31 +2123,41 @@ function Verification({go}){
 
   useEffect(()=>{
     let mounted=true;
+    setLoading(true);
+    setError("");
     (async()=>{
       try{
-        const {data:{user},error:userError}=await supabase.auth.getUser();
-        if(userError)throw userError;
-        if(!user)return;
-        const [verificationResult,demoResult,identityResult]=await Promise.all([
-          supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle(),
+        // Use the locally stored session first; getUser() adds a network round-trip
+        // before the verification page can begin loading.
+        const {data:{session},error:sessionError}=await supabase.auth.getSession();
+        if(sessionError)throw sessionError;
+        const user=session?.user;
+        if(!user)throw new Error("Your session has expired. Please sign in again.");
+        const {data:verification,error:verificationError}=await supabase.from("verification_profiles").select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").eq("user_id",user.id).maybeSingle();
+        if(verificationError)throw verificationError;
+        if(!mounted)return;
+        if(verification){
+          setExisting(verification);
+          setCountry(verification.country||"United States");
+          setDocumentType(verification.document_type||"");
+          if(verification.status==="in_progress")setStep(1);
+        }
+        setLoading(false);
+        // Optional demo settings must not block identity setup.
+        Promise.all([
           supabase.from("site_settings").select("value").eq("key","verification_demo_uploads").maybeSingle(),
           supabase.from("site_settings").select("value").eq("key","verification_demo_identity_storage").maybeSingle()
-        ]);
-        if(verificationResult.error||demoResult.error||identityResult.error)throw (verificationResult.error||demoResult.error||identityResult.error);
-        if(!mounted)return;
-        setDemoUploadsEnabled(demoResult.data?.value?.enabled===true);
-        setDemoIdentityStorageEnabled(identityResult.data?.value?.enabled===true);
-        if(verificationResult.data){
-          setExisting(verificationResult.data);
-          setCountry(verificationResult.data.country||"United States");
-          setDocumentType(verificationResult.data.document_type||"");
-          if(verificationResult.data.status==="in_progress")setStep(1);
-        }
-      }catch(e){if(mounted)setError(e?.message||"Your verification status could not be loaded. Please refresh.");}
-      finally{if(mounted)setLoading(false);}
+        ]).then(([uploadsResult,identityResult])=>{
+          if(!mounted)return;
+          if(!uploadsResult.error)setDemoUploadsEnabled(uploadsResult.data?.value?.enabled===true);
+          if(!identityResult.error)setDemoIdentityStorageEnabled(identityResult.data?.value?.enabled===true);
+        }).catch(()=>{});
+      }catch(e){
+        if(mounted)setError(e?.message==="Failed to fetch"?"We couldn't connect to verification right now. Check your connection and try again.":e?.message||"Your verification status could not be loaded. Please try again.");
+      }finally{if(mounted)setLoading(false);}
     })();
     return()=>{mounted=false};
-  },[]);
+  },[loadAttempt]);
 
   const validateStep=()=>{
     setError("");
@@ -2233,7 +2244,7 @@ function Verification({go}){
     <header className="verification-topbar"><Logo/><button className="back-link" onClick={()=>go("dashboard")}><ArrowLeft size={15}/> Back to dashboard</button></header>
     <main className="verification-wrap">
       <div className="verification-intro"><Badge tone="green"><ShieldCheck size={13}/> Identity verification</Badge><h1>Build a verified profile.</h1><p>Complete each required step, save your identity details and upload both sides of your document. Your submission will then move to pending review.</p></div>
-      {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
+      {error&&<div className="auth-message auth-error" role="alert">{error}<button type="button" onClick={()=>setLoadAttempt(v=>v+1)} style={{marginLeft:12,textDecoration:"underline",fontWeight:700}}>Try again</button></div>}
       <div className="verification-progress"><span style={{width:`${(step/5)*100}%`}}/></div>
       <div className="verification-step-card">
         <div className="verification-step-meta"><span>STEP {step} <em>OF 5</em></span><Badge tone="soft">In progress</Badge></div>
