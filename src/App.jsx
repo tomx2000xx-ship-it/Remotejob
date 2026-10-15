@@ -2194,17 +2194,12 @@ function Verification({go}){
       if(!user)throw new Error("Your session has expired. Please sign in again.");
       const finalIdentifierCheck=validateGovernmentIdentifier(country,identifier);
       if(!finalIdentifierCheck.valid)throw new Error(finalIdentifierCheck.message);
-      const payload={user_id:user.id,status:"in_progress",country,document_type:"Identity document",started_at:existing?.started_at||new Date().toISOString()};
-      let verification=existing;
-      if(existing){
-        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:"Identity document",status:"in_progress",submitted_at:null,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
-        if(e)throw e;
-        verification=data;
-      }else{
-        const {data,error:e}=await supabase.from("verification_profiles").insert(payload).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
-        if(e)throw e;
-        verification=data;
-      }
+      const payload={user_id:user.id,status:"in_progress",country,document_type:"Identity document",started_at:existing?.started_at||new Date().toISOString(),submitted_at:null};
+      const {data:verification,error:verificationSaveError}=await supabase.from("verification_profiles").upsert(payload,{onConflict:"user_id"}).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+      if(verificationSaveError)throw verificationSaveError;
+      // Persist the record in component state immediately so a failed upload can be retried
+      // against the same verification row instead of attempting a duplicate insert.
+      setExisting(verification);
       {
         const files=[["front",frontFile]].filter(([,file])=>file);
         for(const [side,file] of files){
