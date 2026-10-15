@@ -29,9 +29,13 @@ const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, c
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[ch] as string));
 
-function renderTextBody(text: string): string {
+function renderTextBody(text: string, actionUrl: string, actionLabel: string): string {
+  const escapedUrl = escapeHtml(actionUrl);
+  const button = `<div style="margin:24px 0;text-align:center"><a href="${escapedUrl}" style="display:inline-block;background:#1d5d4d;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;line-height:1.3;padding:14px 24px;border-radius:8px">${escapeHtml(actionLabel)}</a></div><p style="font-size:12px;line-height:1.6;color:#6c7773">If the button doesn't work, reply to this email or request a new link from RemoteWay.</p>`;
   const escaped = escapeHtml(text);
-  return escaped
+  // Replace the long verification URL wherever the Studio template places its URL placeholder.
+  const bodyWithButton = escaped.split(escapedUrl).join(button);
+  return bodyWithButton
     .replace(/(https:\/\/[^\s&lt;]+)/g, '<a href="$1" style="color:#2f6b52;text-decoration:underline;overflow-wrap:anywhere">$1</a>')
     .replace(/\n/g, "<br>");
 }
@@ -91,7 +95,7 @@ function selectTemplate(templates: Array<{ id: string; name?: string; subject?: 
   throw new Error("No usable Email Studio template was found.");
 }
 
-async function sendEmail(to: string, subject: string, body: string): Promise<void> {
+async function sendEmail(to: string, subject: string, body: string, actionUrl: string, actionLabel: string): Promise<void> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
@@ -100,7 +104,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<voi
       to: [to],
       subject,
       text: body,
-      html: `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0;padding:24px 12px;background:#f7f4ec;font-family:Arial,Helvetica,sans-serif;color:#303844"><div style="box-sizing:border-box;max-width:860px;margin:0 auto;padding:28px 30px;background:#fff;border:1px solid #e4e7e3;border-radius:16px"><div style="font-size:20px;line-height:1.4;font-weight:800;color:#1d5d4d;padding-bottom:12px;border-bottom:2px solid #1d5d4d">↗ RemoteWay</div><h1 style="font-size:24px;line-height:1.35;font-weight:750;margin:18px 0 10px;color:#303844">${escapeHtml(subject)}</h1><div style="font-size:16px;line-height:1.75;color:#414854;overflow-wrap:anywhere">${renderTextBody(body)}</div><div style="border-top:1px solid #e4e7e3;margin-top:22px;padding-top:12px;font-size:12px;line-height:1.5;color:#6c7773">RemoteWay · Work. Anywhere.</div></div></body></html>`,
+      html: `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0;padding:24px 12px;background:#f7f4ec;font-family:Arial,Helvetica,sans-serif;color:#303844"><div style="box-sizing:border-box;max-width:860px;margin:0 auto;padding:28px 30px;background:#fff;border:1px solid #e4e7e3;border-radius:16px"><div style="font-size:20px;line-height:1.4;font-weight:800;color:#1d5d4d;padding-bottom:12px;border-bottom:2px solid #1d5d4d">↗ RemoteWay</div><h1 style="font-size:24px;line-height:1.35;font-weight:750;margin:18px 0 10px;color:#303844">${escapeHtml(subject)}</h1><div style="font-size:16px;line-height:1.75;color:#414854;overflow-wrap:anywhere">${renderTextBody(body, actionUrl, actionLabel)}</div><div style="border-top:1px solid #e4e7e3;margin-top:22px;padding-top:12px;font-size:12px;line-height:1.5;color:#6c7773">RemoteWay · Work. Anywhere.</div></div></body></html>`,
     }),
   });
   const result = await response.json().catch(() => ({}));
@@ -146,12 +150,17 @@ Deno.serve(async (req: Request) => {
       const newUrl = resolveActionUrl(emailData.token_hash, "email_change", emailData.redirect_to, emailData.site_url);
       const currentBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: currentUrl, RecoveryURL: currentUrl, ".ConfirmationURL": currentUrl, ".RecoveryURL": currentUrl, token: String(emailData.token ?? "") });
       const newBody = interpolate(String(template.body ?? ""), { first_name: firstName, ConfirmationURL: newUrl, RecoveryURL: newUrl, ".ConfirmationURL": newUrl, ".RecoveryURL": newUrl, token: String(emailData.token_new ?? "") });
-      await sendEmail(user.email, subject, currentBody);
-      await sendEmail(user.new_email, subject, newBody);
+      await sendEmail(user.email, subject, currentBody, currentUrl, "Confirm email address");
+      await sendEmail(user.new_email, subject, newBody, newUrl, "Confirm email address");
     } else {
       const recipient = action === "email_change" ? (user.new_email || user.email) : user.email;
       if (!recipient) throw new Error("Supabase did not provide a recipient email address.");
-      await sendEmail(recipient, subject, body);
+      const actionLabel = action === "recovery" ? "Reset your password"
+        : action === "magiclink" ? "Sign in to RemoteWay"
+        : action === "invite" ? "Accept your invitation"
+        : action === "email_change" ? "Confirm email address"
+        : "Confirm email address";
+      await sendEmail(recipient, subject, body, actionUrl, actionLabel);
     }
 
     return Response.json({});
