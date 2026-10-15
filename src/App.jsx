@@ -1789,10 +1789,9 @@ function AdminVerification({go}){
         ]);
         if(documentsRes.error||identityRes.error)throw (documentsRes.error||identityRes.error);
         const docs=documentsRes.data||[];
-        const hasFront=docs.some(d=>d.side==="front"&&d.status==="submitted"&&d.storage_path);
-        const hasBack=docs.some(d=>d.side==="back"&&d.status==="submitted"&&d.storage_path);
-        if(item.status!=="pending"||!item.submitted_at||!hasFront||!hasBack||!identityRes.data)
-          throw new Error("This case cannot be approved yet. The member must submit all required identity fields and both document sides before admin review.");
+        const hasDocument=docs.some(d=>d.status==="submitted"&&d.storage_path);
+        if(item.status!=="pending"||!item.submitted_at||!hasDocument||!identityRes.data)
+          throw new Error("This case cannot be approved yet. The member must submit the required identity fields and at least one identity document before admin review.");
       }
       const payload={status};
       if(status==="verified")payload.verified_at=new Date().toISOString();
@@ -1823,7 +1822,7 @@ function AdminVerification({go}){
       const resolved=await Promise.all((docsResult.data||[]).filter(doc=>doc.storage_path).map(async doc=>{
         const {data:signed,error:signedError}=await supabase.storage.from("verification-demo").createSignedUrl(doc.storage_path,300);
         if(signedError)throw signedError;
-        const path=String(doc.storage_path||"").toLowerCase();const ext=path.split(".").pop();const mimeByExtension={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",bmp:"image/bmp",tif:"image/tiff",tiff:"image/tiff",heic:"image/heic",heif:"image/heif",avif:"image/avif",pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",rtf:"application/rtf",txt:"text/plain",odt:"application/vnd.oasis.opendocument.text"};return {...doc,mime_type:mimeByExtension[ext]||"application/octet-stream",signedUrl:signed?.signedUrl||""};
+        const path=String(doc.storage_path||"").toLowerCase();const ext=path.split(".").pop();const mimeByExtension={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",bmp:"image/bmp",tif:"image/tiff",tiff:"image/tiff",heic:"image/heic",heif:"image/heif",avif:"image/avif",pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",rtf:"application/rtf",txt:"text/plain",odt:"application/vnd.oasis.opendocument.text"};return {...doc,mime_type:doc.mime_type||mimeByExtension[ext]||"application/octet-stream",original_file_name:doc.original_file_name||doc.storage_path?.split("/").pop()||"Identity document",signedUrl:signed?.signedUrl||""};
       }));
       setDocuments(resolved);setIdentityRecord(identityResult.data||null);
     }catch(e){setError(e?.message||"Could not load the verification record.");}
@@ -1839,7 +1838,7 @@ function AdminVerification({go}){
       {loading?<div className="empty-state"><h3>Loading verification cases…</h3><p>Fetching the latest secure status records.</p></div>:items.length===0?<EmptyState title="No verification cases yet" text="Candidates will appear here after they start the identity verification flow."/>:
       <div className="admin-verification-list">{items.map(item=><div className="admin-verification-row" key={item.id}>
         <div className="company-avatar"><ShieldCheck size={16}/></div>
-        <div className="admin-verification-main"><strong>{item.profiles?.full_name||"RemoteWay member"}</strong><span>{item.country||"Country not selected"} · {item.document_type||"Document not selected"}</span><small>{item.submitted_at?"Submitted "+new Date(item.submitted_at).toLocaleString():"Submission not complete"}</small></div>
+        <div className="admin-verification-main"><strong>{item.profiles?.full_name||"RemoteWay member"}</strong><span>{item.country||"Country not selected"} · {item.document_type||"Identity document"}</span><small>{item.submitted_at?"Submitted "+new Date(item.submitted_at).toLocaleString():"Submission not complete"}</small></div>
         <Badge tone={item.status==="verified"?"green":item.status==="needs_attention"?"warning":"soft"}>{item.status==="pending"?"Pending review":item.status.replaceAll("_"," ")}</Badge>
         <div className="admin-verification-actions"><button className="btn btn-soft" onClick={()=>openDocuments(item)}>View documents <ArrowRight size={14}/></button><label className="admin-status"><span>Status</span><select value={item.status} disabled={saving===String(item.id)} onChange={e=>{const next=e.target.value;if(next==="rejected"){const issue=window.prompt("Select the verification issue:\n1 - Name mismatch\n2 - Date of birth mismatch\n3 - Address mismatch\n4 - Incorrect or unreadable document\n5 - Missing document side\n6 - Document expired\n7 - Other","4");if(issue===null)return;const labels={"1":"Name does not match the submitted identity document","2":"Date of birth does not match the submitted identity document","3":"Residential address could not be confirmed","4":"Document is incorrect or unreadable","5":"A required document side is missing","6":"The submitted document appears to be expired","7":"Other verification issue"};const selectedIssue=labels[issue.trim()]||issue.trim();if(!selectedIssue)return;const detail=window.prompt("Add a short explanation for the member (optional):","");void updateStatus(item,next,detail?.trim()?selectedIssue+": "+detail.trim():selectedIssue);}else void updateStatus(item,next);}}><option value="required">Required</option><option value="in_progress">In progress</option><option value="pending">Pending review</option><option value="verified">Verified</option><option value="needs_attention">Needs attention</option><option value="rejected">Rejected</option></select></label></div>
       </div>)}</div>}
@@ -1849,9 +1848,9 @@ function AdminVerification({go}){
       <section className="payout-modal admin-verification-doc-modal" role="dialog" aria-modal="true">
         <div className="payout-modal-head"><div><span className="kicker">VERIFICATION RECORD</span><h2>{selectedCandidate.profiles?.full_name||"RemoteWay member"}</h2><p>{selectedCandidate.document_type||"Identity document"} · {selectedCandidate.status.replaceAll("_"," ")} · Restricted admin view</p></div><button className="payout-modal-close" onClick={closeDocuments}><X size={18}/></button></div><div className="admin-verification-summary"><h3>Verification summary</h3><p>Country: {selectedCandidate.country||"Not provided"} · Started: {selectedCandidate.started_at?new Date(selectedCandidate.started_at).toLocaleString():"Not provided"} · Submitted: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"} · Verified: {selectedCandidate.verified_at?new Date(selectedCandidate.verified_at).toLocaleString():"Not verified"}</p><p>Review status: {selectedCandidate.status==="pending"?"Awaiting administrator decision":selectedCandidate.status.replaceAll("_"," ")} · Submission timestamp: {selectedCandidate.submitted_at?new Date(selectedCandidate.submitted_at).toLocaleString():"Not submitted"}</p></div><section className="admin-verification-section"><h3>Protected identity data</h3>{identityLoading?<p>Loading identity data…</p>:identityRecord?<div style={{display:"grid",gap:8}}>{[["Legal name",identityRecord.legal_name],["Date of birth",identityRecord.date_of_birth],["Residential address",identityRecord.residential_address],["Country",identityRecord.country],["Government identifier",identityRecord.government_identifier],["Saved",identityRecord.created_at?new Date(identityRecord.created_at).toLocaleString():"Not provided"]].map(([label,value])=><div key={label} style={{display:"grid",gridTemplateColumns:"minmax(120px,180px) minmax(0,1fr)",gap:10,overflowWrap:"anywhere"}}><span>{label}</span><strong style={{fontWeight:500}}>{value||"Not provided"}</strong></div>)}</div>:<p>No protected identity record has been submitted.</p>}</section><section className="admin-verification-section admin-verification-documents-section"><h3>Submitted identity documents</h3>
         {documentsLoading?<div className="empty-state"><h3>Loading secure previews…</h3><p>Generating short-lived document links.</p></div>:documents.length===0?<div className="empty-state"><FileText size={24}/><h3>No uploaded documents found</h3><p>This verification case has no demo files available for preview.</p></div>:<div className="admin-verification-doc-grid">
-          {documents.map(doc=><button type="button" className="admin-verification-doc-card" key={doc.id} onClick={()=>setSelectedDocument(doc)}>
-            <span className="admin-verification-doc-thumb">{doc.signedUrl&&doc.mime_type?.startsWith("image/")?<img src={doc.signedUrl} alt={doc.side+" of identity document"}/>:<FileText size={26}/>}</span>
-            <span><strong>{doc.side==="front"?"Front":"Back"} of document</strong><small>{doc.storage_path?.split("/").pop()||"Uploaded document"}</small></span>
+          {documents.map(doc=><button type="button" className="admin-verification-doc-card" key={doc.id} onClick={()=>{if(doc.signedUrl)setSelectedDocument(doc);else setError("A secure preview link is unavailable for this file. Refresh the verification record and try again.");}}>
+            <span className="admin-verification-doc-thumb">{doc.signedUrl&&doc.mime_type?.startsWith("image/")?<img src={doc.signedUrl} alt="Identity document preview" onError={e=>{e.currentTarget.style.display="none"}}/>:<FileText size={26}/>}</span>
+            <span><strong>Identity document</strong><small>{doc.original_file_name||doc.storage_path?.split("/").pop()||"Uploaded file"} · {doc.mime_type||"Unknown file type"}</small></span>
             <ArrowRight size={15}/>
           </button>)}
         </div>}
@@ -1863,7 +1862,7 @@ function AdminVerification({go}){
     {selectedDocument?.signedUrl&&<div className="payout-modal-backdrop verification-preview-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDocument(null)}}>
       <section className="verification-document-viewer" role="dialog" aria-modal="true">
         <div className="verification-document-viewer-head"><div><span className="kicker">{selectedDocument.side==="front"?"FRONT":"BACK"} OF DOCUMENT</span><strong>{selectedCandidate?.profiles?.full_name||"RemoteWay member"}</strong></div><button className="payout-modal-close" onClick={()=>setSelectedDocument(null)}><X size={18}/></button></div>
-        <div className="verification-document-viewer-body">{selectedDocument.mime_type?.startsWith("image/")?<img src={selectedDocument.signedUrl} alt={selectedDocument.side+" of identity document"}/>:selectedDocument.mime_type==="application/pdf"?<iframe title="Secure identity document preview" src={selectedDocument.signedUrl}/>:<div style={{padding:24,textAlign:"center"}}><FileText size={32}/><p>This document can be opened or downloaded securely.</p><a href={selectedDocument.signedUrl} target="_blank" rel="noopener noreferrer">Open / download document</a></div>}</div>
+        <div className="verification-document-viewer-body">{selectedDocument.mime_type?.startsWith("image/")?<><img src={selectedDocument.signedUrl} alt="Identity document preview" onError={e=>{e.currentTarget.style.display="none"}}/><p style={{textAlign:"center",padding:12}}><a href={selectedDocument.signedUrl} target="_blank" rel="noopener noreferrer">Open image in new tab / download</a></p></>:selectedDocument.mime_type==="application/pdf"?<><iframe title="Secure identity document preview" src={selectedDocument.signedUrl}/><p style={{textAlign:"center",padding:12}}><a href={selectedDocument.signedUrl} target="_blank" rel="noopener noreferrer">Open PDF in new tab / download</a></p></>:<div style={{padding:24,textAlign:"center"}}><FileText size={32}/><p>This file type may not preview in the browser. Open or download the original file securely.</p><a href={selectedDocument.signedUrl} target="_blank" rel="noopener noreferrer">Open / download document</a></div>}</div>
       </section>
     </div>}
   </div>;
@@ -1887,7 +1886,7 @@ function AdminMembers({go}){
     setLoading(true);setError("");
     let timeoutId;
     try{
-      const request=supabase.from("profiles").select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
+      const request=supabase.from("profiles").select("id,full_name,country,phone_number,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").order("created_at",{ascending:false});
       const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Member list took too long to load. Refresh and check administrator profile permissions.")),12000);});
       const {data,error:e}=await Promise.race([request,timeout]);
       if(e)throw e;
@@ -1911,12 +1910,21 @@ function AdminMembers({go}){
         ["payouts",supabase.from("payouts").select("id,amount,currency,status,provider_reference,failure_reason,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
         ["payoutMethods",supabase.from("payout_methods").select("id,method_type,is_default,bank_country,bank_name,account_holder_name,account_last4,paypal_name,paypal_email,cardholder_name,card_last4,status,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
         ["notifications",supabase.from("notifications").select("id,type,title,body,read_at,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(30)],
-        ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
+        ["identity",supabase.from("demo_identity_records").select("id,verification_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("user_id",userId).order("created_at",{ascending:false})],
         ["supportMessages",supabase.from("support_messages").select("id,ticket_id,sender_type,body,created_at").eq("user_id",userId).order("created_at",{ascending:false}).limit(50)]
       ];
       const results=await Promise.all(requests.map(async([key,request])=>({key,...(await request)})));
       const loaded={};const failed=[];
       for(const result of results){loaded[result.key]=result.data||[];if(result.error)failed.push(result.key);}
+      const {data:accountData,error:accountError}=await supabase.functions.invoke("admin-member-details",{body:{target_user_id:userId}});
+      if(accountError||accountData?.error)failed.push("account email");
+      else loaded.account=[accountData?.account||{}];
+      const verificationIds=(loaded.verification||[]).map(v=>v.id).filter(Boolean);
+      if(verificationIds.length){
+        const {data:documentRows,error:documentsError}=await supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,original_file_name,mime_type,status,created_at").in("verification_id",verificationIds).order("created_at",{ascending:false});
+        loaded.verificationDocuments=documentRows||[];
+        if(documentsError)failed.push("identity documents");
+      }else loaded.verificationDocuments=[];
       setDetails(loaded);
       if(failed.length)setDetailError("Some sections could not be loaded due to database access rules: "+failed.join(", ")+". Other available details are shown below.");
     }catch(e){setDetailError(e?.message||"The member's linked records could not be loaded.");}
@@ -1926,7 +1934,7 @@ function AdminMembers({go}){
     if(row.account_status===status)return;
     setSaving(row.id);setError("");
     const {data:{user}}=await supabase.auth.getUser();
-    const {data,error:e}=await supabase.from("profiles").update({account_status:status}).eq("id",row.id).select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
+    const {data,error:e}=await supabase.from("profiles").update({account_status:status}).eq("id",row.id).select("id,full_name,country,phone_number,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
     if(e)setError(e.message);
     else{
       setRows(prev=>prev.map(x=>x.id===row.id?data:x));
@@ -1944,7 +1952,7 @@ function AdminMembers({go}){
     try{
       const {data:{user},error:userError}=await supabase.auth.getUser();if(userError)throw userError;
       const patch={full_name,country:String(editDraft.country||"").trim()||null,experience:String(editDraft.experience||"").trim()||null,work_type:String(editDraft.work_type||"").trim()||null,goal:String(editDraft.goal||"").trim()||null,adaptive_answer:String(editDraft.adaptive_answer||"").trim()||null,interest_areas:String(editDraft.interest_areas||"").split(",").map(x=>x.trim()).filter(Boolean)};
-      const {data,error:e}=await supabase.from("profiles").update(patch).eq("id",selected.id).select("id,full_name,country,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
+      const {data,error:e}=await supabase.from("profiles").update(patch).eq("id",selected.id).select("id,full_name,country,phone_number,experience,adaptive_answer,work_type,goal,interest_areas,role,account_type,account_status,onboarding_completed,avatar_url,created_at,updated_at,settings").single();
       if(e)throw e;
       setRows(prev=>prev.map(x=>x.id===data.id?data:x));setSelected(data);setEditing(false);
       if(user)await supabase.from("admin_audit_logs").insert({admin_user_id:user.id,action:"member_profile_edited",target_type:"profile",target_id:data.id,details:{fields:Object.keys(patch)}});
@@ -1976,6 +1984,16 @@ function AdminMembers({go}){
     }catch(e){setDetailError(e?.message||"Could not open this private file.");}
     finally{setFileBusy("");}
   };
+  const openIdentityDocument=async(file)=>{
+    setFileBusy(file.id);setDetailError("");
+    try{
+      const {data,error:e}=await supabase.storage.from("verification-demo").createSignedUrl(file.storage_path,300);
+      if(e)throw e;
+      if(!data?.signedUrl)throw new Error("A secure identity document link could not be created.");
+      window.open(data.signedUrl,"_blank","noopener,noreferrer");
+    }catch(e){setDetailError(e?.message||"Could not open this identity document.");}
+    finally{setFileBusy("");}
+  };
   const fmtDate=value=>value?new Date(value).toLocaleString():"—";
   const showValue=value=>value===null||value===undefined||value===""?"Not provided":Array.isArray(value)?(value.length?value.join(", "):"None selected"):typeof value==="object"?JSON.stringify(value):String(value);
   const section=(title,items,fields,empty="No records found")=><section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>{title} <span style={{fontWeight:400,color:"var(--muted,#777)"}}>({items?.length||0})</span></h3>{!items?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>{empty}</p>:<div style={{display:"grid",gap:10}}>{items.map((item,index)=><div key={item.id||item.job_id||index} style={{padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",overflowWrap:"anywhere"}}>{fields.map(([label,key])=><div key={key} style={{display:"grid",gridTemplateColumns:"minmax(100px, 160px) minmax(0,1fr)",gap:10,padding:"3px 0"}}><span style={{color:"var(--muted,#777)",fontSize:13}}>{label}</span><span style={{fontSize:13}}>{showValue(item[key])}</span></div>)}</div>)}</div>}</section>;
@@ -2001,14 +2019,15 @@ function AdminMembers({go}){
         {detailLoading?<div className="empty-state"><h3>Loading member record…</h3><p>Collecting this member’s linked records.</p></div>:<React.Fragment>
           {detailError&&<div className="auth-message auth-error" role="alert">{detailError}</div>}
           {editing&&<section className="panel" style={{padding:18,marginBottom:14,border:"1px solid var(--accent,#2f6b52)"}}><h3 style={{margin:"0 0 14px"}}>Edit member details</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>{[["full_name","Full name"],["country","Country"],["experience","Experience"],["work_type","Work preference"],["goal","Work goal"],["adaptive_answer","Onboarding answer"],["interest_areas","Interest areas (comma-separated)"]].map(([key,label])=><label className="field" key={key}><span>{label}</span><input value={editDraft[key]??""} onChange={e=>setEditDraft(v=>({...v,[key]:e.target.value}))}/></label>)}</div><div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:14}}><Button variant="outline" onClick={()=>setEditing(false)} disabled={saving===selected.id}>Cancel</Button><Button onClick={saveMemberEdit} disabled={saving===selected.id}>{saving===selected.id?"Saving…":"Save member details"}</Button></div></section>}
-          <section className="panel" style={{padding:18}}><h3 style={{margin:"0 0 12px"}}>Account and work profile</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>{[["Full name",selected.full_name],["User ID",selected.id],["Country",selected.country],["Experience",selected.experience],["Account type",selected.account_type],["Role",selected.role],["Account status",selected.account_status],["Registered",fmtDate(selected.created_at)],["Last profile update",fmtDate(selected.updated_at)],["Onboarding",selected.onboarding_completed?"Complete":"Incomplete"],["Adaptive question",selected.adaptive_answer],["Work preference",selected.work_type],["Goal",selected.goal],["Interests",selected.interest_areas],["Settings",selected.settings]].map(([label,value])=><div key={label} style={{minWidth:0,overflowWrap:"anywhere"}}><small style={{display:"block",color:"var(--muted,#777)",marginBottom:4}}>{label}</small><strong style={{fontSize:14,fontWeight:500}}>{showValue(value)}</strong></div>)}</div></section>
+          <section className="panel" style={{padding:18}}><h3 style={{margin:"0 0 12px"}}>Account and work profile</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>{[["Full name",selected.full_name],["Email address",details?.account?.[0]?.email],["Phone number",selected.phone_number],["User ID",selected.id],["Country",selected.country],["Experience",selected.experience],["Account type",selected.account_type],["Role",selected.role],["Account status",selected.account_status],["Registered",fmtDate(selected.created_at)],["Last profile update",fmtDate(selected.updated_at)],["Onboarding",selected.onboarding_completed?"Complete":"Incomplete"],["Adaptive question",selected.adaptive_answer],["Work preference",selected.work_type],["Goal",selected.goal],["Interests",selected.interest_areas],["Settings",selected.settings]].map(([label,value])=><div key={label} style={{minWidth:0,overflowWrap:"anywhere"}}><small style={{display:"block",color:"var(--muted,#777)",marginBottom:4}}>{label}</small><strong style={{fontSize:14,fontWeight:500}}>{showValue(value)}</strong></div>)}</div></section>
           {section("Applications",details?.applications,[["Application ID","id"],["Job ID","job_id"],["Status","status"],["Submitted","submitted_at"],["Created","created_at"],["Resume ID","resume_id"],["Cover note","cover_note"],["Answers","answers"]])}
           <section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>Uploaded resumes ({details?.resumes?.length||0})</h3>{!details?.resumes?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>No resumes found.</p>:details.resumes.map(file=><div key={file.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",flexWrap:"wrap"}}><div style={{minWidth:0,overflowWrap:"anywhere"}}><strong>{file.file_name||"Resume file"}</strong><p style={{margin:"4px 0",fontSize:13,color:"var(--muted,#777)"}}>{file.mime_type||"Unknown type"} · {file.file_size?Math.round(file.file_size/1024)+" KB":"Size unavailable"} · {fmtDate(file.created_at)}</p></div><Button variant="outline" disabled={fileBusy===file.id} onClick={()=>openResume(file)}>{fileBusy===file.id?"Preparing…":"Open securely"}</Button></div>)}</section>
           {section("Interviews",details?.interviews,[["Interview","title"],["Company","company_name"],["Status","status"],["Scheduled","scheduled_at"],["Duration (minutes)","duration_minutes"],["Score","score"],["Total questions","total_questions"],["Passed","passed"],["Started","started_at"],["Completed","completed_at"]])}
           {section("Saved jobs",details?.savedJobs,[["Job ID","job_id"],["Saved","created_at"]])}
           {section("Verification status",details?.verification,[["Status","status"],["Country","country"],["Document type","document_type"],["Provider","provider"],["Started","started_at"],["Submitted","submitted_at"],["Verified","verified_at"],["Needs attention","needs_attention_reason"]])}
-          {section("Identity details",details?.identity,[["Legal name","legal_name"],["Date of birth","date_of_birth"],["Country","country"],["Residential address","residential_address"],["Submitted","created_at"]])}
-          {section("Payout methods (sensitive values masked)",details?.payoutMethods,[["Method","method_type"],["Status","status"],["Default method","is_default"],["Bank country","bank_country"],["Bank name","bank_name"],["Account holder","account_holder_name"],["Account ending","account_last4"],["PayPal name","paypal_name"],["PayPal email","paypal_email"],["Cardholder","cardholder_name"],["Card ending","card_last4"],["Added","created_at"]])}
+          {section("Identity details",details?.identity,[["Legal name","legal_name"],["Date of birth","date_of_birth"],["Country","country"],["Residential address","residential_address"],["Government identifier","government_identifier"],["Submitted","created_at"]])}
+          <section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>Uploaded identity documents ({details?.verificationDocuments?.length||0})</h3>{!details?.verificationDocuments?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>No identity document files are linked to this member.</p>:details.verificationDocuments.map(file=><div key={file.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",flexWrap:"wrap"}}><div style={{minWidth:0,overflowWrap:"anywhere"}}><strong>{file.original_file_name||file.storage_path?.split("/").pop()||"Identity document"}</strong><p style={{margin:"4px 0",fontSize:13,color:"var(--muted,#777)"}}>{file.mime_type||"Unknown file type"} · {file.status} · {fmtDate(file.created_at)}</p></div><Button variant="outline" disabled={fileBusy===file.id} onClick={()=>openIdentityDocument(file)}>{fileBusy===file.id?"Preparing…":"Open securely"}</Button></div>)}</section>
+          {section("Payout methods",details?.payoutMethods,[["Method","method_type"],["Status","status"],["Default method","is_default"],["Bank country","bank_country"],["Bank name","bank_name"],["Account holder","account_holder_name"],["Account ending","account_last4"],["PayPal name","paypal_name"],["PayPal email","paypal_email"],["Cardholder","cardholder_name"],["Card ending","card_last4"],["Added","created_at"]])}
           {section("Payout history",details?.payouts,[["Amount","amount"],["Currency","currency"],["Status","status"],["Reference","provider_reference"],["Failure reason","failure_reason"],["Created","created_at"],["Updated","updated_at"]])}
           {section("Support tickets",details?.tickets,[["Subject","subject"],["Issue type","issue_type"],["Status","status"],["Created","created_at"],["Updated","updated_at"]])}
           {section("Support messages",details?.supportMessages,[["Ticket ID","ticket_id"],["Sender type","sender_type"],["Message","body"],["Sent","created_at"]])}
@@ -2093,33 +2112,18 @@ function Verification({go}){
   const [region,setRegion]=useState("");
   const [identifier,setIdentifier]=useState("");
   const [identifierError,setIdentifierError]=useState("");
-  const [documentType,setDocumentType]=useState("");
   const [frontFile,setFrontFile]=useState(null);
-  const [backFile,setBackFile]=useState(null);
   const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);
   const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
   const [country,setCountry]=useState("United States");
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Tax Identification Number (Steuer-ID)","France":"Social Security number (NIR)","Netherlands":"Citizen Service Number (BSN)","Ireland":"PPS Number","Sweden":"Personal identity number","Denmark":"CPR number","Norway":"National identity number","Finland":"Personal identity code","Belgium":"National number","Switzerland":"AHV/OASI number","Austria":"Social insurance number","Poland":"PESEL"};
-  const docsByCountry={
-    "United States":["Passport","State-issued driver’s licence or ID card","Permanent Resident Card (Green Card)","Employment Authorization Document (EAD)","Social Security card (only if specifically required)"],
-    "Canada":["Passport","Provincial or territorial driver’s licence / photo ID","Permanent Resident Card","Canadian work or study permit","SIN confirmation letter or card (only if specifically required)"],
-    "United Kingdom":["Passport","UK photocard driving licence","Biometric Residence Permit (where valid)","Home Office immigration status / right-to-work evidence"],
-    "Germany":["Passport","German national identity card (Personalausweis)","Residence permit (Aufenthaltstitel)","EU/EEA national identity card"],
-    "France":["Passport","French national identity card (Carte nationale d’identité)","Residence permit (Titre de séjour)","EU/EEA national identity card"],
-    "Netherlands":["Passport","Dutch identity card","Dutch residence permit","EU/EEA national identity card"],
-    "Ireland":["Passport","Irish driving licence","Irish Residence Permit (IRP)","EU/EEA national identity card","PPS documentation (only if specifically required)"],
-    "Switzerland":["Passport","Swiss identity card","Swiss residence permit (B, C or L permit)","EU/EEA national identity card"],
-    "Sweden":["Passport","Swedish national identity card","Swedish driving licence","Swedish residence permit"],
-    "Belgium":["Passport","Belgian electronic identity card (eID)","Belgian residence card","EU/EEA national identity card"]
-  };
-  const docs=docsByCountry[country]||["Passport","National identity card","Driver’s licence","Residence permit"];
   const nameCheck=isValidLegalName(legalName);
   const addressCheck=validateResidentialAddress(country,address,region);
   const identifierCheck=validateGovernmentIdentifier(country,identifier);
   const today=new Date().toISOString().slice(0,10);
   const dobCheck=!!dob&&/^\d{4}-\d{2}-\d{2}$/.test(dob)&&dob<=today;
-  const required=step===1?nameCheck.valid:step===2?dobCheck:step===3?!!country&&addressCheck.valid:step===4?identifierCheck.valid:docs.includes(documentType)&&!!frontFile&&!!backFile;
+  const required=step===1?nameCheck.valid:step===2?dobCheck:step===3?!!country&&addressCheck.valid:step===4?identifierCheck.valid:!!frontFile;
 
   useEffect(()=>{
     let mounted=true;
@@ -2139,7 +2143,6 @@ function Verification({go}){
         if(verification){
           setExisting(verification);
           setCountry(verification.country||"United States");
-          setDocumentType(verification.document_type||"");
           if(verification.status==="in_progress")setStep(1);
         }
         setLoading(false);
@@ -2171,7 +2174,7 @@ function Verification({go}){
     }else if(step===4){
       if(!identifierCheck.valid){setIdentifierError(identifierCheck.message);setError(identifierCheck.message);return false;}
     }else if(step===5){
-      if(!docs.includes(documentType)||!frontFile||!backFile){setError("Select a document type available for your country and both the front and back files before continuing.");return false;}
+      if(!frontFile){setError("Choose an identity document file before continuing.");return false;}
     }
     return true;
   };
@@ -2189,11 +2192,11 @@ function Verification({go}){
       if(!user)throw new Error("Your session has expired. Please sign in again.");
       const finalIdentifierCheck=validateGovernmentIdentifier(country,identifier);
       if(!finalIdentifierCheck.valid)throw new Error(finalIdentifierCheck.message);
-      const payload={user_id:user.id,status:"in_progress",country,document_type:documentType,started_at:existing?.started_at||new Date().toISOString()};
+      const payload={user_id:user.id,status:"in_progress",country,document_type:"Identity document",started_at:existing?.started_at||new Date().toISOString()};
       let verification=existing;
       if(existing){
         const retrying=["needs_attention","rejected"].includes(existing.status);
-        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type,started_at:payload.started_at,...(retrying?{status:"in_progress",submitted_at:null}: {})}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:"Identity document",started_at:payload.started_at,...(retrying?{status:"in_progress",submitted_at:null}: {})}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
         if(e)throw e;
         verification=data;
       }else{
@@ -2202,14 +2205,14 @@ function Verification({go}){
         verification=data;
       }
       {
-        const files=[["front",frontFile],["back",backFile]].filter(([,file])=>file);
+        const files=[["front",frontFile]].filter(([,file])=>file);
         for(const [side,file] of files){
           if(file.size>20*1024*1024)throw new Error("Each identity document must be 20 MB or smaller.");
           const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
           const path=user.id+"/"+verification.id+"/"+side+"-"+Date.now()+"-"+safeName;
           const {error:uploadError}=await supabase.storage.from("verification-demo").upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});
           if(uploadError)throw uploadError;
-          const {error:docError}=await supabase.from("verification_documents").insert({verification_id:verification.id,document_type:documentType,side,storage_path:path,status:"submitted"});
+          const {error:docError}=await supabase.from("verification_documents").upsert({verification_id:verification.id,document_type:"Identity document",side,storage_path:path,original_file_name:file.name,mime_type:file.type||"application/octet-stream",status:"submitted",updated_at:new Date().toISOString()},{onConflict:"verification_id,side"});
           if(docError)throw docError;
         }
       }
@@ -2250,9 +2253,9 @@ function Verification({go}){
         <div className="verification-step-meta"><span>STEP {step} <em>OF 5</em></span><Badge tone="soft">In progress</Badge></div>
         {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the document you will use. This required information is saved securely with your verification submission and can be reviewed by authorized administrators.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>{setLegalName(e.target.value);setError("");}} placeholder="e.g. Alex Carter" autoComplete="name"/>{legalName&&<small className={nameCheck.valid?"verification-validation-success":"verification-validation-error"}>{nameCheck.valid?<><Check size={12}/>{nameCheck.message}</>:nameCheck.message}</small>}</label></>}
         {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is saved securely with your verification submission and can be reviewed by authorized administrators.</p><label className="field"><span>Date of birth</span><RemoteDateInput value={dob} onChange={value=>{setDob(value);setError("");}} placeholder="DD / MM / YYYY" className="verification-date-input"/>{dob&&!dobCheck&&<small className="verification-validation-error">Select a valid date of birth.</small>}{dob&&dobCheck&&<small className="verification-validation-success"><Check size={12}/>Date selected.</small>}</label></>}
-        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. Include the street, city, state/region and postal code so we can check that the format matches the country you selected.</p><label className="field"><span>Country <b className="required-mark">*</b></span><select value={country} onChange={e=>{setCountry(e.target.value);setDocumentType("");setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>State / region / province <b className="required-mark">*</b></span><input value={region} onChange={e=>{setRegion(e.target.value);setError("");}} placeholder="e.g. California / Ontario / Bavaria" autoComplete="address-level1"/>{region&&!addressCheck.valid&&<small className="verification-validation-error">{addressCheck.message}</small>}</label><label className="field"><span>Home address <b className="required-mark">*</b></span><textarea className="verification-textarea" value={address} onChange={e=>{setAddress(e.target.value);setError("");}} placeholder="Street number and name, city, postal / ZIP code" rows="4" autoComplete="street-address"/>{address&&addressCheck.valid&&<small className="verification-validation-success"><Check size={12}/>{addressCheck.message}</small>}{address&&!addressCheck.valid&&region&&<small className="verification-validation-error">{addressCheck.message}</small>}</label></>}
-        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier. This required identifier is saved in the protected verification record for authorized administrator review.</p><label className="field"><span>Country</span><select value={country} onChange={e=>{setCountry(e.target.value);setIdentifier("");setIdentifierError("");setDocumentType("");setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>{const value=e.target.value;setIdentifier(value);const check=validateGovernmentIdentifier(country,value);setIdentifierError(check.valid?"":check.message)}} placeholder="Enter the identifier" inputMode="text" spellCheck={false} aria-invalid={!!identifierError}/>{identifierError&&<small className="verification-validation-error">{identifierError}</small>}{!identifierError&&identifier.trim()&&<small className="verification-validation-success"><Check size={12}/>{identifierCheck.message}</small>}</label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>{demoIdentityStorageEnabled?"Your identifier is saved in a protected verification record and is visible only to you and authorized administrators.":"Your identifier will be stored with access controls for administrator review."}</span></div><PartnerLogoStrip location="verification"/></>}
-        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Select the document for your country.</h2> <label className="field"><span>Document type</span><select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="">Choose a document</option>{docs.map(x=><option key={x}>{x}</option>)}</select></label><div className="document-upload-grid"><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" onChange={e=>setFrontFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Front of document</strong><small>{frontFile?.name||"Select front file"}</small></label><label className={backFile?"document-upload selected":"document-upload"}><input type="file" onChange={e=>setBackFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Back of document</strong><small>{backFile?.name||"Select back file"}</small></label></div> <PartnerLogoStrip location="verification"/></>}
+        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. Include the street, city, state/region and postal code so we can check that the format matches the country you selected.</p><label className="field"><span>Country <b className="required-mark">*</b></span><select value={country} onChange={e=>{setCountry(e.target.value);setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>State / region / province <b className="required-mark">*</b></span><input value={region} onChange={e=>{setRegion(e.target.value);setError("");}} placeholder="e.g. California / Ontario / Bavaria" autoComplete="address-level1"/>{region&&!addressCheck.valid&&<small className="verification-validation-error">{addressCheck.message}</small>}</label><label className="field"><span>Home address <b className="required-mark">*</b></span><textarea className="verification-textarea" value={address} onChange={e=>{setAddress(e.target.value);setError("");}} placeholder="Street number and name, city, postal / ZIP code" rows="4" autoComplete="street-address"/>{address&&addressCheck.valid&&<small className="verification-validation-success"><Check size={12}/>{addressCheck.message}</small>}{address&&!addressCheck.valid&&region&&<small className="verification-validation-error">{addressCheck.message}</small>}</label></>}
+        {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier. This required identifier is saved in the protected verification record for authorized administrator review.</p><label className="field"><span>Country</span><select value={country} onChange={e=>{setCountry(e.target.value);setIdentifier("");setIdentifierError("");setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>{const value=e.target.value;setIdentifier(value);const check=validateGovernmentIdentifier(country,value);setIdentifierError(check.valid?"":check.message)}} placeholder="Enter the identifier" inputMode="text" spellCheck={false} aria-invalid={!!identifierError}/>{identifierError&&<small className="verification-validation-error">{identifierError}</small>}{!identifierError&&identifier.trim()&&<small className="verification-validation-success"><Check size={12}/>{identifierCheck.message}</small>}</label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>{demoIdentityStorageEnabled?"Your identifier is saved in a protected verification record and is visible only to you and authorized administrators.":"Your identifier will be stored with access controls for administrator review."}</span></div><PartnerLogoStrip location="verification"/></>}
+        {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Upload an identity document.</h2><p>Choose any document you have available. Images, PDFs, and other file formats are accepted.</p><div className="document-upload-grid" style={{gridTemplateColumns:"minmax(0,1fr)"}}><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" onChange={e=>setFrontFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Choose identity document</strong><small>{frontFile?.name||"Select any file to upload (20 MB maximum)"}</small></label></div><PartnerLogoStrip location="verification"/></>}
         <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1||saving}>Back</Button>{step<5?<Button onClick={nextStep} disabled={saving||!required}>{saving?"Checking…":"Continue"} <ArrowRight size={15}/></Button>:<Button onClick={startVerification} disabled={!required||saving}>{saving?"Starting…":"Start secure verification"} <ArrowRight size={15}/></Button>}</div>
       </div>
     </main>
