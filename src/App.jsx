@@ -1814,7 +1814,7 @@ function AdminVerification({go}){
     setDocumentsLoading(true);setIdentityLoading(true);setError("");
     try{
       const [docsResult,identityResult]=await Promise.all([
-        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,status,created_at").eq("verification_id",item.id).order("side"),
+        supabase.from("verification_documents").select("id,verification_id,document_type,side,storage_path,original_file_name,mime_type,status,created_at").eq("verification_id",item.id).order("side"),
         supabase.from("demo_identity_records").select("id,verification_id,user_id,legal_name,date_of_birth,residential_address,country,government_identifier,created_at,updated_at").eq("verification_id",item.id).maybeSingle()
       ]);
       if(docsResult.error)throw docsResult.error;
@@ -2195,8 +2195,7 @@ function Verification({go}){
       const payload={user_id:user.id,status:"in_progress",country,document_type:"Identity document",started_at:existing?.started_at||new Date().toISOString()};
       let verification=existing;
       if(existing){
-        const retrying=["needs_attention","rejected"].includes(existing.status);
-        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:"Identity document",started_at:payload.started_at,...(retrying?{status:"in_progress",submitted_at:null}: {})}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
+        const {data,error:e}=await supabase.from("verification_profiles").update({country,document_type:"Identity document",status:"in_progress",submitted_at:null,started_at:payload.started_at}).eq("id",existing.id).select("id,status,country,document_type,provider,provider_reference,started_at,submitted_at,verified_at,needs_attention_reason").single();
         if(e)throw e;
         verification=data;
       }else{
