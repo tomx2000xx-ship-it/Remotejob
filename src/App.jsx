@@ -95,29 +95,10 @@ function isValidLegalName(value){
 function validateResidentialAddress(country,address,region){
   const text=String(address||"").trim().replace(/\s+/g," ");
   const area=String(region||"").trim().replace(/\s+/g," ");
-  if(area.length<2||!/^[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ'’.-]+)*$/.test(area))return {valid:false,message:"Enter a valid state, region or province."};
-  if(text.length<12)return {valid:false,message:"Enter your complete residential address."};
-  if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(text)||!/\d/.test(text))return {valid:false,message:"Include a street number and a street name in your address."};
-  const postalRules={
-    "United States":/\b\d{5}(?:-\d{4})?\b/,
-    "Canada":/\b[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d\b/,
-    "United Kingdom":/\b[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}\b/i,
-    "Germany":/\b\d{5}\b/,
-    "France":/\b\d{5}\b/,
-    "Netherlands":/\b\d{4} ?[A-Z]{2}\b/i,
-    "Ireland":/\b[A-Z]\d{2} ?[A-Z0-9]{4}\b/i,
-    "Sweden":/\b\d{3}[ -]?\d{2}\b/,
-    "Denmark":/\b\d{4}\b/,
-    "Norway":/\b\d{4}\b/,
-    "Finland":/\b\d{5}\b/,
-    "Belgium":/\b\d{4}\b/,
-    "Switzerland":/\b\d{4}\b/,
-    "Austria":/\b\d{4}\b/,
-    "Poland":/\b\d{2}-?\d{3}\b/
-  };
-  const rule=postalRules[country];
-  if(rule&&!rule.test(text))return {valid:false,message:"Include a valid postal or ZIP code for the selected country."};
-  return {valid:true,message:"Address format looks complete."};
+  if(area.length<2)return {valid:false,message:"Enter your state, region, province or local government area."};
+  if(text.length<5)return {valid:false,message:"Enter your street, house/building, or neighbourhood address."};
+  if(!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(text))return {valid:false,message:"Please enter a readable street or neighbourhood address."};
+  return {valid:true,message:"Address details look complete."};
 }
 
 function requiredFieldValueComplete(field,value){
@@ -2160,10 +2141,12 @@ function Verification({go}){
   const [demoUploadsEnabled,setDemoUploadsEnabled]=useState(false);
   const [demoIdentityStorageEnabled,setDemoIdentityStorageEnabled]=useState(false);
   const countries=registrationCountries.map(x=>x[1]);
+  const addressCountries=[...new Set([...countries,"Nigeria"])].sort((a,b)=>a.localeCompare(b));
   const [country,setCountry]=useState("United States");
+  const [addressCountry,setAddressCountry]=useState("Nigeria");
   const identifierLabels={"United States":"Social Security Number (SSN)","Canada":"Social Insurance Number (SIN)","United Kingdom":"National Insurance number","Germany":"Tax Identification Number (Steuer-ID)","France":"Social Security number (NIR)","Netherlands":"Citizen Service Number (BSN)","Ireland":"PPS Number","Sweden":"Personal identity number","Denmark":"CPR number","Norway":"National identity number","Finland":"Personal identity code","Belgium":"National number","Switzerland":"AHV/OASI number","Austria":"Social insurance number","Poland":"PESEL"};
   const nameCheck=isValidLegalName(legalName);
-  const addressCheck=validateResidentialAddress(country,address,region);
+  const addressCheck=validateResidentialAddress(addressCountry,address,region);
   const identifierCheck=validateGovernmentIdentifier(country,identifier);
   const today=new Date().toISOString().slice(0,10);
   const dobCheck=!!dob&&/^\d{4}-\d{2}-\d{2}$/.test(dob)&&dob<=today;
@@ -2187,6 +2170,7 @@ function Verification({go}){
         if(verification){
           setExisting(verification);
           setCountry(verification.country||"United States");
+          setAddressCountry(verification.country||"Nigeria");
           if(verification.status==="in_progress")setStep(1);
         }
         setLoading(false);
@@ -2261,7 +2245,7 @@ function Verification({go}){
           legal_name:legalName.trim(),
           date_of_birth:dob,
           residential_address:(address.trim()+", "+region.trim()).trim().replace(/^, |, $/g,""),
-          country,
+          country:addressCountry,
           government_identifier:identifier.trim(),
           updated_at:new Date().toISOString()
         },{onConflict:"verification_id"});
@@ -2291,7 +2275,7 @@ function Verification({go}){
         <div className="verification-step-meta"><span>STEP {step} <em>OF 5</em></span><Badge tone="soft">In progress</Badge></div>
         {step===1&&<><span className="kicker">LEGAL IDENTITY</span><h2>What is your full government name?</h2><p>Enter the name exactly as it appears on the document you will use. This required information is saved securely with your verification submission and can be reviewed by authorized administrators.</p><label className="field"><span>Full legal name</span><input value={legalName} onChange={e=>{setLegalName(e.target.value);setError("");}} placeholder="e.g. Alex Carter" autoComplete="name"/>{legalName&&<small className={nameCheck.valid?"verification-validation-success":"verification-validation-error"}>{nameCheck.valid?<><Check size={12}/>{nameCheck.message}</>:nameCheck.message}</small>}</label></>}
         {step===2&&<><span className="kicker">DATE OF BIRTH</span><h2>When were you born?</h2><p>Your date of birth is saved securely with your verification submission and can be reviewed by authorized administrators.</p><label className="field"><span>Date of birth</span><RemoteDateInput value={dob} onChange={value=>{setDob(value);setError("");}} placeholder="DD / MM / YYYY" className="verification-date-input"/>{dob&&!dobCheck&&<small className="verification-validation-error">Select a valid date of birth.</small>}{dob&&dobCheck&&<small className="verification-validation-success"><Check size={12}/>Date selected.</small>}</label></>}
-        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. Include the street, city, state/region and postal code so we can check that the format matches the country you selected.</p><label className="field"><span>Country <b className="required-mark">*</b></span><select value={country} onChange={e=>{setCountry(e.target.value);setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>State / region / province <b className="required-mark">*</b></span><input value={region} onChange={e=>{setRegion(e.target.value);setError("");}} placeholder="e.g. California / Ontario / Bavaria" autoComplete="address-level1"/>{region&&!addressCheck.valid&&<small className="verification-validation-error">{addressCheck.message}</small>}</label><label className="field"><span>Home address <b className="required-mark">*</b></span><textarea className="verification-textarea" value={address} onChange={e=>{setAddress(e.target.value);setError("");}} placeholder="Street number and name, city, postal / ZIP code" rows="4" autoComplete="street-address"/>{address&&addressCheck.valid&&<small className="verification-validation-success"><Check size={12}/>{addressCheck.message}</small>}{address&&!addressCheck.valid&&region&&<small className="verification-validation-error">{addressCheck.message}</small>}</label></>}
+        {step===3&&<><span className="kicker">RESIDENTIAL ADDRESS</span><h2>Where do you currently live?</h2><p>Enter your current residential address. Include the street, city, state/region and postal code so we can check that the format matches the country you selected.</p><label className="field"><span>Country of residence <b className="required-mark">*</b></span><select value={addressCountry} onChange={e=>{setAddressCountry(e.target.value);setError("");}}>{addressCountries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>State / region / province / local government area <b className="required-mark">*</b></span><input value={region} onChange={e=>{setRegion(e.target.value);setError("");}} placeholder="e.g. Lagos State, Ikeja, Ontario" autoComplete="address-level1"/>{region&&!addressCheck.valid&&<small className="verification-validation-error">{addressCheck.message}</small>}</label><label className="field"><span>Home address <b className="required-mark">*</b></span><textarea className="verification-textarea" value={address} onChange={e=>{setAddress(e.target.value);setError("");}} placeholder="House/building, street or neighbourhood, city (postal code optional)" rows="4" autoComplete="street-address"/>{address&&addressCheck.valid&&<small className="verification-validation-success"><Check size={12}/>{addressCheck.message}</small>}{address&&!addressCheck.valid&&region&&<small className="verification-validation-error">{addressCheck.message}</small>}</label></>}
         {step===4&&<><span className="kicker">GOVERNMENT IDENTIFIER</span><h2>Which country issued your identity details?</h2><p>Choose your country and enter the identifier. This required identifier is saved in the protected verification record for authorized administrator review.</p><label className="field"><span>Country</span><select value={country} onChange={e=>{setCountry(e.target.value);setIdentifier("");setIdentifierError("");setError("");}}>{countries.map(x=><option key={x}>{x}</option>)}</select></label><label className="field"><span>{identifierLabels[country]||"Government identifier"}</span><input value={identifier} onChange={e=>{const value=e.target.value;setIdentifier(value);const check=validateGovernmentIdentifier(country,value);setIdentifierError(check.valid?"":check.message)}} placeholder="Enter the identifier" inputMode="text" spellCheck={false} aria-invalid={!!identifierError}/>{identifierError&&<small className="verification-validation-error">{identifierError}</small>}{!identifierError&&identifier.trim()&&<small className="verification-validation-success"><Check size={12}/>{identifierCheck.message}</small>}</label><div className="verification-sensitive-note"><LockKeyhole size={15}/><span>{demoIdentityStorageEnabled?"Your identifier is saved in a protected verification record and is visible only to you and authorized administrators.":"Your identifier will be stored with access controls for administrator review."}</span></div><PartnerLogoStrip location="verification"/></>}
         {step===5&&<><span className="kicker">IDENTITY DOCUMENT</span><h2>Upload an identity document.</h2><p>Choose any document you have available. Images, PDFs, and other file formats are accepted.</p><div className="document-upload-grid" style={{gridTemplateColumns:"minmax(0,1fr)"}}><label className={frontFile?"document-upload selected":"document-upload"}><input type="file" onChange={e=>setFrontFile(e.target.files?.[0]||null)}/><span className="document-upload-icon"><Plus size={18}/></span><strong>Choose identity document</strong><small>{frontFile?.name||"Select any file to upload (20 MB maximum)"}</small></label></div><PartnerLogoStrip location="verification"/></>}
         <div className="verification-actions"><Button variant="outline" onClick={back} disabled={step===1||saving}>Back</Button>{step<5?<Button onClick={nextStep} disabled={saving||!required}>{saving?"Checking…":"Continue"} <ArrowRight size={15}/></Button>:<Button onClick={startVerification} disabled={!required||saving}>{saving?"Starting…":"Start secure verification"} <ArrowRight size={15}/></Button>}</div>
