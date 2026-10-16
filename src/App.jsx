@@ -120,6 +120,7 @@ function UniversalFieldInput({type,value,onChange,placeholder,min,max,step,label
 
 const UNIVERSAL_FORM_TYPES = [
   {value:"text",label:"Text — letters, words or mixed text"},
+  {value:"mixed_text",label:"Mixed input — numbers, letters & special characters"},
   {value:"textarea",label:"Long text / paragraph"},
   {value:"number",label:"Number"},
   {value:"coupon_number",label:"Coupon / card-style number (16 digits)"},
