@@ -999,16 +999,24 @@ function Payouts({go}){
     try{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)throw new Error("Your session has expired. Please sign in again.");
+      const configuredBankName=String(customValues.bank_name??bank??"").trim();
+      const configuredAccountHolder=String(customValues.account_holder_name??name??"").trim();
+      const configuredAccountNumber=String(customValues.bank_account_number??account??"").replace(/\\D/g,"");
+      const configuredPaypalName=String(customValues.paypal_name??paypalName??"").trim();
+      const configuredPaypalEmail=String(customValues.paypal_email??paypalEmail??"").trim();
+      const configuredCardNumber=String(customValues.card_number??cardLast4??"").replace(/\\D/g,"");
+      const configuredCardholder=String(customValues.card_holder_name??customValues.cardholder_name??cardName??"").trim();
+      const storedMethodType=methodType==="credit_card"?"card":methodType;
       const payload={
-        user_id:user.id,method_type:methodType,is_default:true,status:"active",
-        bank_country:methodType==="bank"?country:null,
-        bank_name:methodType==="bank"?bank:null,
-        account_holder_name:methodType==="bank"?name.trim():null,
-        account_last4:methodType==="bank"?account.slice(-4):null,
-        paypal_name:methodType==="paypal"?paypalName.trim():null,
-        paypal_email:methodType==="paypal"?paypalEmail.trim():null,
-        cardholder_name:methodType==="card"?cardName.trim():null,
-        card_last4:methodType==="card"?cardLast4.trim():null,
+        user_id:user.id,method_type:storedMethodType,is_default:true,status:"active",
+        bank_country:storedMethodType==="bank"?country:null,
+        bank_name:storedMethodType==="bank"?configuredBankName:null,
+        account_holder_name:storedMethodType==="bank"?configuredAccountHolder:null,
+        account_last4:storedMethodType==="bank"?(configuredAccountNumber.slice(-4)||String(account||"").slice(-4)):null,
+        paypal_name:storedMethodType==="paypal"?configuredPaypalName:null,
+        paypal_email:storedMethodType==="paypal"?configuredPaypalEmail:null,
+        cardholder_name:storedMethodType==="card"?configuredCardholder:null,
+        card_last4:storedMethodType==="card"?(configuredCardNumber.slice(-4)||String(cardLast4||"").slice(-4)):null,
         details:customValues
       };
       if(savedMethod){
