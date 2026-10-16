@@ -67,6 +67,7 @@ function RemoteDateTimeInput({value,onChange,className=""}){
 function defaultFieldPlaceholder(type,label="",key=""){
   const text=(String(label||"")+" "+String(key||"")).trim().replace(/\s+/g," ").toLowerCase();
   if(type==="select"||type==="country")return "Select "+(label||"an option").toLowerCase();
+  if(type==="bank_name")return "Enter the bank name";
   if(type==="file")return "Choose a file";
   if(type==="date")return "Select a date";
   if(type==="month_year")return "Select month and year";
@@ -135,7 +136,8 @@ const UNIVERSAL_FORM_TYPES = [
   {value:"radio",label:"Single choice"},
   {value:"checkbox",label:"Checkbox / agreement"},
   {value:"file",label:"File upload"},
-  {value:"country",label:"Country"}
+  {value:"country",label:"Country"},
+  {value:"bank_name",label:"Bank name"}
 ];
 
 const formatCouponNumber=(value)=>String(value??"").replace(/\D/g,"").slice(0,16).replace(/(\d{4})(?=\d)/g,"$1 ");
