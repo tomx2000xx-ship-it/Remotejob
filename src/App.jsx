@@ -1951,7 +1951,7 @@ function AdminMembers({go}){
         ["formResponses",supabase.from("form_responses").select("*").eq("user_id",userId).order("created_at",{ascending:false})],
         ["interviewAnswers",supabase.from("interview_answers").select("*").eq("candidate_id",userId).order("saved_at",{ascending:false})],
         ["interviewResults",supabase.from("interview_results").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
-        ["jobNetworkProfiles",supabase.from("job_network_profiles").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
+        ["jobNetworkProfiles",supabase.from("job_network_profiles").select("*").eq("candidate_id",userId).order("submitted_at",{ascending:false})],
         ["jobTaskAssignments",supabase.from("job_task_assignments").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
         ["jobTaskSubmissions",supabase.from("job_task_submissions").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
         ["jobWorkspaceAccess",supabase.from("job_workspace_access").select("*").eq("candidate_id",userId).order("created_at",{ascending:false})],
