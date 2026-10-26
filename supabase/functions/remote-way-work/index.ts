@@ -47,15 +47,15 @@ export default {
       const applicationId = Number(body.application_id);
       if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return json({ error: "Choose a valid job workspace." }, 400);
       const [{ data: access, error: accessError }, { data: app, error: appError }] = await Promise.all([
-        db.from("job_workspace_access").select("application_id,candidate_id,job_id,created_at,work_started_at").eq("application_id", applicationId).eq("candidate_id", uid).maybeSingle(),
+        db.from("job_workspace_access").select("application_id,candidate_id,job_id,created_at,work_started_at,network_requirement_exempt").eq("application_id", applicationId).eq("candidate_id", uid).maybeSingle(),
         db.from("applications").select("id,job_id,status").eq("id", applicationId).eq("user_id", uid).maybeSingle(),
       ]);
       if (accessError || appError) return json({ error: (accessError || appError).message }, 500);
       if (!access || !app || app.status !== "hired" || Number(app.job_id) !== Number(access.job_id)) return json({ error: "This job workspace is not active for your account." }, 403);
       const { data: network, error: networkError } = await db.from("job_network_profiles").select("submitted_at").eq("application_id", applicationId).eq("candidate_id", uid).maybeSingle();
       if (networkError) return json({ error: networkError.message }, 500);
-      if (!network) return json({ onboarding_required: true, tasks: [], message: "Submit your network and device information before opening work tasks." });
-      const startAt = access.work_started_at || network.submitted_at || access.created_at;
+      if (!network && !access.network_requirement_exempt) return json({ onboarding_required: true, tasks: [], message: "Submit your network and device information before opening work tasks." });
+      const startAt = access.work_started_at || network?.submitted_at || access.created_at;
       if (!access.work_started_at) {
         const { error: startError } = await db.from("job_workspace_access").update({ work_started_at: startAt }).eq("application_id", applicationId).eq("candidate_id", uid).is("work_started_at", null);
         if (startError) return json({ error: "Could not record your work start date: " + startError.message }, 500);
@@ -128,8 +128,11 @@ export default {
         .eq("id", assignmentId).eq("candidate_id", uid).maybeSingle();
       if (assignmentError) return json({ error: assignmentError.message }, 500);
       if (!assignment || assignment.status !== "available" || assignment.assigned_date > today) return json({ error: "This task is already submitted or is not available yet." }, 409);
-      const { data: network } = await db.from("job_network_profiles").select("application_id").eq("application_id", assignment.application_id).eq("candidate_id", uid).maybeSingle();
-      if (!network) return json({ error: "Complete your network setup before submitting tasks." }, 403);
+      const [{ data: network }, { data: accessException }] = await Promise.all([
+        db.from("job_network_profiles").select("application_id").eq("application_id", assignment.application_id).eq("candidate_id", uid).maybeSingle(),
+        db.from("job_workspace_access").select("network_requirement_exempt").eq("application_id", assignment.application_id).eq("candidate_id", uid).maybeSingle(),
+      ]);
+      if (!network && !accessException?.network_requirement_exempt) return json({ error: "Complete your network setup before submitting tasks." }, 403);
       const { data: template, error: templateError } = await db.from("job_task_templates").select("id,title,max_reward").eq("id", assignment.task_template_id).eq("is_published", true).maybeSingle();
       if (templateError || !template) return json({ error: "The task is not available for grading." }, 404);
       const { data: key, error: keyError } = await db.rpc("remote_way_get_task_answer_key", { p_template_id: assignment.task_template_id });
