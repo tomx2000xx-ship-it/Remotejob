@@ -1677,6 +1677,7 @@ function AdminApplications({go}){
   const [resumeUrl,setResumeUrl]=useState("");
   const [updating,setUpdating]=useState(false);
   const [results,setResults]=useState([]);
+  const [interviewRows,setInterviewRows]=useState([]);
   const [selectedIds,setSelectedIds]=useState([]);
   const [bulkSubject,setBulkSubject]=useState("An update about your RemoteWay application");
   const [bulkBody,setBulkBody]=useState("Thank you for applying through RemoteWay. The team has an update about your application. Please sign in to your account to review your next steps.");
@@ -1685,12 +1686,13 @@ function AdminApplications({go}){
 
   const load=async()=>{
     setLoading(true);setError("");
-    const [{data:apps,error:appError},{data:jobRows,error:jobError}]=await Promise.all([
+    const [{data:apps,error:appError},{data:jobRows,error:jobError},{data:interviewData,error:interviewError}]=await Promise.all([
       supabase.from("applications").select("id,user_id,job_id,status,cover_note,answers,submitted_at,created_at,updated_at,resume_id,jobs!inner(id,title,company_name,status),profiles!applications_user_id_fkey(id,full_name,country,experience,work_type,goal,interest_areas,onboarding_completed),resumes(id,file_name,file_size,mime_type,storage_path,created_at)").neq("status","draft").order("created_at",{ascending:false}),
-      supabase.from("jobs").select("id,title,company_name").order("created_at",{ascending:false})
+      supabase.from("jobs").select("id,title,company_name").order("created_at",{ascending:false}),
+      supabase.from("interviews").select("application_id,status,completed_at,created_at").order("created_at",{ascending:false})
     ]);
-    if(appError||jobError){setError((appError||jobError).message);setRows([]);setJobs([])}
-    else{setRows(apps||[]);setJobs(jobRows||[])}
+    if(appError||jobError||interviewError){setError((appError||jobError||interviewError).message);setRows([]);setJobs([]);setInterviewRows([])}
+    else{setRows(apps||[]);setJobs(jobRows||[]);setInterviewRows(interviewData||[])}
     const {data:scoreRows}=await supabase.from("interview_results").select("application_id,score,total_questions,passed,reviewed_at");
     setResults(scoreRows||[]);
     setLoading(false);
@@ -1771,11 +1773,13 @@ function AdminApplications({go}){
     <div className="pipeline-tabs">
       {["All","submitted","reviewing","interview","hired"].map(x=><button key={x} className={status===x?"active":""} onClick={()=>setStatus(x)}>{x==="All"?"All":x[0].toUpperCase()+x.slice(1)} <span>{x==="All"?rows.length:rows.filter(r=>r.status===x).length}</span></button>)}
     </div>
-    {loading?<div className="empty-state"><h3>Loading applications…</h3><p>Fetching the latest candidate submissions.</p></div>:filtered.length===0?<EmptyState title="No applications match these filters" text="New candidate applications will appear here when job seekers submit their applications." action="Clear filters" onAction={()=>{setQuery("");setJobId("All");setStatus("All")}}/>:<section className="panel"><div className="candidate-table">{filtered.map(r=>{const result=results.find(x=>x.application_id===r.id);return <div className="admin-application-row-wrap" key={r.id}><input type="checkbox" aria-label={"Select "+(r.profiles?.full_name||"candidate")} checked={selectedIds.includes(r.id)} onChange={()=>toggleCandidate(r.id)}/><button type="button" className="candidate-row large admin-application-row" onClick={()=>openApplication(r)}><Avatar letter={(r.profiles?.full_name||"C")[0].toUpperCase()}/><div><strong>{r.profiles?.full_name||"Candidate"}</strong><span>{r.jobs?.title||"Job application"} · {r.jobs?.company_name||"Partner company"}</span></div><span>{r.profiles?.country||"Country not set"}</span><span>{r.submitted_at?new Date(r.submitted_at).toLocaleDateString():new Date(r.created_at).toLocaleDateString()}</span><span>{result?result.score+"/"+result.total_questions+" correct":"Not taken"}</span><Badge tone={statusTone(r.status)}>{r.status}</Badge><span className="candidate-action"><ArrowRight size={15}/></span></button></div>})}</div></section>}
+    {loading?<div className="empty-state"><h3>Loading applications…</h3><p>Fetching the latest candidate submissions.</p></div>:filtered.length===0?<EmptyState title="No applications match these filters" text="New candidate applications will appear here when job seekers submit their applications." action="Clear filters" onAction={()=>{setQuery("");setJobId("All");setStatus("All")}}/>:<section className="panel"><div className="candidate-table">{filtered.map(r=>{const result=results.find(x=>x.application_id===r.id);return <div className="admin-application-row-wrap" key={r.id}><input type="checkbox" aria-label={"Select "+(r.profiles?.full_name||"candidate")} checked={selectedIds.includes(r.id)} onChange={()=>toggleCandidate(r.id)}/><button type="button" className="candidate-row large admin-application-row" onClick={()=>openApplication(r)}><Avatar letter={(r.profiles?.full_name||"C")[0].toUpperCase()}/><div><strong>{r.profiles?.full_name||"Candidate"}</strong><span>{r.jobs?.title||"Job application"} · {r.jobs?.company_name||"Partner company"}</span></div><span>{r.profiles?.country||"Country not set"}</span><span>{r.submitted_at?new Date(r.submitted_at).toLocaleDateString():new Date(r.created_at).toLocaleDateString()}</span><span>{result?result.score+"/"+result.total_questions+" correct":"Not taken"}</span><Badge tone={interviewRows.some(x=>x.application_id===r.id&&x.status==="completed")?"green":"soft"}>{interviewRows.find(x=>x.application_id===r.id)?.status==="completed"?"Interview completed":interviewRows.find(x=>x.application_id===r.id)?.status||"Interview not started"}</Badge><Badge tone={statusTone(r.status)}>{r.status}</Badge><span className="candidate-action"><ArrowRight size={15}/></span></button></div>})}</div></section>}
     {selected&&<div className="payout-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="payout-modal admin-application-modal" role="dialog" aria-modal="true">
       <div className="payout-modal-head"><div><span className="kicker">APPLICATION #{selected.id}</span><h2>{selected.profiles?.full_name||"Candidate"}</h2><p>{selected.jobs?.title||"Job application"} · {selected.jobs?.company_name||"Partner company"}</p></div><button className="payout-modal-close" onClick={()=>setSelected(null)}><X size={18}/></button></div>
       <div className="review-list">
         <ReviewItem label="Interview score" value={(results.find(x=>x.application_id===selected.id))?results.find(x=>x.application_id===selected.id).score+"/"+results.find(x=>x.application_id===selected.id).total_questions+" correct": "Not completed yet"}/>
+        <ReviewItem label="Interview status" value={interviewRows.find(x=>x.application_id===selected.id)?.status==="completed"?"Completed":interviewRows.find(x=>x.application_id===selected.id)?.status||"Not started"}/>
+        <ReviewItem label="Interview completed" value={interviewRows.find(x=>x.application_id===selected.id)?.completed_at?new Date(interviewRows.find(x=>x.application_id===selected.id).completed_at).toLocaleString():"Not recorded"}/>
         <ReviewItem label="Assessment outcome" value={(results.find(x=>x.application_id===selected.id))?(results.find(x=>x.application_id===selected.id).passed?"Met preliminary threshold":"Below preliminary threshold"):"Pending review"}/>
         <ReviewItem label="Country" value={selected.profiles?.country||"Not provided"}/>
         <ReviewItem label="Experience" value={selected.profiles?.experience||"Not provided"}/>
@@ -1786,7 +1790,7 @@ function AdminApplications({go}){
       {selected.resumes?.file_name&&resumeUrl&&<a className="btn btn-soft" href={resumeUrl} target="_blank" rel="noreferrer">Open resume <ArrowRight size={14}/></a>}
       {selected.cover_note&&<div className="notice"><FileText size={17}/><span><strong>Cover note</strong><br/>{selected.cover_note}</span></div>}
       <section className="admin-answer-list"><span className="kicker">APPLICATION QUESTIONS</span>{Array.isArray(selected.answers)&&selected.answers.length?selected.answers.map((a,i)=><div className="admin-answer" key={i}><strong>{a.question||("Question "+(i+1))}</strong><p>{a.answer||"No answer provided"}</p></div>):<p>No additional answers were submitted.</p>}</section>
-      <div className="admin-application-actions"><label className="field"><span>Application status</span><select value={selected.status} disabled={updating} onChange={e=>updateStatus(e.target.value)}><option value="submitted">Submitted</option><option value="reviewing">Reviewing</option><option value="interview">Interview</option><option value="rejected">Rejected</option><option value="hired">Hired</option><option value="withdrawn">Withdrawn</option></select></label><Button variant="outline" onClick={()=>setSelected(null)}>Close</Button></div>
+      <div className="admin-application-actions"><label className="field"><span>Hiring decision (admin approval)</span><select value={selected.status} disabled={updating} onChange={e=>updateStatus(e.target.value)}><option value="submitted">Submitted</option><option value="reviewing">Reviewing</option><option value="interview">Interview</option><option value="rejected">Rejected</option><option value="hired">Hired</option><option value="withdrawn">Withdrawn</option></select><small>Interview completion does not automatically hire a candidate. Review the interview and assessment above, then select Hired when the team approves. Hiring activates the existing network-provider onboarding step.</small></label><Button variant="outline" onClick={()=>setSelected(null)}>Close</Button></div>
     </section></div>}
   </div>;
 }
