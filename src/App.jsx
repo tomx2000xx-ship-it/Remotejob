@@ -1643,7 +1643,7 @@ function Admin({go}){
     if(error)setError(error.message);else setRows(v=>v.map(j=>j.id===id?{...j,status}:j));
   };
   return <div className="workspace admin-workspace">
-    <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">TOTAL REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.total.toLocaleString()}</h2><span className="studio-muted">All member profiles</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.last24.toLocaleString()}</h2><span className="studio-muted">Accounts created in the last 24 hours</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE ACCOUNTS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.active.toLocaleString()}</h2><span className="studio-muted">Accounts marked active</span></article></section>
+    <section className="studio-grid" style={{marginBottom:18}}><article className="panel" style={{padding:18}}><span className="kicker">TOTAL REGISTERED USERS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.total.toLocaleString()}</h2><span className="studio-muted">All member profiles</span></article><article className="panel" style={{padding:18}}><span className="kicker">NEW IN LAST 24 HOURS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{memberStats.last24.toLocaleString()}</h2><span className="studio-muted">Accounts created in the last 24 hours</span></article><article className="panel" style={{padding:18}}><span className="kicker">ACTIVE WORKERS RIGHT NOW</span><h2 style={{fontSize:30,margin:"8px 0"}}>{activeWorkerIds.length.toLocaleString()}</h2><span className="studio-muted">Live job-workspace sessions</span></article><article className="panel" style={{padding:18}}><span className="kicker">TOTAL MEMBER EARNINGS</span><h2 style={{fontSize:30,margin:"8px 0"}}>{earningsSummary.currency} {earningsSummary.total.toFixed(2)}</h2><span className="studio-muted">All entries recorded in the earnings ledger</span></article><article className="panel" style={{padding:18}}><span className="kicker">APPROVED / EARNED</span><h2 style={{fontSize:25,margin:"8px 0"}}>{earningsSummary.currency} {earningsSummary.approved.toFixed(2)}</h2><span className="studio-muted">Pending: {earningsSummary.currency} {earningsSummary.pending.toFixed(2)} · Paid: {earningsSummary.currency} {earningsSummary.paid.toFixed(2)}</span></article></section>
     <div className="workspace-head"><div><span className="kicker">PLATFORM OPERATIONS</span><h1>Job management</h1><p>Your team controls which partner-company opportunities appear on RemoteWay.</p></div><Button onClick={openNew}><Plus size={15}/> Add a job</Button></div>
     <section className="admin-control-note"><ShieldCheck size={18}/><div><strong>Admin-controlled listings</strong><span>Partner companies do not create accounts or post jobs here. Your team adds, reviews and publishes every opportunity.</span></div></section>
     {error&&<div className="auth-message auth-error" role="alert">{error}</div>}
@@ -1909,6 +1909,9 @@ function AdminVerification({go}){
 }
 function AdminMembers({go}){
   const [rows,setRows]=useState([]);
+  const [activeWorkerIds,setActiveWorkerIds]=useState([]);
+  const [earningsByUser,setEarningsByUser]=useState({});
+  const [earningsSummary,setEarningsSummary]=useState({total:0,pending:0,approved:0,paid:0,currency:"USD"});
   const memberStats=useMemo(()=>{const cutoff=Date.now()-86400000;return {total:rows.length,last24:rows.filter(x=>x.created_at&&new Date(x.created_at).getTime()>=cutoff).length,active:rows.filter(x=>x.account_status==="active").length}},[rows]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -1935,6 +1938,29 @@ function AdminMembers({go}){
     finally{if(timeoutId)clearTimeout(timeoutId);setLoading(false);}
   };
   useEffect(()=>{void load();},[]);
+  useEffect(()=>{
+    let mounted=true;
+    const refreshEarnings=async()=>{
+      const {data,error:e}=await supabase.from("job_earnings_ledger").select("candidate_id,amount,status,currency");
+      if(e){if(mounted)setDetailError("Earnings summary is temporarily unavailable: "+e.message);return;}
+      const byUser={};const totals={total:0,pending:0,approved:0,paid:0,currency:"USD"};
+      (data||[]).forEach(entry=>{
+        const amount=Number(entry.amount||0);const currency=entry.currency||"USD";
+        if(!byUser[entry.candidate_id])byUser[entry.candidate_id]={total:0,pending:0,approved:0,paid:0,currency};
+        byUser[entry.candidate_id].total+=amount;totals.total+=amount;
+        const status=String(entry.status||"").toLowerCase();
+        if(status.includes("paid")){byUser[entry.candidate_id].paid+=amount;totals.paid+=amount;}
+        else if(status.includes("approv")||status==="earned"||status==="completed"){byUser[entry.candidate_id].approved+=amount;totals.approved+=amount;}
+        else {byUser[entry.candidate_id].pending+=amount;totals.pending+=amount;}
+      });
+      if(mounted){setEarningsByUser(byUser);setEarningsSummary(totals);}
+    };
+    void refreshEarnings();
+    const channel=supabase.channel("remote-way-active-workspaces",{config:{presence:{key:"admin-"+Date.now()}}})
+      .on("presence",{event:"sync"},()=>{if(!mounted)return;const state=channel.presenceState();const ids=Object.entries(state).filter(([,metas])=>(metas||[]).some(meta=>meta?.workspace_open===true)).map(([id])=>id);setActiveWorkerIds(ids);})
+      .subscribe();
+    return ()=>{mounted=false;supabase.removeChannel(channel);};
+  },[]);
   const openDetails=async(row)=>{
     if(["admin","super_admin"].includes(row?.role))return;
     setSelected(row);setDetails(null);setDetailError("");setDetailLoading(true);
@@ -2059,7 +2085,8 @@ function AdminMembers({go}){
   const fmtDate=value=>value?new Date(value).toLocaleString():"—";
   const showValue=value=>value===null||value===undefined||value===""?"Not provided":Array.isArray(value)?(value.length?value.join(", "):"None selected"):typeof value==="object"?JSON.stringify(value):String(value);
   const section=(title,items,fields,empty="No records found")=><section className="panel" style={{padding:18,marginTop:14}}><h3 style={{margin:"0 0 12px"}}>{title} <span style={{fontWeight:400,color:"var(--muted,#777)"}}>({items?.length||0})</span></h3>{!items?.length?<p style={{margin:0,color:"var(--muted,#777)"}}>{empty}</p>:<div style={{display:"grid",gap:10}}>{items.map((item,index)=><div key={item.id||item.job_id||index} style={{padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)",overflowWrap:"anywhere"}}>{fields.map(([label,key])=><div key={key} style={{display:"grid",gridTemplateColumns:"minmax(100px, 160px) minmax(0,1fr)",gap:10,padding:"3px 0"}}><span style={{color:"var(--muted,#777)",fontSize:13}}>{label}</span><span style={{fontSize:13}}>{showValue(item[key])}</span></div>)}</div>)}</div>}</section>;
-  const allStoredFields=(title,items,empty="No records found")=>section(title,items,Object.keys((items||[]).reduce((all,item)=>({...all,...item}),{})).map(key=>[key,key]),empty);
+  const humanizeField=key=>({id:"Record ID",user_id:"Member ID",candidate_id:"Member ID",application_id:"Application ID",job_id:"Job ID",created_at:"Created",updated_at:"Last updated",submitted_at:"Submitted",completed_at:"Completed",status:"Status",amount:"Amount",currency:"Currency",storage_path:"Private file path"}[key]||String(key).replace(/_/g," ").replace(/\\b\\w/g,char=>char.toUpperCase()));
+  const allStoredFields=(title,items,empty="No records found")=>section(title,items,Object.keys((items||[]).reduce((all,item)=>({...all,...item}),{})).map(key=>[humanizeField(key),key]),empty);
   const q=query.trim().toLowerCase();
   const filtered=rows.filter(r=>[r.full_name,r.country,r.account_type,r.role,r.account_status,r.id].filter(Boolean).join(" ").toLowerCase().includes(q));
   return <div className="workspace admin-workspace">
@@ -2071,7 +2098,7 @@ function AdminMembers({go}){
     <section className="panel"><div className="application-admin-filters"><label className="field"><span>Search members</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, country, ID, role or status"/></label></div></section>
     {loading?<div className="empty-state"><h3>Loading members…</h3><p>Fetching profile records from Supabase.</p></div>:filtered.length===0?<EmptyState title="No members found" text="Try a different search."/>:<section className="panel"><div className="admin-member-list">{filtered.map(row=><div className="admin-member-row" key={row.id}>
       <Avatar letter={(row.full_name||"M")[0].toUpperCase()}/>
-      <div className="admin-member-main"><strong>{row.full_name||"Unnamed member"}</strong><span>{row.country||"Country not set"} · {row.account_type==="job_seeker"?"Job seeker":"Employer"} · {(row.role==="admin"||row.role==="super_admin")?"Administrator":"Member"}</span><small>{row.onboarding_completed?"Onboarding complete":"Onboarding incomplete"} · Joined {new Date(row.created_at).toLocaleDateString()}</small></div>
+      <div className="admin-member-main"><strong>{row.full_name||"Unnamed member"}</strong><span>{row.country||"Country not set"} · {row.account_type==="job_seeker"?"Job seeker":"Employer"} · {(row.role==="admin"||row.role==="super_admin")?"Administrator":"Member"}</span><small>{row.onboarding_completed?"Onboarding complete":"Onboarding incomplete"} · Joined {new Date(row.created_at).toLocaleDateString()} · {activeWorkerIds.includes(row.id)?"Working now":"Not currently in workspace"} · Earned {(earningsByUser[row.id]?.currency||"USD")} {(earningsByUser[row.id]?.total||0).toFixed(2)}</small></div>
       <Button variant="outline" onClick={()=>openDetails(row)}><UserRound size={15}/> View profile</Button>
       <Badge tone={row.account_status==="active"?"green":row.account_status==="suspended"?"warning":"soft"}>{row.account_status}</Badge>
       {(row.role==="admin"||row.role==="super_admin")?<span className="admin-member-protected">Protected admin</span>:<label className="admin-status"><span>Access</span><select value={row.account_status} disabled={saving===row.id} onChange={e=>changeStatus(row,e.target.value)}><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></label>}
@@ -2538,6 +2565,21 @@ function JobWorkspace({go}){
   const [isWorkday,setIsWorkday]=useState(true);
   const [workMessage,setWorkMessage]=useState("");
   const [workStartDate,setWorkStartDate]=useState("");
+
+  useEffect(()=>{
+    let mounted=true;let channel=null;
+    (async()=>{
+      const {data:{user}}=await supabase.auth.getUser();
+      if(!mounted||!user)return;
+      channel=supabase.channel("remote-way-active-workspaces",{config:{presence:{key:user.id}}});
+      channel.subscribe(async status=>{
+        if(status==="SUBSCRIBED"&&mounted){
+          await channel.track({user_id:user.id,workspace_open:true,last_seen_at:new Date().toISOString()});
+        }
+      });
+    })();
+    return ()=>{mounted=false;if(channel){channel.untrack();supabase.removeChannel(channel);}};
+  },[]);
 
   const loadWorkTasks=async(applicationId)=>{
     if(!applicationId)return;
