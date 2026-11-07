@@ -2571,7 +2571,7 @@ function JobWorkspace({go}){
     let mounted=true;let channel=null;
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
-      if(!mounted||!user)return;
+      if(!mounted||!user||!selectedId)return;
       channel=supabase.channel("remote-way-active-workspaces",{config:{presence:{key:user.id}}});
       channel.subscribe(async status=>{
         if(status==="SUBSCRIBED"&&mounted){
@@ -2580,7 +2580,7 @@ function JobWorkspace({go}){
       });
     })();
     return ()=>{mounted=false;if(channel){channel.untrack();supabase.removeChannel(channel);}};
-  },[]);
+  },[selectedId]);
 
   const loadWorkTasks=async(applicationId)=>{
     if(!applicationId)return;
