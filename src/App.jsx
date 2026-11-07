@@ -1980,7 +1980,7 @@ function AdminMembers({go}){
         Object.values(state).flat().forEach(meta=>{
           if(!meta?.user_id||!meta?.device_id||meta.workspace_open!==true)return;
           const activityAt=Date.parse(meta.last_activity_at||"");
-          const isActive=meta.is_visible===true&&meta.is_focused===true&&meta.has_available_work===true&&Number.isFinite(activityAt)&&now-activityAt<=120000;
+          const isActive=meta.is_visible===true&&meta.is_focused===true&&meta.has_available_work===true&&meta.task_engaged===true&&Number.isFinite(activityAt)&&now-activityAt<=120000;
           sessions.push({...meta,isActive});
         });
         setActiveDeviceSessions(sessions);
@@ -2648,7 +2648,7 @@ function JobWorkspace({go}){
     let mounted=true,channel=null,heartbeat=null;
     const deviceId=getWorkDeviceId();
     const deviceLabel=getWorkDeviceLabel();
-    let lastActivityAt=new Date().toISOString(),lastPublishedAt=0;
+    let lastActivityAt=new Date().toISOString(),lastPublishedAt=0,taskEngaged=false;
     const hasAvailableWork=()=>workTasks.some(task=>task?.status==="available");
     const currentAssignmentId=()=>workTasks.find(task=>task?.status==="available")?.id||null;
     const trackState=async()=>{
@@ -2658,12 +2658,13 @@ function JobWorkspace({go}){
         user_id:user.id,device_id:deviceId,device_label:deviceLabel,
         workspace_open:true,is_visible:document.visibilityState==="visible",
         is_focused:document.hasFocus(),has_available_work:hasAvailableWork(),
-        current_assignment_id:currentAssignmentId(),last_activity_at:lastActivityAt,
-        last_seen_at:new Date().toISOString()
+        current_assignment_id:currentAssignmentId(),task_engaged:taskEngaged,
+        last_activity_at:lastActivityAt,last_seen_at:new Date().toISOString()
       });
     };
     let user=null;
     const onActivity=()=>{lastActivityAt=new Date().toISOString();if(Date.now()-lastPublishedAt>=10000)void trackState();};
+    const onTaskEngagement=(event)=>{if(event.target?.closest?.(".work-tasks-panel")){taskEngaged=true;onActivity();}};
     const onVisibility=()=>{void trackState();};
     (async()=>{
       const {data:{user:currentUser}}=await supabase.auth.getUser();
@@ -2674,6 +2675,8 @@ function JobWorkspace({go}){
         if(status==="SUBSCRIBED"&&mounted){await trackState();heartbeat=setInterval(()=>void trackState(),30000);}
       });
       ["pointerdown","keydown","touchstart","mousemove"].forEach(event=>window.addEventListener(event,onActivity,{passive:true}));
+      document.addEventListener("click",onTaskEngagement,true);
+      document.addEventListener("focusin",onTaskEngagement,true);
       window.addEventListener("focus",onVisibility);
       window.addEventListener("blur",onVisibility);
       document.addEventListener("visibilitychange",onVisibility);
@@ -2681,6 +2684,8 @@ function JobWorkspace({go}){
     return ()=>{
       mounted=false;if(heartbeat)clearInterval(heartbeat);
       ["pointerdown","keydown","touchstart","mousemove"].forEach(event=>window.removeEventListener(event,onActivity));
+      document.removeEventListener("click",onTaskEngagement,true);
+      document.removeEventListener("focusin",onTaskEngagement,true);
       window.removeEventListener("focus",onVisibility);window.removeEventListener("blur",onVisibility);
       document.removeEventListener("visibilitychange",onVisibility);
       if(channel){channel.untrack();supabase.removeChannel(channel);}
@@ -2825,9 +2830,9 @@ function JobWorkspace({go}){
               {workMessage&&<div className="payout-country-note" style={{marginTop:14}}><Clock3 size={15}/><span>{workMessage}</span></div>}
               {taskError&&<div className="form-error" role="alert" style={{marginTop:14}}>{taskError}</div>}
               {taskNotice&&<div className="form-success" role="status" style={{marginTop:14}}>{taskNotice}</div>}
-              {tasksLoading?<div className="empty-state" style={{padding:20}}><h3>Preparing today's work…</h3><p>Loading your assigned tasks and grading history.</p></div>:workTasks.length===0?<div className="empty-state" style={{padding:20}}><FileText size={22}/><h3>No task assigned yet</h3><p>{workMessage||"Your task programme will appear here after your work start date is recorded."}</p></div>:<div style={{display:"grid",gap:14,marginTop:18}}>{workTasks.map(task=><article key={task.id} className="panel" style={{padding:16,border:"1px solid var(--line,#e2e8e4)",boxShadow:"none"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}><div><span className="kicker">DAY {task.template.day_number} · {new Date(task.assigned_date+"T00:00:00").toLocaleDateString()}</span><h3 style={{margin:"8px 0"}}>{task.template.title}</h3><p style={{margin:"0 0 10px",whiteSpace:"pre-wrap"}}>{task.template.instructions}</p><small>{task.template.estimated_minutes} min · Maximum reward ${Number(task.template.max_reward||0).toFixed(2)} · Practice simulation</small></div><Badge tone={task.submission?"green":task.status==="available"?"soft":"amber"}>{task.submission?task.submission.grade_band||task.submission.status:task.status}</Badge></div>
-                {task.submission?<div style={{marginTop:14,padding:14,borderRadius:12,background:"var(--surface,#f6f8f6)"}}><div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}><strong>Score: {task.submission.quality_score??0}/100</strong><strong>Reward: ${Number(task.submission.reward_amount||0).toFixed(2)}</strong><strong>Completion: {Number(task.submission.completion_percent||0)}%</strong></div><p style={{margin:0}}>{task.submission.feedback||"Your submission has been graded."}</p></div>:<div style={{marginTop:14}}><label className="field"><span>Your response *</span><textarea rows="6" value={taskResponses[task.id]||""} onChange={e=>setTaskResponses(prev=>({...prev,[task.id]:e.target.value}))} placeholder="Describe your steps, decision, quality check and next action. Use fictional data only." disabled={taskSubmitting===task.id||!isWorkday}/></label><div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}><Button onClick={()=>submitWorkTask(task)} disabled={taskSubmitting===task.id||!isWorkday||!String(taskResponses[task.id]||"").trim()}>{taskSubmitting===task.id?"Submitting & grading…":"Submit task for automatic grading"} <ArrowRight size={15}/></Button></div></div>}
-              </article>)}</div>}
+              {tasksLoading?<div className="empty-state" style={{padding:20}}><h3>Preparing today's work…</h3><p>Loading your assigned tasks and grading history.</p></div>:workTasks.length===0?<div className="empty-state" style={{padding:20}}><FileText size={22}/><h3>No task assigned yet</h3><p>{workMessage||"Your task programme will appear here after your work start date is recorded."}</p></div>:<div style={{display:"grid",gap:14,marginTop:18}}>{workTasks.map(task=>{const isIbrahimWeekendException=!isWorkday&&selected?.id===15&&Number(task.task_template_id)===21&&task.assigned_date==="2026-11-07"&&!task.submission;const taskCanBeWorked=isWorkday||isIbrahimWeekendException;return <article key={task.id} className="panel" style={{padding:16,border:"1px solid var(--line,#e2e8e4)",boxShadow:"none"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}><div><span className="kicker">DAY {task.template.day_number} · {new Date(task.assigned_date+"T00:00:00").toLocaleDateString()}</span><h3 style={{margin:"8px 0"}}>{task.template.title}</h3><p style={{margin:"0 0 10px",whiteSpace:"pre-wrap"}}>{task.template.instructions}</p><small>{task.template.estimated_minutes} min · Maximum reward ${Number(task.template.max_reward||0).toFixed(2)} · Practice simulation</small></div><Badge tone={task.submission?"green":task.status==="available"?"soft":"amber"}>{task.submission?task.submission.grade_band||task.submission.status:task.status}</Badge></div>
+                {task.submission?<div style={{marginTop:14,padding:14,borderRadius:12,background:"var(--surface,#f6f8f6)"}}><div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}><strong>Score: {task.submission.quality_score??0}/100</strong><strong>Reward: ${Number(task.submission.reward_amount||0).toFixed(2)}</strong><strong>Completion: {Number(task.submission.completion_percent||0)}%</strong></div><p style={{margin:0}}>{task.submission.feedback||"Your submission has been graded."}</p></div>:<div style={{marginTop:14}}><label className="field"><span>Your response *</span><textarea rows="6" value={taskResponses[task.id]||""} onChange={e=>setTaskResponses(prev=>({...prev,[task.id]:e.target.value}))} placeholder="Describe your steps, decision, quality check and next action. Use fictional data only." disabled={taskSubmitting===task.id||!taskCanBeWorked}/></label><div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}><Button onClick={()=>submitWorkTask(task)} disabled={taskSubmitting===task.id||!taskCanBeWorked||!String(taskResponses[task.id]||"").trim()}>{taskSubmitting===task.id?"Submitting & grading…":"Submit task for automatic grading"} <ArrowRight size={15}/></Button></div></div>}
+              </article>})}</div>}
               <p style={{fontSize:12,color:"var(--muted,#68756e)",marginTop:16}}>Medical billing, payroll, bookkeeping and medical coding activities are synthetic training exercises. They are not official assignments from the companies named on job listings and must not contain real patient or customer information.</p>
             </div>
             {selected.network&&<Button variant="soft" onClick={()=>{setError("");setNotice("");setEditing(true);setProvider(selected.network.provider_name||"");setConnectionType(selected.network.connection_type||"");setOtherInfo(selected.network.other_network_information||"")}}>Edit network information</Button>}
