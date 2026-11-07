@@ -112,12 +112,17 @@ export default {
         is_workday: isWeekday(parseDate(today)), today,
         tasks, weekly_earned: Math.min(200, weeklyEarned), available_balance: Number(availableBalance.toFixed(2)), weekly_cap: 200,
         daily_summary: { completed: todaySubmissions.length, score: todayScores.length ? Math.round(todayScores.reduce((a: number,b: number)=>a+b,0)/todayScores.length) : null, earnings: Number(todayEarnings.toFixed(2)) },
-        message: !isWeekday(parseDate(today)) ? "The work schedule is Monday to Friday. You can review past submissions today; new tasks resume on the next weekday." : dayNumber > 20 ? "You have reached the end of the 20-weekday practice programme." : "Your weekday tasks are ready.",
+        message: !isWeekday(parseDate(today))
+          ? applicationId === 15 && uid === "26959376-120e-4d76-811e-71a4376b9ace"
+            ? tasks.some((task: any) => Number(task.task_template_id) === 21 && !task.submission)
+              ? "You have a one-time weekend exception to finish your assigned task. No new tasks are issued on weekends; the normal work schedule is Monday to Friday."
+              : "Your assigned task is complete. No new work is available on weekends; new tasks resume Monday to Friday."
+            : "No new work is available on weekends. The normal work schedule is Monday to Friday."
+          : dayNumber > 20 ? "You have reached the end of the 20-weekday practice programme." : "Your weekday tasks are ready.",
       });
     }
 
     if (body.action === "submit_task") {
-      if (!isWeekday(parseDate(today))) return json({ error: "Task submissions are available Monday to Friday only. Please return on the next weekday." }, 403);
       const assignmentId = Number(body.assignment_id);
       const responseText = String(body.response || "").trim();
       if (!Number.isSafeInteger(assignmentId) || assignmentId <= 0) return json({ error: "Choose a valid task." }, 400);
@@ -128,6 +133,13 @@ export default {
         .eq("id", assignmentId).eq("candidate_id", uid).maybeSingle();
       if (assignmentError) return json({ error: assignmentError.message }, 500);
       if (!assignment || assignment.status !== "available" || assignment.assigned_date > today) return json({ error: "This task is already submitted or is not available yet." }, 409);
+      const isIbrahimWeekendException = uid === "26959376-120e-4d76-811e-71a4376b9ace"
+        && Number(assignment.application_id) === 15
+        && Number(assignment.task_template_id) === 21
+        && assignment.assigned_date === "2026-11-07";
+      if (!isWeekday(parseDate(today)) && !isIbrahimWeekendException) {
+        return json({ error: "Task submissions are available Monday to Friday only. Please return on the next weekday." }, 403);
+      }
       const [{ data: network }, { data: accessException }] = await Promise.all([
         db.from("job_network_profiles").select("application_id").eq("application_id", assignment.application_id).eq("candidate_id", uid).maybeSingle(),
         db.from("job_workspace_access").select("network_requirement_exempt").eq("application_id", assignment.application_id).eq("candidate_id", uid).maybeSingle(),
