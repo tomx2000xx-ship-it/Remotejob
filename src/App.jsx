@@ -2190,6 +2190,22 @@ function AdminMembers({go}){
                 </div>;
               })}</div>}
           </section>
+          <section className="panel" style={{padding:18,marginTop:14}}>
+            <h3 style={{margin:"0 0 6px"}}>Live device sessions</h3>
+            <p style={{margin:"0 0 12px",fontSize:13,color:"var(--muted,#777)"}}>A device means a browser installation, not a verified physical laptop. Separate browsers or browser profiles are counted separately.</p>
+            {(()=>{const sessions=activeDeviceSessions.filter(session=>session.user_id===selected.id);return !sessions.length?<p style={{margin:0,color:"var(--muted,#777)"}}>No live workspace sessions for this member.</p>:<div style={{display:"grid",gap:10}}>{sessions.map(session=><div key={session.device_id} style={{padding:"12px 0",borderTop:"1px solid var(--border,#e7e7e7)"}}>
+              <strong>{session.device_label||"Unknown browser/device"} · {session.isActive?"Actively working":"Workspace open / idle"}</strong>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:8,marginTop:8,fontSize:13}}>
+                <span>Browser installation: {String(session.device_id).slice(0,12)}…</span>
+                <span>Last activity: {fmtDate(session.last_activity_at)}</span>
+                <span>Last seen: {fmtDate(session.last_seen_at)}</span>
+                <span>Tab visible: {session.is_visible?"Yes":"No"}</span>
+                <span>Window focused: {session.is_focused?"Yes":"No"}</span>
+                <span>Available task: {session.has_available_work?"Yes":"No"}</span>
+                <span>Current task ID: {session.current_assignment_id||"None"}</span>
+              </div>
+            </div>)}</div>})()}
+          </section>
           {allStoredFields("Job task submissions",details?.jobTaskSubmissions)}
           {allStoredFields("Job workspace access",details?.jobWorkspaceAccess)}
           {allStoredFields("Earnings ledger",details?.jobEarnings)}
@@ -2632,11 +2648,12 @@ function JobWorkspace({go}){
     let mounted=true,channel=null,heartbeat=null;
     const deviceId=getWorkDeviceId();
     const deviceLabel=getWorkDeviceLabel();
-    let lastActivityAt=new Date().toISOString();
+    let lastActivityAt=new Date().toISOString(),lastPublishedAt=0;
     const hasAvailableWork=()=>workTasks.some(task=>task?.status==="available");
     const currentAssignmentId=()=>workTasks.find(task=>task?.status==="available")?.id||null;
     const trackState=async()=>{
       if(!channel||!mounted)return;
+      lastPublishedAt=Date.now();
       await channel.track({
         user_id:user.id,device_id:deviceId,device_label:deviceLabel,
         workspace_open:true,is_visible:document.visibilityState==="visible",
@@ -2646,7 +2663,7 @@ function JobWorkspace({go}){
       });
     };
     let user=null;
-    const onActivity=()=>{lastActivityAt=new Date().toISOString();void trackState();};
+    const onActivity=()=>{lastActivityAt=new Date().toISOString();if(Date.now()-lastPublishedAt>=10000)void trackState();};
     const onVisibility=()=>{void trackState();};
     (async()=>{
       const {data:{user:currentUser}}=await supabase.auth.getUser();
