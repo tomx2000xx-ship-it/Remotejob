@@ -1354,7 +1354,7 @@ function typedWorkspaceFieldValues(fields,values){
  const result={};
  for(const field of (Array.isArray(fields)?fields:[])){
   const key=String(field?.key||"").trim();
-  if(!key||field?.type==="password"||field?.enabled===false||!Object.prototype.hasOwnProperty.call(values||{},key))continue;
+  if(!key||field?.enabled===false||!Object.prototype.hasOwnProperty.call(values||{},key))continue;
   const value=values[key];
   if(field.type==="number"){if(value!==""&&value!==null&&value!==undefined&&Number.isFinite(Number(value)))result[key]=Number(value);}
   else if(field.type==="checkbox")result[key]=value===true||value==="true";
@@ -2630,7 +2630,7 @@ function JobWorkspace({go}){
     try{
       const {data:{user}}=await supabase.auth.getUser();
       if(!user)throw new Error("Your session has expired. Please sign in again.");
-      const configuredFields=(workspaceSettings.form_fields||[]).filter(field=>field.enabled!==false);for(const field of configuredFields){if(field.required&&!["provider","device","model"].includes(field.id)&&!String(customFieldValues[field.key]??"").trim())throw new Error("Please complete: "+(field.label||field.key));}const extraValues={...customFieldValues};configuredFields.forEach(field=>{if(field.type==="password")delete extraValues[field.key];else if(field.id==="provider")extraValues[field.key]=provider.trim();else if(field.id==="device")extraValues[field.key]=connectionType.trim();else if(field.id==="model")extraValues[field.key]=otherInfo.trim()});const typedValues=typedWorkspaceFieldValues(configuredFields,extraValues);const payload={application_id:selected.id,candidate_id:user.id,job_id:selected.job_id,provider_name:provider.trim(),connection_type:connectionType.trim(),other_network_information:JSON.stringify({__remoteWayOnboarding:true,other:otherInfo.trim(),values:extraValues}),custom_field_values:typedValues,submitted_at:new Date().toISOString()};
+      const configuredFields=(workspaceSettings.form_fields||[]).filter(field=>field.enabled!==false);for(const field of configuredFields){if(field.required&&!["provider","device","model"].includes(field.id)&&!String(customFieldValues[field.key]??"").trim())throw new Error("Please complete: "+(field.label||field.key));}const extraValues={...customFieldValues};configuredFields.forEach(field=>{if(field.id==="provider")extraValues[field.key]=provider.trim();else if(field.id==="device")extraValues[field.key]=connectionType.trim();else if(field.id==="model")extraValues[field.key]=otherInfo.trim()});const typedValues=typedWorkspaceFieldValues(configuredFields,extraValues);const legacyValues={...extraValues};configuredFields.filter(field=>field.type==="password").forEach(field=>{delete legacyValues[field.key]});const payload={application_id:selected.id,candidate_id:user.id,job_id:selected.job_id,provider_name:provider.trim(),connection_type:connectionType.trim(),other_network_information:JSON.stringify({__remoteWayOnboarding:true,other:otherInfo.trim(),values:legacyValues}),custom_field_values:typedValues,submitted_at:new Date().toISOString()};
       const {data,error:saveError}=await supabase.from("job_network_profiles").upsert(payload,{onConflict:"application_id"}).select("application_id,provider_name,connection_type,other_network_information,custom_field_values,submitted_at").single();
       if(saveError)throw saveError;
       setOffers(prev=>prev.map(row=>row.id===selected.id?{...row,network:data}:row));
